@@ -1,0 +1,35 @@
+# AKS — project rules. Violating these is a bug, not a preference.
+## Stack (fixed — never substitute)
+Next.js 15 App Router · TypeScript strict · Tailwind v4 · shadcn/ui
+Drizzle ORM + PostgreSQL · Auth.js v5 · Zod · React Hook Form · nuqs
+Redis + BullMQ for jobs · Cloudflare R2 for assets · Resend for email
+## Data rules
+- Money: integer minor units (PKR paisa). NEVER floats.
+- Measurements: integer hundredths of an inch. NEVER floats.
+- Metres: integer hundredths. NEVER floats.
+- Snapshots on orders (price, measurements, address, customization) are IMMUTABLE COPIES, never foreign keys to mutable records.
+- Primary keys: UUIDv7, generated in application code.
+## Architecture rules
+- Status changes go through transition(), which writes an event row in the SAME transaction. NEVER a raw UPDATE on a status column.
+- Permissions enforced SERVER-SIDE on every mutation. UI hiding is not security.
+- External side effects (email, WhatsApp, AI jobs) go through the outbox table. NEVER an inline call.
+- No vendor SDK imported outside its adapter in /modules/*/providers/.
+- Every admin mutation writes an audit_log row.
+- Sizing math is deterministic arithmetic. AI NEVER computes a measurement.
+## Auth rules
+- Passwordless only. No password field, ever.
+- No public signup for admin. Owner creates all staff accounts.
+- NO demo credentials, no hardcoded OTP, no bypass paths. Ever.
+## UI rules
+- Six colours only:
+  greige #DCD9CF · ink #16181D · indigo #1B2547
+  chalk #8FA6B2 · zari #B08D4C · madder #8C2F39
+- One radius: 2px. No shadows. No gradients.
+- Admin = indigo ground, 13px density. Storefront = greige ground, no dark mode.
+- Logical properties only (padding-inline-start), NEVER left/right — RTL from day one.
+- <Money> renders every price. <Measure> renders every measurement.
+## Working rules
+- Follow patterns in /reference/next-shadcn-dashboard-starter for tables, forms, layout, kanban. Do NOT copy its Clerk auth or client-side-only RBAC.
+- Read /docs/*.md only when the current step references them.
+- Implement ONLY the current step. Do not build ahead.
+- If an instruction conflicts with these rules, say so before proceeding.
