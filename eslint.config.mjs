@@ -43,8 +43,8 @@ const config = [
         // Folder-based architectural units (element patterns match folders)
         { type: "app", pattern: "app/*", capture: ["segment"] },
         { type: "modules", pattern: "modules/*", capture: ["module"] },
-        { type: "db", pattern: "packages/db/*" },
-        { type: "shared", pattern: "packages/shared/*" },
+        { type: "db", pattern: "packages/db/**/*", capture: ["path"] },
+        { type: "shared", pattern: "packages/shared/**/*", capture: ["path"] },
         { type: "worker", pattern: "worker/*" },
         { type: "components", pattern: "components/*", capture: ["group"] },
         { type: "lib", pattern: "lib/*" },

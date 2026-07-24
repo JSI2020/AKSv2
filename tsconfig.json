@@ -16,7 +16,11 @@
     "incremental": true,
     "plugins": [{ "name": "next" }],
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@aks/db": ["./packages/db/index.ts"],
+      "@aks/db/*": ["./packages/db/*"],
+      "@aks/shared": ["./packages/shared/index.ts"],
+      "@aks/shared/*": ["./packages/shared/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
