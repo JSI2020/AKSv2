@@ -8,3 +8,4 @@ export * from "./size-blocks";
 export * from "./fit-profiles";
 export * from "./fabrics-archetypes";
 export * from "./catalog";
+export * from "./custom-measurements";

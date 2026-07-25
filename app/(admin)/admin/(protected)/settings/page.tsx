@@ -62,6 +62,14 @@ export default async function AdminSettingsPage() {
                   Sizing — archetypes (house models)
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/admin/settings/sizing/custom-limits"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Sizing — custom size limits (MTM)
+                </Link>
+              </li>
             </>
           ) : null}
         </ul>

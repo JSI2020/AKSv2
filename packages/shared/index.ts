@@ -41,6 +41,11 @@ export {
   formatModelDisclosure,
 } from "./fabric-archetype-seeds";
 export type { FabricSeed, HouseModelSeed } from "./fabric-archetype-seeds";
+export type { CrossFieldRule } from "./cross-field-rules";
+export {
+  CUSTOM_SIZE_LIMIT_SEEDS,
+} from "./custom-size-limit-seeds";
+export type { CustomSizeLimitSeed } from "./custom-size-limit-seeds";
 export {
   DESIGN_TAG_KINDS,
   DESIGN_TAG_VALUES,

@@ -21,6 +21,7 @@ async function seed() {
     fitProfiles,
     fabrics,
     houseModels,
+    customSizeLimits,
   } = await import("./schema");
   const { and, eq } = await import("drizzle-orm");
   const {
@@ -35,6 +36,7 @@ async function seed() {
     applyFitEase,
     FABRIC_SEEDS,
     HOUSE_MODEL_SEEDS,
+    CUSTOM_SIZE_LIMIT_SEEDS,
     formatModelDisclosure,
   } = shared;
 
@@ -372,6 +374,27 @@ async function seed() {
     throw new Error(`Disclosure mismatch:\n${disclosure}\n${expected}`);
   }
   console.log(`seeded ${HOUSE_MODEL_SEEDS.length} house_models — disclosure OK`);
+
+  // --- Custom size limits (MTM) ---
+  await db.delete(customSizeLimits);
+  for (const limit of CUSTOM_SIZE_LIMIT_SEEDS) {
+    const categoryId = categoryIdByKey.get(limit.categoryKey);
+    if (!categoryId) {
+      throw new Error(`Missing category ${limit.categoryKey} for custom limit`);
+    }
+    await db.insert(customSizeLimits).values({
+      id: uuidv7(),
+      categoryId,
+      measurementKey: limit.measurementKey,
+      minValue: limit.minValue,
+      maxValue: limit.maxValue,
+      step: limit.step ?? 25,
+      crossFieldRules: limit.crossFieldRules ?? [],
+    });
+    console.log(
+      `seeded custom_size_limit ${limit.categoryKey}/${limit.measurementKey}`,
+    );
+  }
 
   console.log(`uuidv7 sample: ${uuidv7()}`);
   process.exit(0);

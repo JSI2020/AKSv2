@@ -1,32 +1,51 @@
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 
+import { auth } from "@/auth";
+import { Link } from "@/i18n/routing";
 import { getDesignBySlug } from "@/modules/catalog";
+import {
+  MeasureFlow,
+  getOrSetAnonToken,
+  loadMeasureFlowSession,
+} from "@/modules/measure";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
 };
 
-export default async function DesignMeasureStubPage({ params }: Props) {
+export default async function DesignMeasurePage({ params }: Props) {
   const { locale, slug } = await params;
   setRequestLocale(locale);
 
   const design = await getDesignBySlug(slug);
   if (!design) notFound();
 
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const anonToken = userId ? null : await getOrSetAnonToken();
+
+  const flowState = await loadMeasureFlowSession({
+    designSlug: slug,
+    userId,
+    anonToken,
+  });
+  if (!flowState) notFound();
+
   return (
     <main className="mx-auto max-w-[640px] px-4 py-16 md:px-10">
-      <p className="mb-3 text-[12px] uppercase tracking-[0.1em] text-madder">
-        Made to measure
+      <p className="mb-8">
+        <Link
+          href={`/designs/${slug}`}
+          className="text-[12px] uppercase tracking-[0.08em] text-ink/60"
+        >
+          ← Back to {design.name}
+        </Link>
       </p>
-      <h1 className="mb-4 font-display text-[32px] font-medium leading-tight">
-        {design.name}
-      </h1>
-      <p className="text-[15px] leading-relaxed text-ink/75">
-        Tell us your measurements and watch the fit change. This flow arrives in
-        the next step — for now, return to the design page to choose a standard
-        size or open the size guide.
-      </p>
+      <MeasureFlow
+        initialState={flowState}
+        isSignedIn={Boolean(userId)}
+      />
     </main>
   );
 }
