@@ -12,6 +12,10 @@ import {
   ORDER_STATUS_ALLOW,
   type OrderStatus,
 } from "./constants";
+import {
+  reserveFabricForOrder,
+  releaseFabricForOrder,
+} from "@/modules/inventory";
 
 export const ORDER_TRANSITION_ALLOW: TransitionAllowList =
   ORDER_STATUS_ALLOW as TransitionAllowList;
@@ -59,6 +63,19 @@ export function registerOrderTransitions(): void {
         .set(patch)
         .where(and(eq(orders.id, id), eq(orders.status, from as OrderStatus)))
         .returning({ id: orders.id });
+
+      if (rows.length === 1) {
+        if (to === "MEASUREMENTS_CONFIRMED") {
+          await reserveFabricForOrder(id, tx);
+        }
+        if (
+          (to === "CANCELLED" || to === "REFUND_PENDING") &&
+          from === "MEASUREMENTS_CONFIRMED"
+        ) {
+          await releaseFabricForOrder(id, tx);
+        }
+      }
+
       return rows.length;
     },
     insertEvent: async (tx, row) => {

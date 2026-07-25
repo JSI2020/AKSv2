@@ -34,6 +34,7 @@ import { transitionOrder } from "./transition-order";
 import { ORDER_TRANSITION_ALLOW } from "./transitions";
 import { recordCodBalanceOnDelivery } from "@/modules/payments/cod/queries";
 import { handleDeliveryRefused } from "@/modules/payments/cod/customer-profile";
+import { consumeFabricAtCutting } from "@/modules/inventory";
 
 import "./transitions";
 
@@ -121,6 +122,8 @@ export async function confirmMeasurementsAction(
 export async function advanceStageAction(input: {
   orderId: string;
   customerRemark?: string;
+  /** Hundredths of a metre per order item — required when advancing to CUTTING. */
+  actualMetersByOrderItemId?: Record<string, number>;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const session = await requirePermission("orders.advance_status");
@@ -156,6 +159,17 @@ export async function advanceStageAction(input: {
         note: customerRemark,
         tx,
       });
+
+      if (to === "CUTTING") {
+        await consumeFabricAtCutting(
+          {
+            orderId: input.orderId,
+            actor: { id: session.user.id, role: session.user.role },
+            actualMetersByOrderItemId: input.actualMetersByOrderItemId,
+          },
+          tx,
+        );
+      }
 
       if (to === "DELIVERED" && order.balanceAmountMinor > 0) {
         await recordCodBalanceOnDelivery(

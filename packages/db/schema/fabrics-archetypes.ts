@@ -17,9 +17,8 @@ export const drapeClassEnum = pgEnum("drape_class", [
 ]);
 
 /**
- * Minimal fabric record — lots/suppliers added later without altering this table.
- * Money: costPerMeterMinor (paisa). Width/shrinkage: hundredths of an inch.
- * stretchPercent: integer 0–100.
+ * Fabric master record. Money: costPerMeterMinor (paisa). Width/shrinkage: hundredths of an inch.
+ * Metres: reorderPointMeters / reorderQuantityMeters in hundredths of a metre.
  */
 export const fabrics = pgTable("fabrics", {
   id: uuid("id").primaryKey(),
@@ -34,6 +33,12 @@ export const fabrics = pgTable("fabrics", {
   stretchPercent: integer("stretch_percent").notNull().default(0),
   shrinkageAllowance: integer("shrinkage_allowance").notNull().default(0),
   drapeClass: drapeClassEnum("drape_class").notNull().default("MEDIUM"),
+  /** Hundredths of a metre — alert when aggregate available drops below this. */
+  reorderPointMeters: integer("reorder_point_meters").notNull().default(0),
+  /** Hundredths of a metre — suggested PO quantity. */
+  reorderQuantityMeters: integer("reorder_quantity_meters").notNull().default(0),
+  /** Nullable until suppliers are seeded. */
+  defaultSupplierId: uuid("default_supplier_id"),
   active: boolean("active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

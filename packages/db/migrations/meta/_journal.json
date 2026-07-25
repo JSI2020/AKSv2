@@ -127,6 +127,13 @@
       "when": 1785040000000,
       "tag": "0019_step39_hero_loop",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1785044000000,
+      "tag": "0021_step43_fabric_lots",
+      "breakpoints": true
     }
   ]
 }
