@@ -41,6 +41,7 @@ function NavLink({
 function useVisibleNav(): AdminNavItem[] {
   // Hooks must be called unconditionally — check each known key.
   const canOrders = useCan("orders.view");
+  const canProduction = useCan("production.view");
   const canDesigns = useCan("designs.view");
   const canFabric = useCan("fabric.view");
   const canCustomers = useCan("customers.view");
@@ -52,6 +53,7 @@ function useVisibleNav(): AdminNavItem[] {
 
   const map: Record<string, boolean> = {
     "orders.view": canOrders,
+    "production.view": canProduction,
     "designs.view": canDesigns,
     "fabric.view": canFabric,
     "customers.view": canCustomers,

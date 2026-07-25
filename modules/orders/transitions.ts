@@ -16,6 +16,7 @@ import {
   reserveFabricForOrder,
   releaseFabricForOrder,
 } from "@/modules/inventory";
+import { createProductionJobsForOrder } from "@/modules/production/create-jobs";
 
 export const ORDER_TRANSITION_ALLOW: TransitionAllowList =
   ORDER_STATUS_ALLOW as TransitionAllowList;
@@ -67,6 +68,11 @@ export function registerOrderTransitions(): void {
       if (rows.length === 1) {
         if (to === "MEASUREMENTS_CONFIRMED") {
           await reserveFabricForOrder(id, tx);
+          await createProductionJobsForOrder(
+            id,
+            { id: "00000000-0000-7000-8000-000000000002", role: "SYSTEM" },
+            tx,
+          );
         }
         if (
           (to === "CANCELLED" || to === "REFUND_PENDING") &&

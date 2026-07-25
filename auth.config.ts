@@ -1,6 +1,11 @@
 import type { NextAuthConfig } from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 
+import {
+  isProductionOnlyRole,
+  isTailorAllowedPath,
+} from "@/modules/auth/tailor-access";
+
 /**
  * Edge-safe Auth.js config (no DB adapter / Node crypto).
  * Shared by middleware and the full `auth.ts` config.
@@ -56,6 +61,18 @@ export const authConfig = {
           !path.startsWith("/admin/2fa")
         ) {
           return Response.redirect(new URL("/admin/2fa", request.nextUrl));
+        }
+        if (isProductionOnlyRole(role)) {
+          if (path === "/admin" || path === "/admin/") {
+            return Response.redirect(
+              new URL("/admin/production", request.nextUrl),
+            );
+          }
+          if (!isTailorAllowedPath(path)) {
+            return Response.redirect(
+              new URL("/admin/production", request.nextUrl),
+            );
+          }
         }
         return true;
       }

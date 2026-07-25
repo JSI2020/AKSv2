@@ -1,6 +1,15 @@
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
+
+import { isProductionOnlyRole } from "@/modules/auth/tailor-access";
 import { EmptyState, Eyebrow } from "@/modules/ui";
 
-export default function AdminTodayPage() {
+export default async function AdminTodayPage() {
+  const session = await auth();
+  if (session?.user && isProductionOnlyRole(session.user.role)) {
+    redirect("/admin/production");
+  }
+
   return (
     <div>
       <Eyebrow>AKS · admin</Eyebrow>

@@ -4,6 +4,7 @@ import {
   Layers,
   LineChart,
   Palette,
+  Scissors,
   Settings,
   ShoppingBag,
   Sparkles,
@@ -31,7 +32,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     title: "Today",
     href: "/admin",
     icon: LayoutDashboard,
-    permission: null,
+    permission: "orders.view",
     shortcut: "G T",
   },
   {
@@ -40,6 +41,13 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     icon: ShoppingBag,
     permission: "orders.view",
     shortcut: "G O",
+  },
+  {
+    title: "Production",
+    href: "/admin/production",
+    icon: Scissors,
+    permission: "production.view",
+    shortcut: "G P",
   },
   {
     title: "Studio",

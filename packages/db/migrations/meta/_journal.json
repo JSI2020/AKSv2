@@ -134,6 +134,13 @@
       "when": 1785044000000,
       "tag": "0021_step43_fabric_lots",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1785048000000,
+      "tag": "0022_step44_production_board",
+      "breakpoints": true
     }
   ]
 }
