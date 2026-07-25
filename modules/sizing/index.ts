@@ -11,3 +11,16 @@ export type {
   CategoryActionResult,
 } from "./actions";
 export { CategoryForm } from "./category-form";
+export {
+  resolveChart,
+  resolveCellValue,
+  editBaseCell,
+  SizingEngineError,
+} from "./engine";
+export type {
+  SizeBlockInput,
+  SizeBlockRowInput,
+  PinnedCellInput,
+  ChartCell,
+  ChartGrid,
+} from "./engine";

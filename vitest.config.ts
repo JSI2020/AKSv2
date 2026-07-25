@@ -11,7 +11,20 @@ export default defineConfig({
     environmentMatchGlobs: [
       ["modules/platform/**/*.test.ts", "node"],
       ["modules/auth/**/*.test.ts", "node"],
+      ["modules/sizing/**/*.test.ts", "node"],
     ],
+    coverage: {
+      include: [
+        "modules/sizing/engine/resolve-chart.ts",
+        "modules/sizing/engine/edit-base-cell.ts",
+      ],
+      thresholds: {
+        lines: 100,
+        functions: 100,
+        branches: 100,
+        statements: 100,
+      },
+    },
     fileParallelism: false,
   },
   resolve: {
