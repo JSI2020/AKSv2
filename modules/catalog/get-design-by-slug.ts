@@ -153,6 +153,8 @@ export async function getDesignBySlug(
     basePriceMinor: row.design.basePriceMinor,
     madeToMeasureSurchargeMinor: row.design.madeToMeasureSurchargeMinor,
     leadTimeDaysOverride: row.design.leadTimeDaysOverride,
+    components: row.design.components ?? [],
+    sizeBlockId: row.design.sizeBlockId,
     garmentCategory: row.garmentCategory,
     defaultColourwayId: defaultColourway.id,
     colourways: colourwaysPublic,

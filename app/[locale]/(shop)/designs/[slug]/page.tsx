@@ -5,6 +5,7 @@ import {
   DesignConfigurator,
   DesignDetailBreadcrumb,
   getDesignBySlug,
+  resolveDesignSizeChart,
   resolveImages,
 } from "@/modules/catalog";
 import type { GalleryAngle, SizeMode } from "@/modules/catalog";
@@ -46,11 +47,18 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
     }),
   );
 
+  const sizeChart = await resolveDesignSizeChart({
+    sizeBlockId: design.sizeBlockId,
+    components: design.components,
+    primaryCategoryKey: design.garmentCategory.key,
+  });
+
   return (
     <main className="mx-auto max-w-[1300px] px-4 pb-28 pt-9 md:px-10">
       <DesignDetailBreadcrumb design={design} />
       <DesignConfigurator
         design={design}
+        sizeChart={sizeChart}
         imagesByColourway={imagesByColourway}
         initialColourwayParam={colourway}
         initialAngle={angle}

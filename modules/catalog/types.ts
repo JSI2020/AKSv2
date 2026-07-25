@@ -131,6 +131,9 @@ export type DesignDetailPublic = {
   basePriceMinor: number;
   madeToMeasureSurchargeMinor: number;
   leadTimeDaysOverride: number | null;
+  /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */
+  components: string[];
+  sizeBlockId: string | null;
   garmentCategory: {
     id: string;
     key: string;

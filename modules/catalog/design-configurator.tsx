@@ -2,6 +2,7 @@
 
 import { useQueryStates } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
+import type { BodyOrGarment } from "@aks/shared";
 
 import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
@@ -9,6 +10,7 @@ import { Money } from "@/modules/ui";
 import { DesignColourwayPicker } from "./design-colourway-picker";
 import { designDetailParsers } from "./design-detail-search-params";
 import { DesignGallery } from "./design-gallery";
+import { DesignSizeGuideModal } from "./design-size-guide-modal";
 import { DesignSizePicker } from "./design-size-picker";
 import type {
   ConfiguratorState,
@@ -17,6 +19,7 @@ import type {
   ResolvedImageTriple,
   SizeMode,
 } from "./types";
+import type { DesignSizeChartPublic } from "./resolve-design-size-chart";
 import {
   colourwayUrlValue,
   formatLeadTime,
@@ -25,6 +28,7 @@ import {
 
 type Props = {
   design: DesignDetailPublic;
+  sizeChart: DesignSizeChartPublic | null;
   imagesByColourway: Record<string, ResolvedImageTriple>;
   initialColourwayParam: string | null;
   initialAngle: GalleryAngle;
@@ -35,6 +39,7 @@ type Props = {
 
 export function DesignConfigurator({
   design,
+  sizeChart,
   imagesByColourway,
   initialColourwayParam,
   initialAngle,
@@ -54,6 +59,9 @@ export function DesignConfigurator({
   );
 
   const [measurements, setMeasurements] = useState<Record<string, number>>({});
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const [measurementView, setMeasurementView] =
+    useState<BodyOrGarment>("BODY");
 
   const colourwayId = resolveColourwayId(
     urlState.colourway ?? initialColourwayParam,
@@ -120,6 +128,14 @@ export function DesignConfigurator({
     [design.colourways, setUrlState],
   );
 
+  const handleSelectSizeFromGuide = useCallback(
+    (sizeLabel: string) => {
+      patchState({ sizeMode: "STANDARD", sizeLabel });
+      setSizeGuideOpen(false);
+    },
+    [patchState],
+  );
+
   return (
     <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
       <DesignGallery
@@ -152,12 +168,24 @@ export function DesignConfigurator({
 
         <div className="my-7 border-y border-greige-deep py-5">
           <DesignSizePicker
+            designSlug={design.slug}
             sizeMode={state.sizeMode}
             sizeLabel={state.sizeLabel}
             onSizeModeChange={(sizeMode) => patchState({ sizeMode })}
             onSizeLabelChange={(sizeLabel) => patchState({ sizeLabel })}
+            onOpenSizeGuide={() => setSizeGuideOpen(true)}
           />
         </div>
+
+        <DesignSizeGuideModal
+          open={sizeGuideOpen}
+          onClose={() => setSizeGuideOpen(false)}
+          chart={sizeChart}
+          selectedSizeLabel={state.sizeLabel}
+          measurementView={measurementView}
+          onMeasurementViewChange={setMeasurementView}
+          onSelectSize={handleSelectSizeFromGuide}
+        />
 
         <dl className="mb-7 space-y-3 text-[14px]">
           <div className="flex justify-between gap-4">

@@ -4,6 +4,12 @@ export type {
   GetPublishedDesignsResult,
 } from "./queries";
 export { getDesignBySlug } from "./get-design-by-slug";
+export {
+  resolveDesignSizeChart,
+  type DesignSizeChartPublic,
+  type SizeChartComponentPublic,
+  type SizeChartRowPublic,
+} from "./resolve-design-size-chart";
 export { resolveImages, buildImageTripleFromRows } from "./resolve-images";
 export type { RenderRow } from "./resolve-images";
 export { resolveCollection } from "./resolve-collection";
