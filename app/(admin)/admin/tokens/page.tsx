@@ -1,3 +1,5 @@
+import { PrimitivesDemo } from "./primitives-demo";
+
 const COLORS = [
   { name: "greige", token: "--color-greige", className: "bg-greige" },
   {
@@ -99,6 +101,8 @@ export default function TokensPage() {
           <div className="block-size-16 inline-size-16 border border-chalk bg-indigo-lift" />
         </div>
       </section>
+
+      <PrimitivesDemo />
     </main>
   );
 }
