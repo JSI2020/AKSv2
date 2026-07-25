@@ -20,3 +20,4 @@ export * from "./messaging";
 export * from "./studio";
 export * from "./production";
 export * from "./money";
+export * from "./discounts";

@@ -11,12 +11,13 @@ import {
   provinceLabel,
   type PaymentPlan,
 } from "./payment-plans";
-import type { CheckoutAddressInput } from "./types";
+import type { CheckoutAddressInput, CheckoutDiscountPreview } from "./types";
 
 type Props = {
   cart: CartPublic;
   address: CheckoutAddressInput;
   paymentPlan: PaymentPlan;
+  discountPreview: CheckoutDiscountPreview | null;
   customerNotes: string;
   pending: boolean;
   onCustomerNotesChange: (value: string) => void;
@@ -36,6 +37,7 @@ export function ReviewStep({
   cart,
   address,
   paymentPlan,
+  discountPreview,
   customerNotes,
   pending,
   onCustomerNotesChange,
@@ -63,7 +65,9 @@ export function ReviewStep({
     });
   }, []);
 
-  const amounts = computeDepositAmounts({ totalMinor: subtotalMinor, plan: paymentPlan });
+  const totalMinor = discountPreview?.totalMinor ?? subtotalMinor;
+  const discountMinor = discountPreview?.discountMinor ?? 0;
+  const amounts = computeDepositAmounts({ totalMinor, plan: paymentPlan });
 
   return (
     <div className="space-y-6">
@@ -138,6 +142,20 @@ export function ReviewStep({
         <div className="mt-4 flex justify-between border-t border-greige-deep pt-3 text-[15px]">
           <span>Subtotal</span>
           <Money value={subtotalMinor} />
+        </div>
+        {discountMinor > 0 ? (
+          <div className="mt-2 flex justify-between text-[14px] text-ink/70">
+            <span>
+              Discount{discountPreview?.code ? ` (${discountPreview.code})` : ""}
+            </span>
+            <span>
+              −<Money value={discountMinor} className="inline" />
+            </span>
+          </div>
+        ) : null}
+        <div className="mt-2 flex justify-between text-[15px]">
+          <span>Order total</span>
+          <Money value={totalMinor} />
         </div>
         <div className="mt-2 flex justify-between text-[14px] text-ink/70">
           <span>Deposit due now</span>

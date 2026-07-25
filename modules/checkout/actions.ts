@@ -18,17 +18,24 @@ import {
 import { buildStandardMeasurementSnapshot } from "@/modules/orders/compute-cut-spec-snapshot";
 import { placeOrderCore } from "@/modules/orders/place-order-core";
 import { getCustomerCodStatus } from "@/modules/payments/cod/customer-profile";
+import { evaluateCheckoutDiscounts } from "@/modules/discounts/evaluate";
 
 import {
   computeDepositAmounts,
   isPaymentPlanAllowed,
 } from "./payment-plans";
 import { validateCheckoutAddress, validatePaymentPlan } from "./schemas";
-import type { PlaceOrderInput, PlaceOrderResult } from "./types";
+import type {
+  ApplyCheckoutDiscountResult,
+  CheckoutDiscountPreview,
+  PlaceOrderInput,
+  PlaceOrderResult,
+} from "./types";
 import { toShippingSnapshot } from "./types";
 import {
   loadMeasurementSnapshot,
   validateCartForCheckout,
+  type ValidatedCartLine,
 } from "./validate";
 
 async function getCartContext(): Promise<CartContext> {
@@ -36,6 +43,73 @@ async function getCartContext(): Promise<CartContext> {
   const userId = session?.user?.id ?? null;
   const anonId = await getOrSetAnonToken();
   return { userId, anonId };
+}
+
+function toDiscountLines(lines: ValidatedCartLine[]) {
+  return lines.map((line) => ({
+    designId: line.designId,
+    garmentTypeId: line.garmentTypeId,
+    lineTotalMinor: line.lineTotalMinor,
+  }));
+}
+
+export async function applyCheckoutDiscount(input: {
+  code: string;
+  paymentPlan: PlaceOrderInput["paymentPlan"];
+}): Promise<ApplyCheckoutDiscountResult> {
+  const planResult = validatePaymentPlan(input.paymentPlan);
+  if (!planResult.ok) {
+    return { ok: false, error: planResult.error };
+  }
+
+  const ctx = await getCartContext();
+  const cartId = await getActiveCartId(ctx);
+  if (!cartId) {
+    return { ok: false, error: "Your cart is empty." };
+  }
+
+  const validation = await validateCartForCheckout(cartId);
+  if (!validation.ok) {
+    return {
+      ok: false,
+      error: "Something in your cart changed. Review the details below.",
+    };
+  }
+
+  const shippingMinor = 0;
+  const taxMinor = 0;
+
+  const evaluation = await evaluateCheckoutDiscounts({
+    lines: toDiscountLines(validation.lines),
+    subtotalMinor: validation.subtotalMinor,
+    shippingMinor,
+    taxMinor,
+    code: input.code,
+    userId: ctx.userId,
+  });
+
+  if (!evaluation.ok) {
+    return { ok: false, error: evaluation.error };
+  }
+
+  const amounts = computeDepositAmounts({
+    totalMinor: evaluation.totalMinor,
+    plan: planResult.plan,
+  });
+
+  return {
+    ok: true,
+    preview: {
+      code: input.code.trim().toUpperCase(),
+      subtotalMinor: evaluation.subtotalMinor,
+      discountMinor: evaluation.discountMinor,
+      shippingMinor: evaluation.shippingMinor,
+      taxMinor: evaluation.taxMinor,
+      totalMinor: evaluation.totalMinor,
+      depositAmountMinor: amounts.depositAmountMinor,
+      balanceAmountMinor: amounts.balanceAmountMinor,
+    },
+  };
 }
 
 export async function placeOrder(
@@ -85,9 +159,24 @@ export async function placeOrder(
 
   const subtotalMinor = validation.subtotalMinor;
   const shippingMinor = 0;
-  const discountMinor = 0;
   const taxMinor = 0;
-  const totalMinor = subtotalMinor + shippingMinor + taxMinor - discountMinor;
+
+  const evaluation = await evaluateCheckoutDiscounts({
+    lines: toDiscountLines(lines),
+    subtotalMinor,
+    shippingMinor,
+    taxMinor,
+    code: input.discountCode,
+    userId: ctx.userId,
+    guestEmail: addressResult.data.guestEmail,
+  });
+
+  if (!evaluation.ok) {
+    return { ok: false, error: evaluation.error };
+  }
+
+  const discountMinor = evaluation.discountMinor;
+  const totalMinor = evaluation.totalMinor;
   computeDepositAmounts({ totalMinor, plan: planResult.plan });
 
   const shippingSnapshot = toShippingSnapshot(addressResult.data);
@@ -151,7 +240,8 @@ export async function placeOrder(
           cartId,
           subtotalMinor,
           discountMinor,
-          shippingMinor,
+          discountBreakdownSnapshot: evaluation.breakdown,
+          shippingMinor: evaluation.shippingMinor,
           taxMinor,
           totalMinor,
           lines: resolvedLines,

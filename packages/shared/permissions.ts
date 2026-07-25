@@ -27,6 +27,7 @@ export const PERMISSION_MODULES = {
   settings: ["view", "edit", "edit_financial"],
   staff: ["view", "create", "edit", "assign_permissions", "deactivate"],
   production: ["view", "advance_stage", "assign"],
+  discounts: ["view", "create", "edit", "delete"],
 } as const;
 
 type ModuleName = keyof typeof PERMISSION_MODULES;
@@ -89,6 +90,9 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRole, readonly PermissionKey[
       "production.view",
       "production.advance_stage",
       "production.assign",
+      "discounts.view",
+      "discounts.create",
+      "discounts.edit",
     ],
 
     /** Orders + production: view, edit, advance. No delete, money, settings. */

@@ -4,6 +4,7 @@ import {
   Layers,
   LineChart,
   Palette,
+  Percent,
   Scissors,
   Settings,
   ShoppingBag,
@@ -75,6 +76,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     icon: Users,
     permission: "customers.view",
     shortcut: "G C",
+  },
+  {
+    title: "Discounts",
+    href: "/admin/discounts",
+    icon: Percent,
+    permission: "discounts.view",
   },
   {
     title: "Money",

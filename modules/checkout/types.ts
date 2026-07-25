@@ -23,7 +23,23 @@ export type PlaceOrderInput = {
   address: CheckoutAddressInput;
   paymentPlan: PaymentPlan;
   customerNotes?: string;
+  discountCode?: string | null;
 };
+
+export type CheckoutDiscountPreview = {
+  code: string;
+  subtotalMinor: number;
+  discountMinor: number;
+  shippingMinor: number;
+  taxMinor: number;
+  totalMinor: number;
+  depositAmountMinor: number;
+  balanceAmountMinor: number;
+};
+
+export type ApplyCheckoutDiscountResult =
+  | { ok: true; preview: CheckoutDiscountPreview }
+  | { ok: false; error: string };
 
 export type PlaceOrderResult =
   | { ok: true; orderNumber: string; orderId: string }

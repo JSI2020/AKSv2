@@ -10,12 +10,18 @@ import {
   getAvailablePaymentPlans,
   type PaymentPlan,
 } from "./payment-plans";
+import type { CheckoutDiscountPreview } from "./types";
+import { DiscountCodeField } from "./discount-code-field";
 
 type Props = {
   lines: { sizeMode: "STANDARD" | "MADE_TO_MEASURE" }[];
   subtotalMinor: number;
   selected: PaymentPlan | null;
   codDisabled?: boolean;
+  discountCode: string;
+  discountPreview: CheckoutDiscountPreview | null;
+  onDiscountCodeChange: (value: string) => void;
+  onDiscountApplied: (preview: CheckoutDiscountPreview | null) => void;
   onBack: () => void;
   onContinue: (plan: PaymentPlan) => void;
 };
@@ -25,12 +31,17 @@ export function PaymentStep({
   subtotalMinor,
   selected,
   codDisabled = false,
+  discountCode,
+  discountPreview,
+  onDiscountCodeChange,
+  onDiscountApplied,
   onBack,
   onContinue,
 }: Props) {
   const [plan, setPlan] = useState<PaymentPlan | null>(selected);
   const [error, setError] = useState<string | null>(null);
   const options = getAvailablePaymentPlans(lines, { codDisabled });
+  const effectiveTotalMinor = discountPreview?.totalMinor ?? subtotalMinor;
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -66,7 +77,7 @@ export function PaymentStep({
         <legend className="sr-only">Choose a payment plan</legend>
         {options.map((option) => {
           const amounts = computeDepositAmounts({
-            totalMinor: subtotalMinor,
+            totalMinor: effectiveTotalMinor,
             plan: option.plan,
           });
           const checked = plan === option.plan;
@@ -128,6 +139,16 @@ export function PaymentStep({
           );
         })}
       </fieldset>
+
+      {plan ? (
+        <DiscountCodeField
+          code={discountCode}
+          onCodeChange={onDiscountCodeChange}
+          paymentPlan={plan}
+          applied={discountPreview}
+          onApplied={onDiscountApplied}
+        />
+      ) : null}
 
       {error ? (
         <p className="text-[14px] text-madder" role="alert">

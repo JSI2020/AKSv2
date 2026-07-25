@@ -5,6 +5,7 @@ import {
   carts,
   orderItems,
   orders,
+  type OrderDiscountBreakdownSnapshot,
   type OrderPriceBreakdownSnapshot,
   type OrderMeasurementSnapshot,
   type ShippingAddressSnapshot,
@@ -13,6 +14,7 @@ import { uuidv7 } from "@aks/shared";
 
 import type { PaymentPlan } from "@/modules/checkout/payment-plans";
 import { computeDepositAmounts } from "@/modules/checkout/payment-plans";
+import { recordDiscountRedemptions } from "@/modules/discounts/evaluate";
 import { enqueue } from "@/modules/platform/outbox/enqueue";
 import { transition } from "@/modules/platform/transition";
 import type { DbTx } from "@/modules/platform/types";
@@ -51,6 +53,7 @@ export type PlaceOrderCoreInput = {
   cartId?: string | null;
   subtotalMinor: number;
   discountMinor?: number;
+  discountBreakdownSnapshot?: OrderDiscountBreakdownSnapshot | null;
   shippingMinor?: number;
   taxMinor?: number;
   totalMinor: number;
@@ -77,6 +80,7 @@ export async function placeOrderCore(
   const discountMinor = input.discountMinor ?? 0;
   const shippingMinor = input.shippingMinor ?? 0;
   const taxMinor = input.taxMinor ?? 0;
+  const discountBreakdownSnapshot = input.discountBreakdownSnapshot ?? null;
   const { depositAmountMinor, balanceAmountMinor } = computeDepositAmounts({
     totalMinor: input.totalMinor,
     plan: input.paymentPlan,
@@ -95,6 +99,7 @@ export async function placeOrderCore(
     currency: "PKR",
     subtotalMinor: input.subtotalMinor,
     discountMinor,
+    discountBreakdownSnapshot,
     shippingMinor,
     taxMinor,
     totalMinor: input.totalMinor,
@@ -160,6 +165,15 @@ export async function placeOrderCore(
     allowList: ORDER_TRANSITION_ALLOW,
     tx,
   });
+
+  if (discountBreakdownSnapshot && discountBreakdownSnapshot.applied.length > 0) {
+    await recordDiscountRedemptions(tx, {
+      orderId,
+      userId: input.userId,
+      guestEmail: input.guestEmail ?? null,
+      breakdown: discountBreakdownSnapshot,
+    });
+  }
 
   if (input.cartId) {
     await tx

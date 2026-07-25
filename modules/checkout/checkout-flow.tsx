@@ -8,11 +8,12 @@ import type { CartPublic } from "@/modules/cart";
 
 import { placeOrder } from "./actions";
 import { AddressStep } from "./address-step";
+import { DiscountCodeField } from "./discount-code-field";
 import { PaymentStep } from "./payment-step";
 import { ReviewStep } from "./review-step";
 import { trackCheckoutStarted, trackOrderPlaced } from "@/modules/analytics";
 import type { PaymentPlan } from "./payment-plans";
-import type { CheckoutAddressInput, CheckoutStep } from "./types";
+import type { CheckoutAddressInput, CheckoutDiscountPreview, CheckoutStep } from "./types";
 
 type Props = {
   cart: CartPublic;
@@ -49,6 +50,9 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
   });
 
   const [paymentPlan, setPaymentPlan] = useState<PaymentPlan | null>(null);
+  const [discountCode, setDiscountCode] = useState("");
+  const [discountPreview, setDiscountPreview] =
+    useState<CheckoutDiscountPreview | null>(null);
   const [customerNotes, setCustomerNotes] = useState("");
 
   function goToPayment(nextAddress: CheckoutAddressInput) {
@@ -77,6 +81,7 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
         address,
         paymentPlan,
         customerNotes,
+        discountCode: discountPreview?.code ?? (discountCode.trim() || null),
       });
 
       if (!result.ok) {
@@ -88,7 +93,7 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
       trackOrderPlaced({
         orderNumber: result.orderNumber,
         designIds: cart.lines.map((item) => item.designId),
-        totalMinor: cart.subtotalMinor,
+        totalMinor: discountPreview?.totalMinor ?? cart.subtotalMinor,
       });
 
       router.push(`/checkout/confirmation?order=${encodeURIComponent(result.orderNumber)}`);
@@ -178,6 +183,10 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
           subtotalMinor={cart.subtotalMinor}
           selected={paymentPlan}
           codDisabled={codDisabled}
+          discountCode={discountCode}
+          discountPreview={discountPreview}
+          onDiscountCodeChange={setDiscountCode}
+          onDiscountApplied={setDiscountPreview}
           onBack={() => setStep("address")}
           onContinue={goToReview}
         />
@@ -188,6 +197,7 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
           cart={cart}
           address={address}
           paymentPlan={paymentPlan}
+          discountPreview={discountPreview}
           customerNotes={customerNotes}
           pending={pending}
           onCustomerNotesChange={setCustomerNotes}

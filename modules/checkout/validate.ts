@@ -30,6 +30,7 @@ export type CartValidationIssue =
 export type ValidatedCartLine = {
   id: string;
   designId: string;
+  garmentTypeId: string;
   colourwayId: string;
   designSlug: string;
   designName: string;
@@ -87,6 +88,7 @@ export async function validateCartForCheckout(
         slug: designs.slug,
         name: designs.name,
         status: designs.status,
+        garmentTypeId: designs.garmentTypeId,
       })
       .from(designs)
       .where(inArray(designs.id, designIds)),
@@ -184,6 +186,7 @@ export async function validateCartForCheckout(
     validated.push({
       id: line.id,
       designId: line.designId,
+      garmentTypeId: design.garmentTypeId,
       colourwayId: line.colourwayId,
       designSlug: design.slug,
       designName: design.name,

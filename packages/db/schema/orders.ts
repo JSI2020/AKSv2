@@ -78,6 +78,22 @@ export type OrderPriceBreakdownSnapshot = {
 
 export type OrderCutSpecSnapshot = Record<string, number> | null;
 
+export type OrderDiscountAppliedSnapshot = {
+  discountId: string;
+  code: string | null;
+  name: string;
+  type: "PERCENTAGE" | "FIXED_AMOUNT" | "FREE_SHIPPING";
+  amountMinor: number;
+};
+
+export type OrderDiscountBreakdownSnapshot = {
+  codeEntered: string | null;
+  lineDiscountMinor: number;
+  shippingDiscountMinor: number;
+  totalDiscountMinor: number;
+  applied: OrderDiscountAppliedSnapshot[];
+};
+
 export const orders = pgTable("orders", {
   id: uuid("id").primaryKey(),
   orderNumber: text("order_number").notNull().unique(),
@@ -89,6 +105,8 @@ export const orders = pgTable("orders", {
   currency: text("currency").notNull().default("PKR"),
   subtotalMinor: integer("subtotal_minor").notNull(),
   discountMinor: integer("discount_minor").notNull().default(0),
+  discountBreakdownSnapshot: jsonb("discount_breakdown_snapshot")
+    .$type<OrderDiscountBreakdownSnapshot | null>(),
   shippingMinor: integer("shipping_minor").notNull().default(0),
   taxMinor: integer("tax_minor").notNull().default(0),
   totalMinor: integer("total_minor").notNull(),
