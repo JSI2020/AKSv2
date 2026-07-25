@@ -17,6 +17,7 @@ export default defineConfig({
       include: [
         "modules/sizing/engine/resolve-chart.ts",
         "modules/sizing/engine/edit-base-cell.ts",
+        "modules/sizing/engine/calculate-cut-spec.ts",
       ],
       thresholds: {
         lines: 100,

@@ -15,6 +15,8 @@ export {
   resolveChart,
   resolveCellValue,
   editBaseCell,
+  calculateCutSpec,
+  roundToQuarterInch,
   SizingEngineError,
 } from "./engine";
 export type {
@@ -23,6 +25,10 @@ export type {
   PinnedCellInput,
   ChartCell,
   ChartGrid,
+  CutSpecFabric,
+  CutSpecFitProfile,
+  CalculateCutSpecInput,
+  CutSpec,
 } from "./engine";
 export {
   listSizeBlocks,
