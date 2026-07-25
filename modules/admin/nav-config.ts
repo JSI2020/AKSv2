@@ -6,6 +6,7 @@ import {
   Palette,
   Settings,
   ShoppingBag,
+  Sparkles,
   Users,
   Wallet,
 } from "lucide-react";
@@ -39,6 +40,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     icon: ShoppingBag,
     permission: "orders.view",
     shortcut: "G O",
+  },
+  {
+    title: "Studio",
+    href: "/admin/studio/new",
+    icon: Sparkles,
+    permission: "designs.create",
   },
   {
     title: "Designs",

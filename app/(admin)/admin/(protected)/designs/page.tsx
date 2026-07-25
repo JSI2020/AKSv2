@@ -32,12 +32,20 @@ export default async function DesignsAdminPage() {
             Enter designs by hand — no AI. Colourways, renders, sizing, pricing.
           </p>
         </div>
-        <Link
-          href="/admin/designs/new"
-          className="border border-zari px-3 py-1.5 text-[13px] text-zari"
-        >
-          New design
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/studio/new"
+            className="border border-zari bg-zari px-3 py-1.5 text-[13px] text-indigo"
+          >
+            Studio brief
+          </Link>
+          <Link
+            href="/admin/designs/new"
+            className="border border-zari px-3 py-1.5 text-[13px] text-zari"
+          >
+            New design
+          </Link>
+        </div>
       </div>
 
       {designs.length === 0 ? (
