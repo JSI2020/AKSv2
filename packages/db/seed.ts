@@ -14,8 +14,14 @@ async function seed() {
     users,
     permissions,
     rolePermissions,
+    measurementKeys,
+    garmentCategories,
   } = await import("./schema");
   const { eq } = await import("drizzle-orm");
+  const {
+    MEASUREMENT_KEY_DEFS,
+    GARMENT_CATEGORY_SEEDS,
+  } = shared;
 
   // Fixed UUIDv7 for idempotent re-seeds of the probe row (no digit-run demo OTP).
   const probeId = "01900001-2345-7890-abcd-ef1234567890";
@@ -108,6 +114,56 @@ async function seed() {
     }
   } else {
     console.log("OWNER_EMAIL / OWNER_NAME not set — skipping owner bootstrap");
+  }
+
+  // --- Sizing: measurement keys + garment categories ---
+  for (const def of MEASUREMENT_KEY_DEFS) {
+    await db
+      .insert(measurementKeys)
+      .values({
+        key: def.key,
+        label: def.label,
+        labelUr: def.labelUr,
+        bodyOrGarment: def.bodyOrGarment,
+        anchorPoint: def.anchorPoint,
+        helpText: def.helpText,
+      })
+      .onConflictDoNothing({ target: measurementKeys.key });
+  }
+  console.log(`seeded ${MEASUREMENT_KEY_DEFS.length} measurement_keys`);
+
+  for (const cat of GARMENT_CATEGORY_SEEDS) {
+    const existing = await db
+      .select({ id: garmentCategories.id })
+      .from(garmentCategories)
+      .where(eq(garmentCategories.key, cat.key))
+      .limit(1);
+
+    if (existing[0]) {
+      await db
+        .update(garmentCategories)
+        .set({
+          name: cat.name,
+          nameUr: cat.nameUr,
+          measurementKeys: [...cat.measurementKeys],
+          sortOrder: cat.sortOrder,
+          active: true,
+          updatedAt: new Date(),
+        })
+        .where(eq(garmentCategories.id, existing[0].id));
+      console.log(`updated garment_category ${cat.key}`);
+    } else {
+      await db.insert(garmentCategories).values({
+        id: uuidv7(),
+        key: cat.key,
+        name: cat.name,
+        nameUr: cat.nameUr,
+        measurementKeys: [...cat.measurementKeys],
+        active: true,
+        sortOrder: cat.sortOrder,
+      });
+      console.log(`seeded garment_category ${cat.key}`);
+    }
   }
 
   console.log(`uuidv7 sample: ${uuidv7()}`);

@@ -10,21 +10,34 @@ export default async function AdminSettingsPage() {
     ? await getPermissionsForUser(session.user.id)
     : new Set();
   const canStaff = permissions.has("staff.view");
+  const canSettings = permissions.has("settings.view");
 
   return (
     <div>
       <Eyebrow>Settings</Eyebrow>
       <h1 className="mt-1 font-display text-3xl text-greige">Settings</h1>
-      {canStaff ? (
+      {canStaff || canSettings ? (
         <ul className="mt-6 flex flex-col gap-2 border border-indigo-lift p-4">
-          <li>
-            <Link
-              href="/admin/settings/staff"
-              className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
-            >
-              Staff — invite, roles, permissions, sessions
-            </Link>
-          </li>
+          {canStaff ? (
+            <li>
+              <Link
+                href="/admin/settings/staff"
+                className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+              >
+                Staff — invite, roles, permissions, sessions
+              </Link>
+            </li>
+          ) : null}
+          {canSettings ? (
+            <li>
+              <Link
+                href="/admin/settings/sizing/categories"
+                className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+              >
+                Sizing — garment categories &amp; measurement keys
+              </Link>
+            </li>
+          ) : null}
         </ul>
       ) : (
         <div className="mt-6">
