@@ -15,7 +15,8 @@
     "db:generate": "drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "drizzle-kit migrate --config drizzle.config.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
-    "db:seed": "tsx packages/db/seed.ts"
+    "db:seed": "tsx packages/db/seed.ts",
+    "worker:dev": "tsx worker/index.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

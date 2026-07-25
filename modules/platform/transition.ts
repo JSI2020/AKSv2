@@ -1,8 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import type { Database } from "@aks/db";
-import { outbox, transitionProbeEvents, transitionProbes } from "@aks/db";
+import { transitionProbeEvents, transitionProbes } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
+
+import { enqueue } from "./outbox/enqueue";
+import type { DbTx } from "./types";
 
 export type TransitionActor = {
   id: string;
@@ -14,9 +17,7 @@ export type TransitionAllowList = Readonly<
   Record<string, readonly string[]>
 >;
 
-export type TransitionTx = Parameters<
-  Parameters<Database["transaction"]>[0]
->[0];
+export type TransitionTx = DbTx;
 
 export class IllegalTransitionError extends Error {
   readonly code = "ILLEGAL_TRANSITION" as const;
@@ -32,7 +33,6 @@ export class IllegalTransitionError extends Error {
 }
 
 export type EntityTransitionHandlers = {
-  /** Update status only if current status === from. Returns rows affected. */
   applyStatusChange: (
     tx: TransitionTx,
     id: string,
@@ -104,10 +104,9 @@ export async function transition(input: TransitionInput): Promise<void> {
     note,
   });
 
-  await tx.insert(outbox).values({
-    id: uuidv7(),
-    topic: `${entity}.transitioned`,
-    payload: {
+  await enqueue(
+    `${entity}.transitioned`,
+    {
       entity,
       id,
       from,
@@ -116,10 +115,8 @@ export async function transition(input: TransitionInput): Promise<void> {
       eventId,
       note: note ?? null,
     },
-    status: "PENDING",
-    attempts: 0,
-    availableAt: new Date(),
-  });
+    tx,
+  );
 }
 
 /** Built-in probe entity used by step 7 tests. */
@@ -140,3 +137,5 @@ export function registerTransitionProbe(): void {
     },
   });
 }
+
+export type { Database };

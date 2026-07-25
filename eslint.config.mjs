@@ -118,6 +118,8 @@ const config = [
                   },
                 },
                 { to: { file: { categories: "lib-root" } } },
+                { to: { file: { categories: "db-root" } } },
+                { to: { file: { categories: "shared-root" } } },
               ],
             },
             {
@@ -199,13 +201,17 @@ const config = [
             },
             {
               from: { file: { categories: "worker-root" } },
-              allow: {
-                to: {
-                  element: {
-                    types: { anyOf: ["worker", "modules", "shared", "db"] },
+              allow: [
+                {
+                  to: {
+                    element: {
+                      types: { anyOf: ["worker", "modules", "shared", "db"] },
+                    },
                   },
                 },
-              },
+                { to: { file: { categories: "db-root" } } },
+                { to: { file: { categories: "shared-root" } } },
+              ],
             },
           ],
         },
