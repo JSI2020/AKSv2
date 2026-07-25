@@ -1,4 +1,5 @@
 import {
+  boolean,
   integer,
   jsonb,
   pgEnum,
@@ -138,3 +139,60 @@ export const orderItems = pgTable("order_items", {
 });
 
 export const orderEvents = createEntityEventsTable("order_events");
+
+export const orderPaymentKindEnum = pgEnum("order_payment_kind", [
+  "DEPOSIT",
+  "BALANCE",
+  "FULL",
+  "REFUND",
+]);
+
+export const orderPaymentProviderEnum = pgEnum("order_payment_provider", [
+  "BANK_TRANSFER",
+  "CASH",
+  "JAZZCASH",
+  "EASYPAISA",
+  "COD",
+  "SAFEPAY",
+  "OTHER",
+]);
+
+export const orderPaymentStatusEnum = pgEnum("order_payment_status", [
+  "PENDING",
+  "SUCCEEDED",
+  "FAILED",
+  "AWAITING_VERIFICATION",
+  "REFUNDED",
+]);
+
+/** Recorded payments against an order — append-only. */
+export const orderPayments = pgTable("order_payments", {
+  id: uuid("id").primaryKey(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  kind: orderPaymentKindEnum("kind").notNull(),
+  amountMinor: integer("amount_minor").notNull(),
+  provider: orderPaymentProviderEnum("provider").notNull(),
+  status: orderPaymentStatusEnum("status").notNull().default("SUCCEEDED"),
+  note: text("note"),
+  recordedById: uuid("recorded_by_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** Stage photos attached to an order — append-only. */
+export const orderPhotos = pgTable("order_photos", {
+  id: uuid("id").primaryKey(),
+  orderId: uuid("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
+  stage: text("stage").notNull(),
+  assetId: uuid("asset_id").notNull(),
+  isCustomerVisible: boolean("is_customer_visible").notNull().default(false),
+  uploadedById: uuid("uploaded_by_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
