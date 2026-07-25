@@ -7,6 +7,7 @@ import {
 } from "@/modules/auth";
 import { getFabric } from "@/modules/sizing/fabric-archetype-actions";
 import { FabricForm } from "@/modules/sizing/fabric-archetype-ui";
+import { FabricRelatedPanels, getFabricRelated } from "@/modules/insights";
 
 export default async function EditFabricPage({
   params,
@@ -15,8 +16,9 @@ export default async function EditFabricPage({
 }) {
   const { id } = await params;
   let fabric;
+  let related = null;
   try {
-    fabric = await getFabric(id);
+    [fabric, related] = await Promise.all([getFabric(id), getFabricRelated(id)]);
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -35,6 +37,7 @@ export default async function EditFabricPage({
         <h1 className="mt-1 font-display text-3xl text-greige">{fabric.name}</h1>
       </div>
       <FabricForm fabric={fabric} />
+      {related ? <FabricRelatedPanels data={related} /> : null}
     </div>
   );
 }

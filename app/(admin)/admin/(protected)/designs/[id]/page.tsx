@@ -13,6 +13,7 @@ import {
 } from "@/modules/money";
 import { getDesign, getDesignFormOptions } from "@/modules/designs";
 import { DesignEditor } from "@/modules/designs/design-editor";
+import { DesignRelatedPanels, getDesignRelated } from "@/modules/insights";
 
 export default async function DesignDetailPage({
   params,
@@ -50,6 +51,20 @@ export default async function DesignDetailPage({
   const canEditCosts = permissions.has("money.edit_costs");
 
   let costingData = null;
+  let related = null;
+  try {
+    [related] = await Promise.all([getDesignRelated(id)]);
+  } catch (e) {
+    if (
+      e instanceof PermissionDeniedError ||
+      e instanceof UnauthenticatedError
+    ) {
+      related = null;
+    } else {
+      throw e;
+    }
+  }
+
   if (canViewMoney) {
     try {
       costingData = await getDesignCostingData(id);
@@ -84,6 +99,7 @@ export default async function DesignDetailPage({
           canEdit={canEditCosts}
         />
       ) : null}
+      {related ? <DesignRelatedPanels data={related} /> : null}
     </div>
   );
 }

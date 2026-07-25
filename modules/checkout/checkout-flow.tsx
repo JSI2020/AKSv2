@@ -10,6 +10,7 @@ import { placeOrder } from "./actions";
 import { AddressStep } from "./address-step";
 import { PaymentStep } from "./payment-step";
 import { ReviewStep } from "./review-step";
+import { trackCheckoutStarted, trackOrderPlaced } from "@/modules/analytics";
 import type { PaymentPlan } from "./payment-plans";
 import type { CheckoutAddressInput, CheckoutStep } from "./types";
 
@@ -60,6 +61,10 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
     setPaymentPlan(plan);
     setError(null);
     setStep("review");
+    trackCheckoutStarted({
+      itemCount: cart.lines.length,
+      totalMinor: cart.subtotalMinor,
+    });
   }
 
   function handlePlaceOrder() {
@@ -79,6 +84,12 @@ export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
         setIssues(result.issues ?? []);
         return;
       }
+
+      trackOrderPlaced({
+        orderNumber: result.orderNumber,
+        designIds: cart.lines.map((item) => item.designId),
+        totalMinor: cart.subtotalMinor,
+      });
 
       router.push(`/checkout/confirmation?order=${encodeURIComponent(result.orderNumber)}`);
     });

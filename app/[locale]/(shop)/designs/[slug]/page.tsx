@@ -12,6 +12,7 @@ import type { GalleryAngle, SizeMode } from "@/modules/catalog";
 import { resolveMeasurementProfileId } from "@/modules/cart";
 import { auth } from "@/auth";
 import { getOrSetAnonToken } from "@/modules/measure";
+import { DesignViewTracker } from "@/modules/analytics";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -67,6 +68,11 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
 
   return (
     <main className="mx-auto max-w-[1300px] px-4 pb-28 pt-9 md:px-10">
+      <DesignViewTracker
+        designId={design.id}
+        designSlug={design.slug}
+        designName={design.name}
+      />
       <DesignDetailBreadcrumb design={design} />
       <DesignConfigurator
         design={design}

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 
 import { fontData, fontDisplay, fontSans, fontUrdu } from "@/lib/fonts";
+import { PostHogAnalyticsProvider } from "@/modules/analytics";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -19,7 +21,9 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${fontSans.variable} ${fontDisplay.variable} ${fontData.variable} ${fontUrdu.variable}`}
     >
-      <body className="font-sans antialiased">{children}</body>
+      <body className="font-sans antialiased">
+        <PostHogAnalyticsProvider>{children}</PostHogAnalyticsProvider>
+      </body>
     </html>
   );
 }

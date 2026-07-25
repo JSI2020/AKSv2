@@ -6,6 +6,7 @@ import type { DesignDetailPublic, ResolvedImageTriple } from "@/modules/catalog"
 
 import { useCart } from "./cart-context";
 import type { CartCustomizationSelections } from "./types";
+import { trackAddToCart } from "@/modules/analytics";
 
 type Props = {
   design: DesignDetailPublic;
@@ -66,7 +67,15 @@ export function AddToCartButton({
 
     if (!result.ok) {
       setError(result.error ?? "Could not add to cart.");
+      return;
     }
+
+    trackAddToCart({
+      designId: design.id,
+      designSlug: design.slug,
+      sizeMode,
+      quantity,
+    });
   }
 
   return (

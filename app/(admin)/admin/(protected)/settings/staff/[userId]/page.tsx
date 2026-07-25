@@ -4,6 +4,7 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { Eyebrow } from "@/modules/ui";
 import { getStaffDetail, StaffDetailPanel } from "@/modules/staff";
+import { getStaffRelated, StaffRelatedPanels } from "@/modules/insights";
 import {
   PermissionDeniedError,
   UnauthenticatedError,
@@ -20,8 +21,12 @@ export default async function StaffMemberPage({
   const { userId } = await params;
 
   let staff;
+  let related;
   try {
-    staff = await getStaffDetail(userId);
+    [staff, related] = await Promise.all([
+      getStaffDetail(userId),
+      getStaffRelated(userId),
+    ]);
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -50,6 +55,7 @@ export default async function StaffMemberPage({
         actorRole={session.user.role}
         actorId={session.user.id}
       />
+      <StaffRelatedPanels data={related} />
     </div>
   );
 }
