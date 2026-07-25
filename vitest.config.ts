@@ -7,6 +7,11 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     include: ["modules/**/*.test.{ts,tsx}"],
+    setupFiles: ["./vitest.setup.ts"],
+    environmentMatchGlobs: [
+      ["modules/platform/**/*.test.ts", "node"],
+    ],
+    fileParallelism: false,
   },
   resolve: {
     alias: {

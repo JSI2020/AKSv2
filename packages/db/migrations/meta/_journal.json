@@ -15,6 +15,13 @@
       "when": 1784928731579,
       "tag": "0001_petite_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784976580967,
+      "tag": "0002_elite_steel_serpent",
+      "breakpoints": true
     }
   ]
 }
