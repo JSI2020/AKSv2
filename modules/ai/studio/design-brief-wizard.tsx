@@ -278,7 +278,7 @@ export function DesignBriefWizard({ data }: { data: DesignBriefFormData }) {
         setError(res.error);
         return;
       }
-      router.push(`/admin/designs/${res.id}`);
+      router.push(`/admin/studio/${res.id}/inputs`);
       router.refresh();
     });
   }

@@ -75,6 +75,10 @@ export const designs = pgTable("designs", {
     .default(0),
   leadTimeDaysOverride: integer("lead_time_days_override"),
   featured: boolean("featured").notNull().default(false),
+  /** Set when REFERENCE_EXTERNAL inputs exist — publish review cannot be skipped. */
+  externalReferencesFlagged: boolean("external_references_flagged")
+    .notNull()
+    .default(false),
   publishedAt: timestamp("published_at", { withTimezone: true }),
   archivedAt: timestamp("archived_at", { withTimezone: true }),
   seoTitle: text("seo_title"),

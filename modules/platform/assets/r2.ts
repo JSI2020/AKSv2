@@ -104,6 +104,25 @@ export type CompleteUploadInput = {
   purgeAt?: Date | null;
 };
 
+export async function uploadBufferToR2(input: {
+  body: Buffer;
+  mime: string;
+  keyPrefix?: string;
+}): Promise<{ key: string }> {
+  const key = `${input.keyPrefix ?? "uploads"}/${uuidv7()}`;
+  const client = createR2Client();
+  await ensureBucket(client);
+  await client.send(
+    new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      Body: input.body,
+      ContentType: input.mime,
+    }),
+  );
+  return { key };
+}
+
 export async function completeUpload(input: CompleteUploadInput) {
   const body = await getObjectBytes(input.key);
   const sha256 = createHash("sha256").update(body).digest("hex");

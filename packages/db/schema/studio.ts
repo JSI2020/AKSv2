@@ -13,6 +13,17 @@ import { houseModels } from "./fabrics-archetypes";
 import { assets } from "./platform";
 import { users } from "./identity";
 
+export const designInputRoleEnum = pgEnum("design_input_role", [
+  "SKETCH_FRONT",
+  "SKETCH_BACK",
+  "SKETCH_SIDE",
+  "SKETCH_DETAIL",
+  "TECHNICAL_FLAT",
+  "FABRIC_SWATCH",
+  "REFERENCE_OWN",
+  "REFERENCE_EXTERNAL",
+]);
+
 export const promptProfileOriginEnum = pgEnum("prompt_profile_origin", [
   "SKETCH_LED",
   "REFERENCE_LED",
@@ -130,6 +141,49 @@ export const designPromptProfiles = pgTable("design_prompt_profiles", {
   templateVersion: integer("template_version").notNull().default(1),
   origin: promptProfileOriginEnum("origin").notNull().default("SKETCH_LED"),
   combinationBrief: text("combination_brief"),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+/** Versioned IP attestation for external reference uploads. */
+export const designInputAttestations = pgTable("design_input_attestations", {
+  id: uuid("id").primaryKey(),
+  designId: uuid("design_id")
+    .notNull()
+    .references(() => designs.id, { onDelete: "cascade" }),
+  statement: text("statement").notNull(),
+  version: integer("version").notNull(),
+  attestedById: uuid("attested_by_id")
+    .notNull()
+    .references(() => users.id),
+  attestedAt: timestamp("attested_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const designInputs = pgTable("design_inputs", {
+  id: uuid("id").primaryKey(),
+  designId: uuid("design_id")
+    .notNull()
+    .references(() => designs.id, { onDelete: "cascade" }),
+  assetId: uuid("asset_id")
+    .notNull()
+    .references(() => assets.id),
+  role: designInputRoleEnum("role").notNull(),
+  /** 0–100 hundredths of unit weight (100 = full follow). Never floats. */
+  weight: integer("weight").notNull().default(100),
+  derivedAssetId: uuid("derived_asset_id").references(() => assets.id),
+  attestationId: uuid("attestation_id").references(
+    () => designInputAttestations.id,
+  ),
+  purgeAt: timestamp("purge_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

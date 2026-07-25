@@ -6,6 +6,7 @@ export {
   createPresignedReadUrl,
   deleteObject,
   getObjectBytes,
+  uploadBufferToR2,
   completeUpload,
   deleteAsset,
   purgeExpiredAssets,

@@ -491,6 +491,7 @@ export async function saveDesignBrief(
 
     revalidatePath("/admin/designs");
     revalidatePath("/admin/studio/new");
+    revalidatePath(`/admin/studio/${designId}/inputs`);
     return { ok: true, id: designId };
   } catch (e) {
     return {
