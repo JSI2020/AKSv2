@@ -6,8 +6,10 @@ config({ path: ".env" });
 import { sql } from "@aks/db";
 import {
   drainDueMessages,
+  registerHandler,
   registerTestPingHandler,
 } from "../modules/platform/outbox";
+import { purgeExpiredAssets } from "../modules/platform/assets";
 
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
 
@@ -17,6 +19,10 @@ function sleep(ms: number) {
 
 async function main() {
   registerTestPingHandler();
+  registerHandler("assets.purgeExpired", async () => {
+    const n = await purgeExpiredAssets();
+    console.log(`[worker] purged ${n} assets`);
+  });
   console.log(`[worker] outbox polling every ${POLL_MS}ms`);
 
   // Long-lived process — not serverless.

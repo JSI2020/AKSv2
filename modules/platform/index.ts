@@ -23,3 +23,12 @@ export {
 } from "./outbox";
 export type { OutboxPayload, OutboxHandler, ProcessResult } from "./outbox";
 export type { DbTx } from "./types";
+export {
+  createPresignedUploadUrl,
+  createPresignedReadUrl,
+  completeUpload,
+  deleteAsset,
+  purgeExpiredAssets,
+  ensureBucket,
+} from "./assets";
+export type { CompleteUploadInput } from "./assets";
