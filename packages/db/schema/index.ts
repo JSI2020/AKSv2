@@ -9,3 +9,4 @@ export * from "./fit-profiles";
 export * from "./fabrics-archetypes";
 export * from "./catalog";
 export * from "./custom-measurements";
+export * from "./cart";

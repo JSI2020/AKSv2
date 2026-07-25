@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { auth } from "@/auth";
+import { CartDrawer, CartProvider, loadActiveCart } from "@/modules/cart";
+import { getOrSetAnonToken } from "@/modules/measure";
 import {
   ShopFloatActions,
   ShopFooter,
@@ -15,17 +18,25 @@ export default async function ShopLayout({
 }: Readonly<{
   children: ReactNode;
 }>) {
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const anonId = await getOrSetAnonToken();
+  const initialCart = await loadActiveCart({ userId, anonId });
+
   return (
     <ShopNuqsProvider>
-      <div className="flex min-h-dvh flex-col bg-greige text-ink">
-        <ShopUtilityBar />
-        <ShopMarquee />
-        <ShopHeader cartCount={0} />
-        <ShopMobileNav />
-        <div className="flex-1">{children}</div>
-        <ShopFooter />
-        <ShopFloatActions />
-      </div>
+      <CartProvider initialCart={initialCart}>
+        <div className="flex min-h-dvh flex-col bg-greige text-ink">
+          <ShopUtilityBar />
+          <ShopMarquee />
+          <ShopHeader />
+          <ShopMobileNav />
+          <div className="flex-1">{children}</div>
+          <ShopFooter />
+          <ShopFloatActions />
+          <CartDrawer />
+        </div>
+      </CartProvider>
     </ShopNuqsProvider>
   );
 }

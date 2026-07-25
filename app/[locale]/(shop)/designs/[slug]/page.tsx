@@ -9,6 +9,9 @@ import {
   resolveImages,
 } from "@/modules/catalog";
 import type { GalleryAngle, SizeMode } from "@/modules/catalog";
+import { resolveMeasurementProfileId } from "@/modules/cart";
+import { auth } from "@/auth";
+import { getOrSetAnonToken } from "@/modules/measure";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -53,6 +56,15 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
     primaryCategoryKey: design.garmentCategory.key,
   });
 
+  const session = await auth();
+  const userId = session?.user?.id ?? null;
+  const anonId = await getOrSetAnonToken();
+  const measurementProfileId = await resolveMeasurementProfileId({
+    designId: design.id,
+    userId,
+    anonId,
+  });
+
   return (
     <main className="mx-auto max-w-[1300px] px-4 pb-28 pt-9 md:px-10">
       <DesignDetailBreadcrumb design={design} />
@@ -65,6 +77,7 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
         initialSizeMode={sizeMode}
         initialSizeLabel={sizeLabel}
         initialQuantity={quantity}
+        measurementProfileId={measurementProfileId}
       />
     </main>
   );

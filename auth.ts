@@ -208,6 +208,13 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           reason: "otp_success",
         });
 
+        const { readAnonToken } = await import("@/modules/measure");
+        const { mergeGuestCartIntoUser } = await import("@/modules/cart");
+        const anonId = await readAnonToken();
+        if (anonId) {
+          await mergeGuestCartIntoUser({ userId: user.id, anonId });
+        }
+
         return {
           id: user.id,
           email: user.email,

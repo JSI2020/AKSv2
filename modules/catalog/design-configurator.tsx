@@ -12,6 +12,7 @@ import { designDetailParsers } from "./design-detail-search-params";
 import { DesignGallery } from "./design-gallery";
 import { DesignSizeGuideModal } from "./design-size-guide-modal";
 import { DesignSizePicker } from "./design-size-picker";
+import { AddToCartButton } from "@/modules/cart";
 import type {
   ConfiguratorState,
   DesignDetailPublic,
@@ -35,6 +36,7 @@ type Props = {
   initialSizeMode: SizeMode;
   initialSizeLabel: string | null;
   initialQuantity: number;
+  measurementProfileId: string | null;
 };
 
 export function DesignConfigurator({
@@ -46,6 +48,7 @@ export function DesignConfigurator({
   initialSizeMode,
   initialSizeLabel,
   initialQuantity,
+  measurementProfileId,
 }: Props) {
   const [urlState, setUrlState] = useQueryStates(designDetailParsers, {
     history: "push",
@@ -97,7 +100,11 @@ export function DesignConfigurator({
     design.colourways[0]!;
 
   const displayPriceMinor =
-    design.basePriceMinor + selectedColourway.priceDeltaMinor;
+    design.basePriceMinor +
+    selectedColourway.priceDeltaMinor +
+    (state.sizeMode === "MADE_TO_MEASURE"
+      ? design.madeToMeasureSurchargeMinor
+      : 0);
 
   const images =
     imagesByColourway[state.colourwayId] ??
@@ -240,6 +247,20 @@ export function DesignConfigurator({
             {design.storyCopy}
           </p>
         ) : null}
+
+        <AddToCartButton
+          design={design}
+          colourwayId={state.colourwayId}
+          sizeMode={state.sizeMode}
+          sizeLabel={state.sizeLabel}
+          quantity={state.quantity}
+          measurementProfileId={
+            state.sizeMode === "MADE_TO_MEASURE" ? measurementProfileId : null
+          }
+          customizationSelections={{}}
+          displayPriceMinor={displayPriceMinor}
+          images={images}
+        />
       </div>
     </div>
   );

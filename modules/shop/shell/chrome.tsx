@@ -1,6 +1,8 @@
 import { getTranslations, getLocale } from "next-intl/server";
 
 import { Link } from "@/i18n/routing";
+import { CartHeaderButton } from "@/modules/cart";
+
 import { AksWordmark } from "./brand";
 
 const WHATSAPP = "https://wa.me/923001234567";
@@ -49,7 +51,7 @@ export async function ShopMarquee() {
   );
 }
 
-export async function ShopHeader({ cartCount = 0 }: { cartCount?: number }) {
+export async function ShopHeader() {
   const t = await getTranslations("Nav");
   const brand = await getTranslations("Brand");
   const locale = await getLocale();
@@ -128,27 +130,7 @@ export async function ShopHeader({ cartCount = 0 }: { cartCount?: number }) {
           </svg>
         </span>
 
-        <Link
-          href="/cart"
-          className="relative inline-flex"
-          aria-label={t("cart")}
-        >
-          <svg
-            width="19"
-            height="19"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.6"
-            aria-hidden
-          >
-            <path d="M6 8h12l-1.2 11.2a1.5 1.5 0 01-1.5 1.3H8.7a1.5 1.5 0 01-1.5-1.3L6 8z" />
-            <path d="M9 8V6a3 3 0 016 0v2" />
-          </svg>
-          <span className="absolute -end-1.5 -top-1.5 inline-flex size-[15px] items-center justify-center bg-madder font-data text-[9px] leading-none text-greige">
-            {cartCount}
-          </span>
-        </Link>
+        <CartHeaderButton label={t("cart")} />
       </div>
     </header>
   );
