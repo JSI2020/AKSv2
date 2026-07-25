@@ -36,7 +36,8 @@ export const users = pgTable(
     phone: text("phone"),
     role: userRoleEnum("role").notNull().default("CUSTOMER"),
     status: userStatusEnum("status").notNull().default("ACTIVE"),
-    emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+    /** Auth.js adapter expects the TS field name `emailVerified`. */
+    emailVerified: timestamp("email_verified_at", { withTimezone: true }),
     twoFactorSecret: text("two_factor_secret"),
     twoFactorEnabledAt: timestamp("two_factor_enabled_at", {
       withTimezone: true,

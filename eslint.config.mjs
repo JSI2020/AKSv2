@@ -93,6 +93,8 @@ const config = [
                   },
                 },
                 { to: { file: { categories: "lib-root" } } },
+                { to: { file: { categories: "db-root" } } },
+                { to: { file: { categories: "shared-root" } } },
                 { to: { file: { categories: "style" } } },
               ],
             },
