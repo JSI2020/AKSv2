@@ -8,8 +8,10 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { designs } from "./catalog";
+import { colourways, designs } from "./catalog";
 import { houseModels } from "./fabrics-archetypes";
+import { assets } from "./platform";
+import { users } from "./identity";
 
 export const promptProfileOriginEnum = pgEnum("prompt_profile_origin", [
   "SKETCH_LED",
@@ -49,6 +51,66 @@ export const studioSettings = pgTable("studio_settings", {
     .notNull()
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const designGenerationStageEnum = pgEnum("design_generation_stage", [
+  "HERO",
+  "ANGLE",
+  "COLOURWAY",
+]);
+
+export const designGenerationStatusEnum = pgEnum("design_generation_status", [
+  "PENDING",
+  "RUNNING",
+  "SUCCEEDED",
+  "FAILED",
+]);
+
+export const designGenerationDecisionEnum = pgEnum("design_generation_decision", [
+  "PENDING",
+  "APPROVED",
+  "REJECTED",
+]);
+
+/** Append-only ledger — every AI generation attempt is recorded. */
+export const designGenerations = pgTable("design_generations", {
+  id: uuid("id").primaryKey(),
+  designId: uuid("design_id")
+    .notNull()
+    .references(() => designs.id, { onDelete: "cascade" }),
+  stage: designGenerationStageEnum("stage").notNull(),
+  angle: text("angle"),
+  colourwayId: uuid("colourway_id").references(() => colourways.id),
+  parentGenerationId: uuid("parent_generation_id"),
+  archetypeId: uuid("archetype_id").references(() => houseModels.id),
+  sizeBlockSnapshot: jsonb("size_block_snapshot").$type<Record<string, unknown>>(),
+  provider: text("provider").notNull().default("fal"),
+  modelId: text("model_id").notNull(),
+  promptJson: jsonb("prompt_json").$type<Record<string, unknown>>().notNull(),
+  negativePrompt: text("negative_prompt"),
+  seed: integer("seed"),
+  templateVersion: integer("template_version").notNull(),
+  inputAssetIds: jsonb("input_asset_ids")
+    .$type<string[]>()
+    .notNull()
+    .default([]),
+  outputAssetId: uuid("output_asset_id").references(() => assets.id),
+  status: designGenerationStatusEnum("status").notNull().default("PENDING"),
+  /** USD stored as micro-dollars (1 USD = 1_000_000) — never floats. */
+  costUsdMicros: integer("cost_usd_micros"),
+  latencyMs: integer("latency_ms"),
+  error: text("error"),
+  idempotencyKey: text("idempotency_key").notNull().unique(),
+  processingAttempts: integer("processing_attempts").notNull().default(0),
+  decision: designGenerationDecisionEnum("decision")
+    .notNull()
+    .default("PENDING"),
+  decidedBy: uuid("decided_by").references(() => users.id),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });

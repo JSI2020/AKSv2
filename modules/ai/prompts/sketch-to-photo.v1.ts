@@ -1,17 +1,19 @@
-/** Placeholder until Step 36 resolves fal model ids. */
-export const PENDING_FAL_LOOKUP = "PENDING_FAL_LOOKUP";
-
+/** Verified fal model ids — see modules/ai/providers/fal-models.ts for pricing sources. */
 export type AiJobType = "hero" | "angle" | "colourway" | "draft";
 
 export type DefaultAiModelsMap = Record<AiJobType, string>;
 
-export const DEFAULT_AI_MODEL_PLACEHOLDERS: DefaultAiModelsMap = {
-  hero: PENDING_FAL_LOOKUP,
-  angle: PENDING_FAL_LOOKUP,
-  colourway: PENDING_FAL_LOOKUP,
-  draft: PENDING_FAL_LOOKUP,
-};
+export const VERIFIED_FAL_MODEL_HERO = "fal-ai/flux-general/image-to-image";
+export const VERIFIED_FAL_MODEL_ANGLE = "fal-ai/flux-general/image-to-image";
+export const VERIFIED_FAL_MODEL_COLOURWAY = "fal-ai/flux-2/turbo/edit";
+export const VERIFIED_FAL_MODEL_DRAFT = "fal-ai/flux/dev/image-to-image";
 
+export const DEFAULT_AI_MODEL_PLACEHOLDERS: DefaultAiModelsMap = {
+  hero: VERIFIED_FAL_MODEL_HERO,
+  angle: VERIFIED_FAL_MODEL_ANGLE,
+  colourway: VERIFIED_FAL_MODEL_COLOURWAY,
+  draft: VERIFIED_FAL_MODEL_DRAFT,
+};
 export const DEFAULT_BACKDROP_LIGHTING_PROFILE =
   "Clean studio, seamless warm-greige background, soft diffused daylight";
 

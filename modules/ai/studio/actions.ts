@@ -16,6 +16,7 @@ import { uuidv7 } from "@aks/shared";
 import {
   ACTIVE_PROMPT_TEMPLATE_VERSION,
   DEFAULT_AI_MODEL_PLACEHOLDERS,
+  ESTIMATED_COST_USD_MICROS,
   type AiJobType,
 } from "@/modules/ai";
 import { requirePermission } from "@/modules/auth";
@@ -29,6 +30,7 @@ export type StudioSettingsFormData = {
   settings: StudioSettingsRow;
   archetypes: HouseModelRow[];
   templateVersions: readonly number[];
+  estimatedCostUsdMicros: Record<AiJobType, number>;
 };
 
 const AI_JOB_TYPES: readonly AiJobType[] = [
@@ -38,20 +40,14 @@ const AI_JOB_TYPES: readonly AiJobType[] = [
   "draft",
 ];
 
-function parseAiModels(raw: string | null): DefaultAiModelsMap | null {
-  if (!raw?.trim()) return DEFAULT_AI_MODEL_PLACEHOLDERS;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null) return null;
-    const out = { ...DEFAULT_AI_MODEL_PLACEHOLDERS };
-    for (const key of AI_JOB_TYPES) {
-      const value = (parsed as Record<string, unknown>)[key];
-      if (typeof value === "string") out[key] = value;
-    }
-    return out;
-  } catch {
-    return null;
+function parseAiModels(formData: FormData): DefaultAiModelsMap | null {
+  const out = { ...DEFAULT_AI_MODEL_PLACEHOLDERS };
+  for (const key of AI_JOB_TYPES) {
+    const value = String(formData.get(`model_${key}`) ?? "").trim();
+    if (!value) return null;
+    out[key] = value;
   }
+  return out;
 }
 
 export async function getStudioSettingsFormData(): Promise<StudioSettingsFormData> {
@@ -78,6 +74,7 @@ export async function getStudioSettingsFormData(): Promise<StudioSettingsFormDat
     settings,
     archetypes,
     templateVersions: [ACTIVE_PROMPT_TEMPLATE_VERSION],
+    estimatedCostUsdMicros: ESTIMATED_COST_USD_MICROS,
   };
 }
 
@@ -117,9 +114,7 @@ export async function saveStudioSettings(
     const monthlySpendCapUsdCents = monthlySpendCapRaw
       ? Number.parseInt(monthlySpendCapRaw, 10)
       : null;
-    const defaultAiModels = parseAiModels(
-      String(formData.get("defaultAiModels") ?? ""),
-    );
+    const defaultAiModels = parseAiModels(formData);
 
     if (
       !defaultBaseSizeLabel ||

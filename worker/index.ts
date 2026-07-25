@@ -15,6 +15,7 @@ import {
   handleMessageSend,
   handleOrderTransitioned,
 } from "../modules/messaging";
+import { registerDesignGenerateHandler } from "../modules/ai/generation";
 
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
 
@@ -31,6 +32,7 @@ async function main() {
     const n = await purgeExpiredAssets();
     console.log(`[worker] purged ${n} assets`);
   });
+  registerDesignGenerateHandler();
   console.log(`[worker] outbox polling every ${POLL_MS}ms`);
 
   // Long-lived process — not serverless.
