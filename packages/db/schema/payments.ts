@@ -72,6 +72,22 @@ export const payments = pgTable(
   ],
 );
 
+/** Courier COD settlement batches — matched against delivered orders. */
+export const codRemittances = pgTable("cod_remittances", {
+  id: uuid("id").primaryKey(),
+  courier: text("courier").notNull(),
+  remittanceRef: text("remittance_ref").notNull(),
+  expectedAmountMinor: integer("expected_amount_minor").notNull(),
+  receivedAmountMinor: integer("received_amount_minor").notNull(),
+  receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
+  orderIds: jsonb("order_ids").$type<string[]>().notNull(),
+  discrepancyNote: text("discrepancy_note"),
+  recordedById: uuid("recorded_by_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const refunds = pgTable("refunds", {
   id: uuid("id").primaryKey(),
   paymentId: uuid("payment_id")

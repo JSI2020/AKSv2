@@ -9,6 +9,7 @@ const MIGRATION_FILES = [
   { file: "0011_orange_madame_hydra.sql", table: "orders" },
   { file: "0012_order_admin.sql", table: "order_payments" },
   { file: "0013_payments.sql", table: "payments" },
+  { file: "0014_step33_bank_transfer_cod.sql", table: "customer_profiles" },
 ] as const;
 
 /** Apply payment migrations when tables were never created. */

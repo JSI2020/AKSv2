@@ -45,6 +45,8 @@ function useVisibleNav(): AdminNavItem[] {
   const canFabric = useCan("fabric.view");
   const canCustomers = useCan("customers.view");
   const canMoney = useCan("money.view");
+  const canVerifyPayments = useCan("money.verify_payments");
+  const canManageCod = useCan("money.manage_cod");
   const canInsights = useCan("insights.view");
   const canSettings = useCan("settings.view");
 
@@ -54,6 +56,8 @@ function useVisibleNav(): AdminNavItem[] {
     "fabric.view": canFabric,
     "customers.view": canCustomers,
     "money.view": canMoney,
+    "money.verify_payments": canVerifyPayments,
+    "money.manage_cod": canManageCod,
     "insights.view": canInsights,
     "settings.view": canSettings,
   };

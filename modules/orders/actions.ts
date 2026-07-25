@@ -31,6 +31,8 @@ import {
 import { ADVANCE_STAGE_TARGETS, isBeforeProductionLock } from "./status";
 import { transitionOrder } from "./transition-order";
 import { ORDER_TRANSITION_ALLOW } from "./transitions";
+import { recordCodBalanceOnDelivery } from "@/modules/payments/cod/queries";
+import { handleDeliveryRefused } from "@/modules/payments/cod/customer-profile";
 
 import "./transitions";
 
@@ -117,7 +119,11 @@ export async function advanceStageAction(
 
     await db.transaction(async (tx) => {
       const [order] = await tx
-        .select({ status: orders.status })
+        .select({
+          status: orders.status,
+          userId: orders.userId,
+          balanceAmountMinor: orders.balanceAmountMinor,
+        })
         .from(orders)
         .where(eq(orders.id, orderId))
         .limit(1);
@@ -137,6 +143,23 @@ export async function advanceStageAction(
         note: note?.trim() || undefined,
         tx,
       });
+
+      if (to === "DELIVERED" && order.balanceAmountMinor > 0) {
+        await recordCodBalanceOnDelivery(
+          orderId,
+          session.user.id,
+          tx,
+        );
+      }
+
+      if (to === "DELIVERY_REFUSED" && order.userId) {
+        await handleDeliveryRefused(
+          order.userId,
+          orderId,
+          session.user.id,
+          tx,
+        );
+      }
 
       const ctx = await auditContext();
       await insertAuditLog(tx as unknown as Database, {

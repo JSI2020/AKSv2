@@ -16,7 +16,13 @@ export const PERMISSION_MODULES = {
   designs: ["view", "create", "edit", "publish", "delete"],
   fabric: ["view", "create", "edit", "adjust_stock", "delete"],
   customers: ["view", "edit", "export", "delete"],
-  money: ["view", "edit_costs", "view_margin"],
+  money: [
+    "view",
+    "edit_costs",
+    "view_margin",
+    "verify_payments",
+    "manage_cod",
+  ],
   insights: ["view"],
   settings: ["view", "edit", "edit_financial"],
   staff: ["view", "create", "edit", "assign_permissions", "deactivate"],
@@ -107,6 +113,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRole, readonly PermissionKey[
       "money.view",
       "money.edit_costs",
       "money.view_margin",
+      "money.verify_payments",
+      "money.manage_cod",
     ],
 
     /** View everything, change nothing. */

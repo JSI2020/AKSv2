@@ -21,14 +21,22 @@ export default async function CheckoutConfirmationPage({ searchParams }: Props) 
         </p>
 
         {orderNumber ? (
-          <p className="mt-6 font-data text-[15px] text-ink">
-            Order {orderNumber}
-          </p>
+          <>
+            <p className="mt-6 font-data text-[15px] text-ink">
+              Order {orderNumber}
+            </p>
+            <Link
+              href={`/checkout/pay?order=${encodeURIComponent(orderNumber)}`}
+              className="mt-6 inline-block border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige"
+            >
+              Pay by bank transfer
+            </Link>
+          </>
         ) : null}
 
         <p className="mt-6 text-[15px] leading-relaxed text-ink/70">
-          Payment comes next — for now your order is saved and waiting for
-          deposit. We&apos;ll reach you on WhatsApp with what to do.
+          Your order is saved and waiting for deposit. We&apos;ll reach you on
+          WhatsApp with next steps — or pay by bank transfer above.
         </p>
 
         <div className="mt-8 space-y-3">

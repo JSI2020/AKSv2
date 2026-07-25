@@ -16,6 +16,7 @@ import type { CheckoutAddressInput, CheckoutStep } from "./types";
 type Props = {
   cart: CartPublic;
   isSignedIn: boolean;
+  codDisabled?: boolean;
 };
 
 const STEPS: { key: CheckoutStep; label: string }[] = [
@@ -24,7 +25,7 @@ const STEPS: { key: CheckoutStep; label: string }[] = [
   { key: "review", label: "Review" },
 ];
 
-export function CheckoutFlow({ cart, isSignedIn }: Props) {
+export function CheckoutFlow({ cart, isSignedIn, codDisabled = false }: Props) {
   const router = useRouter();
   const [step, setStep] = useState<CheckoutStep>("address");
   const [pending, startTransition] = useTransition();
@@ -165,6 +166,7 @@ export function CheckoutFlow({ cart, isSignedIn }: Props) {
           lines={cart.lines.map((line) => ({ sizeMode: line.sizeMode }))}
           subtotalMinor={cart.subtotalMinor}
           selected={paymentPlan}
+          codDisabled={codDisabled}
           onBack={() => setStep("address")}
           onContinue={goToReview}
         />

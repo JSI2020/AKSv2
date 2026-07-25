@@ -69,6 +69,18 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     shortcut: "G M",
   },
   {
+    title: "Verify transfers",
+    href: "/admin/payments/verification",
+    icon: Wallet,
+    permission: "money.verify_payments",
+  },
+  {
+    title: "COD remittances",
+    href: "/admin/payments/cod",
+    icon: Wallet,
+    permission: "money.manage_cod",
+  },
+  {
     title: "Insights",
     href: "/admin/insights",
     icon: LineChart,

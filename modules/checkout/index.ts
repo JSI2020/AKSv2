@@ -1,5 +1,5 @@
 export { CheckoutFlow } from "./checkout-flow";
-export { placeOrder, getCheckoutCart, validateCheckoutCart } from "./actions";
+export { placeOrder, getCheckoutCart, validateCheckoutCart, getCheckoutCodStatus } from "./actions";
 export type {
   CheckoutAddressInput,
   CheckoutStep,

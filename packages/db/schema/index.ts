@@ -11,5 +11,6 @@ export * from "./catalog";
 export * from "./custom-measurements";
 export * from "./cart";
 export * from "./addresses";
+export * from "./customers";
 export * from "./orders";
 export * from "./payments";

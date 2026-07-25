@@ -17,6 +17,7 @@ import {
 } from "@/modules/orders/constants";
 import { buildStandardMeasurementSnapshot } from "@/modules/orders/compute-cut-spec-snapshot";
 import { placeOrderCore } from "@/modules/orders/place-order-core";
+import { getCustomerCodStatus } from "@/modules/payments/cod/customer-profile";
 
 import {
   computeDepositAmounts,
@@ -66,13 +67,19 @@ export async function placeOrder(
   }
 
   const lines = validation.lines;
+  const codStatus = await getCustomerCodStatus(ctx.userId);
   if (
-    !isPaymentPlanAllowed(planResult.plan, lines.map((l) => ({ sizeMode: l.sizeMode })))
+    !isPaymentPlanAllowed(
+      planResult.plan,
+      lines.map((l) => ({ sizeMode: l.sizeMode })),
+      { codDisabled: codStatus.codDisabled },
+    )
   ) {
     return {
       ok: false,
-      error:
-        "Made-to-measure pieces cannot use the half-now plan. Choose 70% deposit or pay in full.",
+      error: codStatus.codDisabled
+        ? "Cash on delivery is not available on your account. Choose pay in full."
+        : "Made-to-measure pieces cannot use the half-now plan. Choose 70% deposit or pay in full.",
     };
   }
 
@@ -193,6 +200,11 @@ export async function getCheckoutCart() {
   const cartId = await getActiveCartId(ctx);
   if (!cartId) return null;
   return hydrateCart(cartId);
+}
+
+export async function getCheckoutCodStatus() {
+  const session = await auth();
+  return getCustomerCodStatus(session?.user?.id ?? null);
 }
 
 export async function validateCheckoutCart() {

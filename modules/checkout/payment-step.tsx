@@ -15,6 +15,7 @@ type Props = {
   lines: { sizeMode: "STANDARD" | "MADE_TO_MEASURE" }[];
   subtotalMinor: number;
   selected: PaymentPlan | null;
+  codDisabled?: boolean;
   onBack: () => void;
   onContinue: (plan: PaymentPlan) => void;
 };
@@ -23,12 +24,13 @@ export function PaymentStep({
   lines,
   subtotalMinor,
   selected,
+  codDisabled = false,
   onBack,
   onContinue,
 }: Props) {
   const [plan, setPlan] = useState<PaymentPlan | null>(selected);
   const [error, setError] = useState<string | null>(null);
-  const options = getAvailablePaymentPlans(lines);
+  const options = getAvailablePaymentPlans(lines, { codDisabled });
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();

@@ -24,8 +24,10 @@ export function cartHasMadeToMeasure(lines: CartLineForPlan[]): boolean {
 
 export function getAvailablePaymentPlans(
   lines: CartLineForPlan[],
+  options?: { codDisabled?: boolean },
 ): PaymentPlanOption[] {
   const hasMtm = cartHasMadeToMeasure(lines);
+  const codDisabled = options?.codDisabled ?? false;
 
   return [
     {
@@ -34,10 +36,12 @@ export function getAvailablePaymentPlans(
       description:
         "Pay 50% to begin cutting. The rest when your order arrives. Available for standard sizes only — we can resell those if plans change.",
       depositPercent: 50,
-      disabled: hasMtm,
-      disabledReason: hasMtm
-        ? "Made-to-measure pieces need a higher deposit — your dress is cut only for you and cannot be resold."
-        : undefined,
+      disabled: hasMtm || codDisabled,
+      disabledReason: codDisabled
+        ? "Cash on delivery is not available on your account — pay in full upfront for your next order."
+        : hasMtm
+          ? "Made-to-measure pieces need a higher deposit — your dress is cut only for you and cannot be resold."
+          : undefined,
     },
     {
       plan: "DEPOSIT_70_COD_30",
@@ -45,7 +49,10 @@ export function getAvailablePaymentPlans(
       description:
         "Pay 70% to begin. The remaining 30% when it reaches you. Required for made-to-measure, also available for standard sizes.",
       depositPercent: 70,
-      disabled: false,
+      disabled: codDisabled,
+      disabledReason: codDisabled
+        ? "Cash on delivery is not available on your account — pay in full upfront for your next order."
+        : undefined,
     },
     {
       plan: "FULL_PREPAID",
@@ -61,7 +68,11 @@ export function getAvailablePaymentPlans(
 export function isPaymentPlanAllowed(
   plan: PaymentPlan,
   lines: CartLineForPlan[],
+  options?: { codDisabled?: boolean },
 ): boolean {
+  if (options?.codDisabled && plan !== "FULL_PREPAID") {
+    return false;
+  }
   if (plan === "DEPOSIT_50_COD_50" && cartHasMadeToMeasure(lines)) {
     return false;
   }

@@ -4,7 +4,7 @@ import { redirect } from "@/i18n/routing";
 import { auth } from "@/auth";
 import { getOrSetAnonToken } from "@/modules/measure";
 import { loadActiveCart } from "@/modules/cart";
-import { CheckoutFlow } from "@/modules/checkout";
+import { CheckoutFlow, getCheckoutCodStatus } from "@/modules/checkout";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 export default async function CheckoutPage() {
@@ -18,10 +18,16 @@ export default async function CheckoutPage() {
     redirect({ href: "/", locale });
   }
 
+  const codStatus = await getCheckoutCodStatus();
+
   return (
     <ShopPageContainer>
       <div className="py-8 md:py-12">
-        <CheckoutFlow cart={cart} isSignedIn={Boolean(userId)} />
+        <CheckoutFlow
+          cart={cart}
+          isSignedIn={Boolean(userId)}
+          codDisabled={codStatus.codDisabled}
+        />
       </div>
     </ShopPageContainer>
   );
