@@ -142,6 +142,13 @@ export async function handleDesignGenerate(
       );
       await maybeTransitionToAnglesReview(row.designId);
     }
+
+    if (row.stage === "COLOURWAY") {
+      const { maybeTransitionToColourwaysReview } = await import(
+        "@/modules/ai/studio/colourways-stage"
+      );
+      await maybeTransitionToColourwaysReview(row.designId);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const latencyMs = Date.now() - started;
@@ -186,6 +193,13 @@ export async function handleDesignGenerate(
         "@/modules/ai/studio/angles-stage"
       );
       await maybeTransitionToAnglesReview(row.designId);
+    }
+
+    if (row.stage === "COLOURWAY") {
+      const { maybeTransitionToColourwaysReview } = await import(
+        "@/modules/ai/studio/colourways-stage"
+      );
+      await maybeTransitionToColourwaysReview(row.designId);
     }
   }
 }

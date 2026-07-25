@@ -20,6 +20,7 @@ describe("DESIGN_STATUS_ALLOW angles stage", () => {
     expect(DESIGN_STATUS_ALLOW.ANGLES_LOCKED).toContain(
       "COLOURWAYS_GENERATING",
     );
+    expect(DESIGN_STATUS_ALLOW.ANGLES_LOCKED).toContain("READY_TO_PUBLISH");
   });
 });
 

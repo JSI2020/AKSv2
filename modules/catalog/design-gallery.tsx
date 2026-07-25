@@ -19,6 +19,12 @@ type Props = {
   onAngleChange: (angle: GalleryAngle) => void;
 };
 
+function showAiLabel(images: ResolvedImageTriple): boolean {
+  return (["FRONT", "THREE_QUARTER", "BACK"] as const).some(
+    (a) => images[a]?.isAiGenerated,
+  );
+}
+
 export function DesignGallery({
   images,
   angle,
@@ -141,6 +147,12 @@ export function DesignGallery({
             />
           ))}
         </div>
+
+        {showAiLabel(images) ? (
+          <p className="pointer-events-none absolute inset-inline-end-0 top-0 border border-ink/20 bg-greige/90 px-2 py-1 text-[10px] uppercase tracking-[0.1em] text-ink/55">
+            AI visualization
+          </p>
+        ) : null}
       </div>
     </div>
   );

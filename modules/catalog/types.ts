@@ -100,6 +100,7 @@ export type ResolvedRenderImage = {
   r2Key: string;
   altText: string;
   url: string | null;
+  isAiGenerated: boolean;
 } | null;
 
 export type ResolvedImageTriple = Record<GalleryAngle, ResolvedRenderImage>;

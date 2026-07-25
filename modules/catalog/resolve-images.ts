@@ -14,6 +14,7 @@ export type RenderRow = {
   altText: string;
   r2Key: string;
   sortOrder: number;
+  isAiGenerated: boolean;
 };
 
 /** Pure helper — maps cached render rows to the gallery triple (first row per angle wins). */
@@ -35,6 +36,7 @@ export function buildImageTripleFromRows(rows: RenderRow[]): ResolvedImageTriple
       r2Key: row.r2Key,
       altText: row.altText,
       url: null,
+      isAiGenerated: row.isAiGenerated,
     };
   };
 
@@ -77,6 +79,7 @@ export async function resolveImages(
       altText: designRenders.altText,
       r2Key: assets.r2Key,
       sortOrder: designRenders.sortOrder,
+      isAiGenerated: designRenders.isAiGenerated,
     })
     .from(designRenders)
     .innerJoin(assets, eq(designRenders.assetId, assets.id))

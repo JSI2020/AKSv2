@@ -264,6 +264,13 @@ export function AnglesPanel({ data: initial }: { data: AnglesPageData }) {
         ) : null}
 
         <a
+          href={`/admin/studio/${data.designId}/colourways`}
+          className="border border-zari bg-zari px-4 py-2 text-[13px] text-indigo"
+        >
+          Colourways →
+        </a>
+
+        <a
           href={`/admin/studio/${data.designId}/sizing`}
           className="border border-indigo-lift px-3 py-1.5 text-[13px] text-chalk"
         >

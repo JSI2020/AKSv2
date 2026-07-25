@@ -13,6 +13,7 @@ describe("buildImageTripleFromRows", () => {
       altText: "Front view",
       r2Key: "renders/front.jpg",
       sortOrder: 0,
+      isAiGenerated: true,
     },
     {
       angle: "THREE_QUARTER",
@@ -20,6 +21,7 @@ describe("buildImageTripleFromRows", () => {
       altText: "Three-quarter view",
       r2Key: "renders/three.jpg",
       sortOrder: 1,
+      isAiGenerated: true,
     },
     {
       angle: "BACK",
@@ -27,6 +29,7 @@ describe("buildImageTripleFromRows", () => {
       altText: "Back view",
       r2Key: "renders/back.jpg",
       sortOrder: 2,
+      isAiGenerated: true,
     },
   ];
 
@@ -43,6 +46,7 @@ describe("buildImageTripleFromRows", () => {
       r2Key: "renders/front.jpg",
       altText: "Front view",
       url: null,
+      isAiGenerated: true,
     });
     expect(triple.THREE_QUARTER?.altText).toBe("Three-quarter view");
     expect(triple.BACK?.assetId).toBe("a3");
