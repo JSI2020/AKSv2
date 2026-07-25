@@ -151,31 +151,41 @@ const config = [
             },
             {
               from: { element: { type: "db" } },
-              allow: {
-                to: {
-                  element: { types: { anyOf: ["db", "shared"] } },
+              allow: [
+                {
+                  to: {
+                    element: { types: { anyOf: ["db", "shared"] } },
+                  },
                 },
-              },
+                { to: { file: { categories: "db-root" } } },
+                { to: { file: { categories: "shared-root" } } },
+              ],
             },
             {
               from: { file: { categories: "db-root" } },
-              allow: {
-                to: {
-                  element: { types: { anyOf: ["db", "shared"] } },
+              allow: [
+                {
+                  to: {
+                    element: { types: { anyOf: ["db", "shared"] } },
+                  },
                 },
-              },
+                { to: { file: { categories: "db-root" } } },
+                { to: { file: { categories: "shared-root" } } },
+              ],
             },
             {
               from: { element: { type: "shared" } },
-              allow: {
-                to: { element: { type: "shared" } },
-              },
+              allow: [
+                { to: { element: { type: "shared" } } },
+                { to: { file: { categories: "shared-root" } } },
+              ],
             },
             {
               from: { file: { categories: "shared-root" } },
-              allow: {
-                to: { element: { type: "shared" } },
-              },
+              allow: [
+                { to: { element: { type: "shared" } } },
+                { to: { file: { categories: "shared-root" } } },
+              ],
             },
             {
               from: { element: { type: "worker" } },

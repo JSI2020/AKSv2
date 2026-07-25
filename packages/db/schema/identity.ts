@@ -1,7 +1,6 @@
 import {
   boolean,
   integer,
-  jsonb,
   pgEnum,
   pgTable,
   primaryKey,
