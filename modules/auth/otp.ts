@@ -3,7 +3,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 
 import { db, verificationTokens } from "@aks/db";
-import { enqueue } from "@/modules/platform";
+import { enqueue } from "@/modules/platform/outbox";
 
 export const OTP_LENGTH = 6;
 export const OTP_TTL_MS = 10 * 60 * 1000;

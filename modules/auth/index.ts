@@ -40,6 +40,7 @@ export {
   PermissionDeniedError,
   UnauthenticatedError,
   setUserPermissionEffect,
+  clearUserPermissionEffect,
   permissionIdsByKeys,
   can,
   resolvePermissions,

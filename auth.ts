@@ -171,14 +171,34 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           userAgent,
         });
 
+        const now = new Date();
         await db
           .update(users)
           .set({
-            emailVerified: user.emailVerified ?? new Date(),
-            lastLoginAt: new Date(),
-            updatedAt: new Date(),
+            emailVerified: user.emailVerified ?? now,
+            lastLoginAt: now,
+            updatedAt: now,
+            ...(user.status === "INVITED" ? { status: "ACTIVE" as const } : {}),
           })
           .where(eq(users.id, user.id));
+
+        if (user.status === "INVITED") {
+          const { staffInvites } = await import("@aks/db");
+          const { and: andOp, eq: eqOp } = await import("drizzle-orm");
+          await db
+            .update(staffInvites)
+            .set({
+              status: "ACCEPTED",
+              acceptedAt: now,
+              updatedAt: now,
+            })
+            .where(
+              andOp(
+                eqOp(staffInvites.email, email),
+                eqOp(staffInvites.status, "PENDING"),
+              ),
+            );
+        }
 
         await logSignInAttempt({
           email,

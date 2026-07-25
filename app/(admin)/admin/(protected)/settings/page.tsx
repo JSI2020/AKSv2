@@ -1,0 +1,39 @@
+import Link from "next/link";
+
+import { EmptyState, Eyebrow } from "@/modules/ui";
+import { auth } from "@/auth";
+import { getPermissionsForUser } from "@/modules/auth";
+
+export default async function AdminSettingsPage() {
+  const session = await auth();
+  const permissions = session?.user?.id
+    ? await getPermissionsForUser(session.user.id)
+    : new Set();
+  const canStaff = permissions.has("staff.view");
+
+  return (
+    <div>
+      <Eyebrow>Settings</Eyebrow>
+      <h1 className="mt-1 font-display text-3xl text-greige">Settings</h1>
+      {canStaff ? (
+        <ul className="mt-6 flex flex-col gap-2 border border-indigo-lift p-4">
+          <li>
+            <Link
+              href="/admin/settings/staff"
+              className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+            >
+              Staff — invite, roles, permissions, sessions
+            </Link>
+          </li>
+        </ul>
+      ) : (
+        <div className="mt-6">
+          <EmptyState
+            title="Settings"
+            description="Rates, taxonomy, and house defaults will live here."
+          />
+        </div>
+      )}
+    </div>
+  );
+}

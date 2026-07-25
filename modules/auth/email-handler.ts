@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 
-import type { OutboxHandler } from "@/modules/platform";
+import type { OutboxHandler } from "@/modules/platform/outbox";
 
 export type EmailSendPayload = {
   to: string;

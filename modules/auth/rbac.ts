@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import {
   db,
@@ -174,6 +174,27 @@ export async function setUserPermissionEffect(params: {
         updatedAt: new Date(),
       },
     });
+}
+
+/** Remove an explicit override so the role default applies again. */
+export async function clearUserPermissionEffect(params: {
+  userId: string;
+  key: PermissionKey;
+}): Promise<void> {
+  const ids = await permissionIdsByKeys([params.key]);
+  const permissionId = ids.get(params.key);
+  if (!permissionId) {
+    throw new Error(`Unknown permission key: ${params.key}`);
+  }
+
+  await db
+    .delete(userPermissions)
+    .where(
+      and(
+        eq(userPermissions.userId, params.userId),
+        eq(userPermissions.permissionId, permissionId),
+      ),
+    );
 }
 
 /** Pure check against an already-resolved set (for UI helpers / tests). */
