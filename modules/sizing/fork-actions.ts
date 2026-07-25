@@ -11,7 +11,7 @@ import {
   type Database,
 } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
-import { requirePermission } from "@/modules/auth";
+import { requireSizingEdit } from "./require-sizing-permission";
 
 import type { BlockMutationResult, BlockSaveResult } from "./types";
 import { forkSizeBlockInTx } from "./fork";
@@ -26,7 +26,7 @@ export async function resolveEditableBlockId(
   blockId: string,
   designId: string | null | undefined,
 ): Promise<{ blockId: string; forked: boolean }> {
-  const session = await requirePermission("settings.edit");
+  const session = await requireSizingEdit(designId);
 
   if (!designId) {
     return { blockId, forked: false };
@@ -99,7 +99,7 @@ export async function pinSizeBlockCell(input: {
   designId?: string | null;
 }): Promise<BlockMutationResult> {
   try {
-    const session = await requirePermission("settings.edit");
+    const session = await requireSizingEdit(input.designId);
     if (!Number.isInteger(input.value)) {
       return { ok: false, error: "Value must be integer hundredths" };
     }
@@ -172,7 +172,7 @@ export async function unpinSizeBlockCell(input: {
   designId?: string | null;
 }): Promise<BlockMutationResult> {
   try {
-    const session = await requirePermission("settings.edit");
+    const session = await requireSizingEdit(input.designId);
     const resolved = await resolveEditableBlockId(
       input.blockId,
       input.designId,
@@ -211,9 +211,10 @@ export async function unpinSizeBlockCell(input: {
 
 export async function revertSizeBlockFork(
   forkBlockId: string,
+  designId?: string | null,
 ): Promise<BlockSaveResult> {
   try {
-    const session = await requirePermission("settings.edit");
+    const session = await requireSizingEdit(designId);
     const blocks = await db
       .select()
       .from(sizeBlocks)

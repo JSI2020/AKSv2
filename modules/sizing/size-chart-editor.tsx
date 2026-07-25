@@ -46,6 +46,11 @@ type Props = {
   block: SizeBlockDetail;
   /** When set, first edit of a shared default forks a private copy. */
   designId?: string | null;
+  /** Studio embed — stay on sizing route after fork. */
+  onBlockForked?: (blockId: string) => void;
+  /** Fired when resolved base-size values change (overlay preview). */
+  onGridChange?: (valuesByKey: Record<string, number>) => void;
+  readOnly?: boolean;
 };
 
 function cloneRows(rows: RowState[]): RowState[] {
@@ -59,7 +64,13 @@ function pinKey(measurementKey: string, sizeLabel: string): string {
   return `${measurementKey}\0${sizeLabel}`;
 }
 
-export function SizeChartEditor({ block, designId = null }: Props) {
+export function SizeChartEditor({
+  block,
+  designId = null,
+  onBlockForked,
+  onGridChange,
+  readOnly = false,
+}: Props) {
   const router = useRouter();
   const [blockId, setBlockId] = useState(block.id);
   const [rows, setRows] = useState<RowState[]>(() => cloneRows(block.rows));
@@ -109,6 +120,16 @@ export function SizeChartEditor({ block, designId = null }: Props) {
     [rows, labels, baseLabel, pinnedInputs],
   );
 
+  useEffect(() => {
+    if (!onGridChange) return;
+    const valuesByKey: Record<string, number> = {};
+    for (const row of rows) {
+      valuesByKey[row.measurementKey] =
+        grid[row.measurementKey]?.[baseLabel]?.value ?? row.baseValue;
+    }
+    onGridChange(valuesByKey);
+  }, [grid, rows, baseLabel, onGridChange]);
+
   const pushHistory = useCallback(() => {
     setUndoStack((u) => [
       ...u,
@@ -122,12 +143,16 @@ export function SizeChartEditor({ block, designId = null }: Props) {
       if (!result.ok) return;
       if (result.forked && result.blockId && result.blockId !== blockId) {
         setBlockId(result.blockId);
+        if (onBlockForked) {
+          onBlockForked(result.blockId);
+          return;
+        }
         const qs = designId ? `?designId=${encodeURIComponent(designId)}` : "";
         router.replace(`/admin/settings/sizing/blocks/${result.blockId}${qs}`);
         router.refresh();
       }
     },
-    [blockId, designId, router],
+    [blockId, designId, onBlockForked, router],
   );
 
   const scheduleSave = useCallback(
@@ -269,9 +294,13 @@ export function SizeChartEditor({ block, designId = null }: Props) {
 
   function onRevert() {
     startTransition(async () => {
-      const result = await revertSizeBlockFork(blockId);
+      const result = await revertSizeBlockFork(blockId, designId);
       if (!result.ok) {
         setSaveError(result.error);
+        return;
+      }
+      if (onBlockForked && designId) {
+        router.refresh();
         return;
       }
       router.push("/admin/settings/sizing/blocks");
@@ -415,6 +444,7 @@ export function SizeChartEditor({ block, designId = null }: Props) {
                         <MeasureInput
                           value={value}
                           unit={unit}
+                          disabled={readOnly}
                           onCommit={(raw) => onBaseChange(row.id, raw)}
                         />
                       ) : (
@@ -422,6 +452,7 @@ export function SizeChartEditor({ block, designId = null }: Props) {
                           <MeasureInput
                             value={value}
                             unit={unit}
+                            disabled={readOnly}
                             onCommit={(raw) =>
                               onPinCell(row.measurementKey, label, raw)
                             }
@@ -452,6 +483,7 @@ export function SizeChartEditor({ block, designId = null }: Props) {
                   <MeasureInput
                     value={row.gradeIncrement}
                     unit={unit}
+                    disabled={readOnly}
                     onCommit={(raw) => onIncrementChange(row.id, raw)}
                   />
                 </td>
@@ -473,10 +505,12 @@ function MeasureInput({
   value,
   unit,
   onCommit,
+  disabled = false,
 }: {
   value: number;
   unit: DisplayUnit;
   onCommit: (raw: string) => void;
+  disabled?: boolean;
 }) {
   const display = formatMeasure(value, unit).replace(/[″]| cm/g, "");
   const [draft, setDraft] = useState(display);
@@ -503,7 +537,8 @@ function MeasureInput({
           (e.target as HTMLInputElement).blur();
         }
       }}
-      className="w-16 border border-transparent bg-transparent px-1 py-0.5 text-center font-data text-[13px] text-greige outline-none focus:border-zari"
+      disabled={disabled}
+      className="w-16 border border-transparent bg-transparent px-1 py-0.5 text-center font-data text-[13px] text-greige outline-none focus:border-zari disabled:opacity-50"
       aria-label="measurement"
     />
   );

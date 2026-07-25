@@ -146,7 +146,17 @@ export function HeroLoopPanel({ data: initial }: { data: HeroLoopPageData }) {
       <div className="flex flex-wrap items-center gap-2 text-[12px] text-chalk">
         <span>Status: {data.status.replaceAll("_", " ")}</span>
         {data.heroLocked ? (
-          <span className="border border-zari px-2 py-0.5 text-zari">Hero locked</span>
+          <>
+            <span className="border border-zari px-2 py-0.5 text-zari">
+              Hero locked
+            </span>
+            <a
+              href={`/admin/studio/${data.designId}/sizing`}
+              className="border border-indigo-lift px-2 py-0.5 text-greige"
+            >
+              Size this design →
+            </a>
+          </>
         ) : null}
       </div>
 

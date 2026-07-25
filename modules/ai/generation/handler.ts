@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 
-import { db, designGenerations, designs } from "@aks/db";
+import { db, designGenerations, designLocks, designs } from "@aks/db";
 
 import { registerHandler } from "@/modules/platform/outbox";
 import { transitionDesignStatus } from "@/modules/designs/studio-pipeline";
@@ -78,6 +78,11 @@ export async function handleDesignGenerate(
       imageUrl: result.imageUrl,
     });
 
+    const { calibrateGenerationOutput } = await import(
+      "@/modules/ai/studio/sizing/calibrate-generation"
+    );
+    await calibrateGenerationOutput(generationId, outputAssetId);
+
     await db
       .update(designGenerations)
       .set({
@@ -96,7 +101,28 @@ export async function handleDesignGenerate(
         .from(designs)
         .where(eq(designs.id, row.designId))
         .limit(1);
-      if (design?.status === "HERO_GENERATING") {
+
+      const promptPayload = row.promptJson as Record<string, unknown>;
+      const sizingApply = Boolean(promptPayload.sizingApply);
+
+      if (design?.status === "SIZING_LOCKED" && sizingApply) {
+        await db
+          .insert(designLocks)
+          .values({
+            designId: row.designId,
+            stage: "HERO",
+            generationId,
+            lockedBy: "00000000-0000-0000-0000-000000000001",
+          })
+          .onConflictDoUpdate({
+            target: [designLocks.designId, designLocks.stage],
+            set: {
+              generationId,
+              lockedBy: "00000000-0000-0000-0000-000000000001",
+              lockedAt: new Date(),
+            },
+          });
+      } else if (design?.status === "HERO_GENERATING") {
         await db.transaction(async (tx) => {
           await transitionDesignStatus({
             designId: row.designId,

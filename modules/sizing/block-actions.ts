@@ -12,6 +12,7 @@ import {
   sizeBlocks,
 } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
+import { requireSizingEdit, requireSizingView } from "./require-sizing-permission";
 import { requirePermission } from "@/modules/auth";
 
 import { resolveEditableBlockId } from "./fork-actions";
@@ -83,8 +84,9 @@ export async function listSizeBlocks(): Promise<SizeBlockListItem[]> {
 
 export async function getSizeBlock(
   id: string,
+  opts?: { designId?: string | null },
 ): Promise<SizeBlockDetail | null> {
-  await requirePermission("settings.view");
+  await requireSizingView(opts?.designId);
   const blocks = await db
     .select({
       id: sizeBlocks.id,
@@ -155,7 +157,7 @@ export async function saveSizeBlockRow(input: {
   designId?: string | null;
 }): Promise<BlockMutationResult> {
   try {
-    const session = await requirePermission("settings.edit");
+    const session = await requireSizingEdit(input.designId);
     const { rowId, baseValue, gradeIncrement } = input;
 
     if (

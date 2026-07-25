@@ -109,6 +109,13 @@ export const designGenerations = pgTable("design_generations", {
     .notNull()
     .default([]),
   outputAssetId: uuid("output_asset_id").references(() => assets.id),
+  /** Image calibration — modelPixelHeight, detection method, dimensions. */
+  outputMeta: jsonb("output_meta").$type<{
+    imageWidthPx?: number;
+    imageHeightPx?: number;
+    modelPixelHeight?: number;
+    modelHeightDetection?: "sharp_bbox" | "stored" | "fallback_fraction";
+  }>(),
   status: designGenerationStatusEnum("status").notNull().default("PENDING"),
   /** USD stored as micro-dollars (1 USD = 1_000_000) — never floats. */
   costUsdMicros: integer("cost_usd_micros"),
