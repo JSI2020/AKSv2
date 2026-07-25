@@ -1,0 +1,50 @@
+{
+  "Brand": {
+    "name": "AKS",
+    "nameUr": "عکس",
+    "tagline": "a reflection",
+    "footerBlurb": "Where East meets the West. Pakistani pret and modest fusion, cut to your measure after you order."
+  },
+  "Nav": {
+    "new": "New",
+    "formal": "Formal",
+    "fusion": "Fusion",
+    "fabrics": "Fabrics",
+    "sizeGuide": "Size guide",
+    "cart": "Cart",
+    "search": "Search",
+    "wishlist": "Wishlist",
+    "localeEn": "EN",
+    "localeUr": "اردو"
+  },
+  "Utility": {
+    "leadTime": "Made to order — cut after you ask, about 18–24 days",
+    "whatsapp": "Message us on WhatsApp"
+  },
+  "Marquee": {
+    "items": [
+      "Made to your measure",
+      "18–24 days",
+      "Pakistani pret",
+      "Modest fusion",
+      "Cut after you order"
+    ]
+  },
+  "Home": {
+    "eyebrow": "عکس · a reflection",
+    "headlineLine1": "Where East",
+    "headlineLine2": "meets the West",
+    "subhead": "Pakistani pret and modest fusion — cut to your measurements after you order.",
+    "cta": "Choose a piece"
+  },
+  "Footer": {
+    "shop": "Shop",
+    "help": "Help",
+    "talk": "Talk to us",
+    "trackOrder": "Track order",
+    "shipping": "Shipping",
+    "returns": "Returns",
+    "whatsappShahneela": "WhatsApp Shahneela",
+    "copyright": "© 2026 AKS by Shahneela"
+  }
+}

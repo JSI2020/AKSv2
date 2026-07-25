@@ -78,3 +78,29 @@
     min-block-size: 100dvh;
   }
 }
+
+@keyframes shop-marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes shop-marquee-rtl {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(50%);
+  }
+}
+
+.shop-marquee-track {
+  animation: shop-marquee 26s linear infinite;
+}
+
+[dir="rtl"] .shop-marquee-track {
+  animation-name: shop-marquee-rtl;
+}

@@ -38,6 +38,7 @@ const config = [
         "worker/**/*",
         "components/**/*",
         "lib/**/*",
+        "i18n/**/*",
       ],
       "boundaries/elements": [
         // Folder-based architectural units (element patterns match folders)
@@ -48,11 +49,13 @@ const config = [
         { type: "worker", pattern: "worker/*" },
         { type: "components", pattern: "components/*", capture: ["group"] },
         { type: "lib", pattern: "lib/*" },
+        { type: "i18n", pattern: "i18n/*" },
       ],
       "boundaries/files": [
         // Root-level files that sit beside route-group folders
         { pattern: "app/*.{ts,tsx}", category: "app-root" },
         { pattern: "lib/*.{ts,tsx}", category: "lib-root" },
+        { pattern: "i18n/*.{ts,tsx}", category: "i18n-root" },
         { pattern: "worker/*.{ts,tsx,js,mjs}", category: "worker-root" },
         { pattern: "packages/db/*.{ts,tsx,js,mjs}", category: "db-root" },
         {
@@ -87,12 +90,14 @@ const config = [
                           "db",
                           "components",
                           "lib",
+                          "i18n",
                         ],
                       },
                     },
                   },
                 },
                 { to: { file: { categories: "lib-root" } } },
+                { to: { file: { categories: "i18n-root" } } },
                 { to: { file: { categories: "db-root" } } },
                 { to: { file: { categories: "shared-root" } } },
                 { to: { file: { categories: "style" } } },
@@ -114,14 +119,26 @@ const config = [
                           "db",
                           "components",
                           "lib",
+                          "i18n",
                         ],
                       },
                     },
                   },
                 },
                 { to: { file: { categories: "lib-root" } } },
+                { to: { file: { categories: "i18n-root" } } },
                 { to: { file: { categories: "db-root" } } },
                 { to: { file: { categories: "shared-root" } } },
+              ],
+            },
+            {
+              from: [
+                { element: { type: "i18n" } },
+                { file: { categories: "i18n-root" } },
+              ],
+              allow: [
+                { to: { element: { type: "i18n" } } },
+                { to: { file: { categories: "i18n-root" } } },
               ],
             },
             {
