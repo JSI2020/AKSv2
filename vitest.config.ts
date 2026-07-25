@@ -14,6 +14,7 @@ export default defineConfig({
       ["modules/sizing/**/*.test.ts", "node"],
       ["modules/orders/**/*.test.ts", "node"],
       ["modules/payments/**/*.test.ts", "node"],
+      ["modules/ai/**/*.test.ts", "node"],
     ],
     coverage: {
       include: [

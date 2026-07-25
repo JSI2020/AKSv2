@@ -99,6 +99,13 @@
       "when": 1785025000000,
       "tag": "0013_payments",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1785028000000,
+      "tag": "0016_step35_studio_settings",
+      "breakpoints": true
     }
   ]
 }

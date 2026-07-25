@@ -375,6 +375,12 @@ async function seed() {
   }
   console.log(`seeded ${HOUSE_MODEL_SEEDS.length} house_models — disclosure OK`);
 
+  const { seedStudioSettings } = await import(
+    "../../modules/ai/studio/defaults"
+  );
+  await seedStudioSettings();
+  console.log("seeded studio_settings");
+
   // --- Custom size limits (MTM) ---
   await db.delete(customSizeLimits);
   for (const limit of CUSTOM_SIZE_LIMIT_SEEDS) {

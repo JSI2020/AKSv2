@@ -32,6 +32,14 @@ export default async function AdminSettingsPage() {
             <>
               <li>
                 <Link
+                  href="/admin/settings/studio"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Studio — defaults, prompt template, AI models
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/admin/settings/sizing/categories"
                   className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
                 >
