@@ -49,7 +49,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   },
   {
     title: "Fabric",
-    href: "/admin/fabric",
+    href: "/admin/fabrics",
     icon: Layers,
     permission: "fabric.view",
     shortcut: "G F",

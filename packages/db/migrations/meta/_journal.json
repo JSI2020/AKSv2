@@ -50,6 +50,13 @@
       "when": 1784980505884,
       "tag": "0006_gray_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784980750389,
+      "tag": "0007_polite_red_wolf",
+      "breakpoints": true
     }
   ]
 }

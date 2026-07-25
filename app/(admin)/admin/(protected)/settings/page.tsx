@@ -54,6 +54,14 @@ export default async function AdminSettingsPage() {
                   Sizing — fit profiles (ease)
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/admin/settings/sizing/archetypes"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Sizing — archetypes (house models)
+                </Link>
+              </li>
             </>
           ) : null}
         </ul>

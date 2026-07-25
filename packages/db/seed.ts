@@ -19,6 +19,8 @@ async function seed() {
     sizeBlocks,
     sizeBlockRows,
     fitProfiles,
+    fabrics,
+    houseModels,
   } = await import("./schema");
   const { and, eq } = await import("drizzle-orm");
   const {
@@ -31,6 +33,9 @@ async function seed() {
     inches,
     FIT_PROFILE_SEEDS,
     applyFitEase,
+    FABRIC_SEEDS,
+    HOUSE_MODEL_SEEDS,
+    formatModelDisclosure,
   } = shared;
 
   // Fixed UUIDv7 for idempotent re-seeds of the probe row (no digit-run demo OTP).
@@ -316,6 +321,57 @@ async function seed() {
   console.log(
     `Palazzo @ M OK — waist ${finished.WAIST! / 100}″ · hip ${finished.HIP! / 100}″ · bottom ${finished.BOTTOM_OPENING! / 100}″`,
   );
+
+  // --- Fabrics (replaceable) ---
+  await db.delete(fabrics);
+  for (const f of FABRIC_SEEDS) {
+    await db.insert(fabrics).values({
+      id: uuidv7(),
+      name: f.name,
+      composition: f.composition,
+      weightGsm: f.weightGsm,
+      widthInches: f.widthInches,
+      stretchPercent: f.stretchPercent,
+      shrinkageAllowance: f.shrinkageAllowance,
+      drapeClass: f.drapeClass,
+      costPerMeterMinor: f.costPerMeterMinor,
+      careInstructions: f.careInstructions,
+      drapeNotes: f.drapeNotes,
+      active: true,
+    });
+  }
+  console.log(`seeded ${FABRIC_SEEDS.length} fabrics`);
+
+  // --- House models / archetypes ---
+  await db.delete(houseModels);
+  for (const m of HOUSE_MODEL_SEEDS) {
+    await db.insert(houseModels).values({
+      id: uuidv7(),
+      name: m.name,
+      isDefault: m.isDefault ?? false,
+      active: true,
+      heightCm: m.heightCm,
+      heightInches: m.heightInches,
+      bust: m.bust,
+      waist: m.waist,
+      hip: m.hip,
+      shoulder: m.shoulder,
+      wearsSizeLabel: m.wearsSizeLabel,
+      buildDescription: m.buildDescription,
+      identitySeed: m.identitySeed,
+      referenceAssetIds: [],
+      isAiGenerated: true,
+    });
+  }
+  const regular = HOUSE_MODEL_SEEDS.find((m) => m.name === "Regular");
+  if (!regular) throw new Error("Regular archetype missing");
+  const disclosure = formatModelDisclosure(regular);
+  const expected =
+    "Model is 5'7″ (170 cm) and wears size M. Bust 36″ · Waist 28″ · Hip 38″";
+  if (disclosure !== expected) {
+    throw new Error(`Disclosure mismatch:\n${disclosure}\n${expected}`);
+  }
+  console.log(`seeded ${HOUSE_MODEL_SEEDS.length} house_models — disclosure OK`);
 
   console.log(`uuidv7 sample: ${uuidv7()}`);
   process.exit(0);

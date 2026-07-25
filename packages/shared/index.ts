@@ -35,3 +35,9 @@ export type {
 } from "./size-block-seeds";
 export { FIT_PROFILE_SEEDS, applyFitEase } from "./fit-profile-seeds";
 export type { FitProfileSeed } from "./fit-profile-seeds";
+export {
+  FABRIC_SEEDS,
+  HOUSE_MODEL_SEEDS,
+  formatModelDisclosure,
+} from "./fabric-archetype-seeds";
+export type { FabricSeed, HouseModelSeed } from "./fabric-archetype-seeds";
