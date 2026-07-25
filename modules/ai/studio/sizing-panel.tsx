@@ -133,7 +133,15 @@ export function SizingPanel({ data: initial }: { data: SizingPageData }) {
             </p>
           </>
         ) : (
-          <p className="text-[13px] text-chalk">Sizing locked for this design.</p>
+          <>
+            <p className="text-[13px] text-chalk">Sizing locked for this design.</p>
+            <a
+              href={`/admin/studio/${data.designId}/angles`}
+              className="border border-zari px-4 py-2 text-[13px] text-zari"
+            >
+              Generate angles →
+            </a>
+          </>
         )}
 
         <a

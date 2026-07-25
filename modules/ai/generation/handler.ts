@@ -135,6 +135,13 @@ export async function handleDesignGenerate(
         });
       }
     }
+
+    if (row.stage === "ANGLE") {
+      const { maybeTransitionToAnglesReview } = await import(
+        "@/modules/ai/studio/angles-stage"
+      );
+      await maybeTransitionToAnglesReview(row.designId);
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const latencyMs = Date.now() - started;
@@ -172,6 +179,13 @@ export async function handleDesignGenerate(
           });
         });
       }
+    }
+
+    if (row.stage === "ANGLE") {
+      const { maybeTransitionToAnglesReview } = await import(
+        "@/modules/ai/studio/angles-stage"
+      );
+      await maybeTransitionToAnglesReview(row.designId);
     }
   }
 }
