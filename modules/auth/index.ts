@@ -33,3 +33,16 @@ export {
 } from "./totp";
 export { handleEmailSend } from "./email-handler";
 export type { EmailSendPayload } from "./email-handler";
+export {
+  requirePermission,
+  getPermissionsForUser,
+  userHasPermission,
+  PermissionDeniedError,
+  UnauthenticatedError,
+  setUserPermissionEffect,
+  permissionIdsByKeys,
+  can,
+  resolvePermissions,
+} from "./rbac";
+export { useCan, PermissionsProvider } from "./use-can";
+export { deleteSomethingAction } from "./actions";

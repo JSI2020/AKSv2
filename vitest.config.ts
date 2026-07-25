@@ -10,6 +10,7 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     environmentMatchGlobs: [
       ["modules/platform/**/*.test.ts", "node"],
+      ["modules/auth/**/*.test.ts", "node"],
     ],
     fileParallelism: false,
   },

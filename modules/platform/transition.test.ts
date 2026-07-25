@@ -23,7 +23,7 @@ const ALLOW: TransitionAllowList = {
   ARCHIVED: [],
 };
 
-const ACTOR = { id: "01900000-0000-7000-8000-0000000000aa", role: "OWNER" };
+const ACTOR = { id: "01900001-2345-7890-abcd-ef123456789a", role: "OWNER" };
 
 describe("transition()", () => {
   beforeAll(() => {

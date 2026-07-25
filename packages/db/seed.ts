@@ -4,9 +4,17 @@ config({ path: ".env.local" });
 config({ path: ".env" });
 
 async function seed() {
-  const { uuidv7 } = await import("../shared");
+  const shared = await import("../shared");
+  const { uuidv7, ALL_PERMISSION_KEYS, ROLE_DEFAULT_PERMISSIONS, parsePermissionKey } =
+    shared;
+  type StaffRole = import("../shared").StaffRole;
   const { db } = await import("./client");
-  const { pipelineProbe, users } = await import("./schema");
+  const {
+    pipelineProbe,
+    users,
+    permissions,
+    rolePermissions,
+  } = await import("./schema");
   const { eq } = await import("drizzle-orm");
 
   // Fixed UUIDv7 for idempotent re-seeds of the probe row (no digit-run demo OTP).
@@ -16,6 +24,45 @@ async function seed() {
     .values({ id: probeId, label: "seed-ok" })
     .onConflictDoNothing({ target: pipelineProbe.id });
   console.log(`seeded pipeline_probe ${probeId}`);
+
+  // --- Permission catalogue + role presets ---
+  for (const key of ALL_PERMISSION_KEYS) {
+    const { module, action } = parsePermissionKey(key);
+    await db
+      .insert(permissions)
+      .values({
+        id: uuidv7(),
+        key,
+        module,
+        action,
+        description: `${module} · ${action}`,
+      })
+      .onConflictDoNothing({ target: permissions.key });
+  }
+  console.log(`seeded ${ALL_PERMISSION_KEYS.length} permissions`);
+
+  const permRows = await db
+    .select({ id: permissions.id, key: permissions.key })
+    .from(permissions);
+  const idByKey = new Map(permRows.map((r) => [r.key, r.id]));
+
+  const staffRoles = Object.keys(ROLE_DEFAULT_PERMISSIONS) as StaffRole[];
+  for (const role of staffRoles) {
+    await db.delete(rolePermissions).where(eq(rolePermissions.role, role));
+    const keys = ROLE_DEFAULT_PERMISSIONS[role];
+    for (const key of keys) {
+      const permissionId = idByKey.get(key);
+      if (!permissionId) {
+        throw new Error(`Missing permission row for ${key}`);
+      }
+      await db.insert(rolePermissions).values({
+        id: uuidv7(),
+        role,
+        permissionId,
+      });
+    }
+    console.log(`seeded role_permissions for ${role} (${keys.length})`);
+  }
 
   const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
   const ownerName = process.env.OWNER_NAME?.trim();
