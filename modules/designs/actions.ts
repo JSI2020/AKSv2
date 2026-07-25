@@ -752,12 +752,22 @@ export async function publishDesign(
       };
     }
 
+    const publishFrom = detail.design.status;
+    const publishTo = "PUBLISHED" as const;
+    const allowedFrom = [publishFrom, "READY_TO_PUBLISH"] as const;
+    if (!allowedFrom.includes(publishFrom as (typeof allowedFrom)[number])) {
+      return {
+        ok: false,
+        error: `Design must be DRAFT or READY_TO_PUBLISH to publish (current: ${detail.design.status}).`,
+      };
+    }
+
     await db.transaction(async (tx) => {
       await transition({
         entity: "design",
         id,
-        from: detail.design.status,
-        to: "PUBLISHED",
+        from: publishFrom,
+        to: publishTo,
         actor: { id: session.user.id, role: session.user.role },
         allowList: DESIGN_TRANSITION_ALLOW,
         tx: tx as never,

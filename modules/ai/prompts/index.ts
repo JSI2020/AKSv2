@@ -20,3 +20,5 @@ export type {
   PromptTemplateVersion,
   SketchToPhotoPromptVars,
 } from "./sketch-to-photo.v1";
+
+export * from "./notes-to-delta";

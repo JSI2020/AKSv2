@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 
-import { db, designGenerations } from "@aks/db";
+import { db, designGenerations, designs } from "@aks/db";
 
 import { registerHandler } from "@/modules/platform/outbox";
+import { transitionDesignStatus } from "@/modules/designs/studio-pipeline";
 
 import { getImageGenProvider } from "../providers";
 import { persistGenerationImage } from "./persist-output";
@@ -88,6 +89,26 @@ export async function handleDesignGenerate(
         error: null,
       })
       .where(eq(designGenerations.id, generationId));
+
+    if (row.stage === "HERO") {
+      const [design] = await db
+        .select({ status: designs.status })
+        .from(designs)
+        .where(eq(designs.id, row.designId))
+        .limit(1);
+      if (design?.status === "HERO_GENERATING") {
+        await db.transaction(async (tx) => {
+          await transitionDesignStatus({
+            designId: row.designId,
+            from: "HERO_GENERATING",
+            to: "HERO_REVIEW",
+            actorId: "00000000-0000-0000-0000-000000000001",
+            note: `Hero generation ${generationId} succeeded`,
+            tx: tx as never,
+          });
+        });
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     const latencyMs = Date.now() - started;
@@ -105,6 +126,26 @@ export async function handleDesignGenerate(
 
     if (!isFinal) {
       throw err;
+    }
+
+    if (row.stage === "HERO") {
+      const [design] = await db
+        .select({ status: designs.status })
+        .from(designs)
+        .where(eq(designs.id, row.designId))
+        .limit(1);
+      if (design?.status === "HERO_GENERATING") {
+        await db.transaction(async (tx) => {
+          await transitionDesignStatus({
+            designId: row.designId,
+            from: "HERO_GENERATING",
+            to: "HERO_REVIEW",
+            actorId: "00000000-0000-0000-0000-000000000001",
+            note: `Hero generation ${generationId} failed: ${message}`,
+            tx: tx as never,
+          });
+        });
+      }
     }
   }
 }

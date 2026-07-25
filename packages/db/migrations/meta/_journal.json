@@ -113,6 +113,20 @@
       "when": 1785032000000,
       "tag": "0017_step36_design_generations",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1785036000000,
+      "tag": "0018_step38_design_inputs",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1785040000000,
+      "tag": "0019_step39_hero_loop",
+      "breakpoints": true
     }
   ]
 }

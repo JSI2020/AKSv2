@@ -11,6 +11,8 @@ import { uuidv7 } from "@aks/shared";
 import { enqueue } from "@/modules/platform/outbox";
 import type { DbTx } from "@/modules/platform/types";
 
+import { assertHeroLockedForDownstream } from "@/modules/designs/studio-pipeline";
+
 import { jobTypeForStage } from "../providers/fal-models";
 import { buildIdempotencyKey } from "./idempotency";
 import { checkSpendCap } from "./spend-cap";
@@ -76,6 +78,8 @@ export async function enqueueDesignGeneration(
   if (!cap.ok) {
     throw new Error(cap.message);
   }
+
+  await assertHeroLockedForDownstream(input.designId, input.stage);
 
   const attemptN =
     input.attemptN ??

@@ -52,6 +52,7 @@ export {
   isValidDesignTag,
   DESIGN_STATUSES,
   DESIGN_STATUS_ALLOW,
+  POST_HERO_LOCKED_STATUSES,
   RENDER_ANGLES,
 } from "./design-catalogue";
 export type {

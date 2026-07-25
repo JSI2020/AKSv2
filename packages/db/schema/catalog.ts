@@ -19,6 +19,19 @@ import { fabrics, houseModels } from "./fabrics-archetypes";
 
 export const designStatusEnum = pgEnum("design_status", [
   "DRAFT",
+  "BRIEF_COMPLETE",
+  "INPUTS_UPLOADED",
+  "HERO_GENERATING",
+  "HERO_REVIEW",
+  "HERO_LOCKED",
+  "SIZING",
+  "SIZING_LOCKED",
+  "ANGLES_GENERATING",
+  "ANGLES_REVIEW",
+  "ANGLES_LOCKED",
+  "COLOURWAYS_GENERATING",
+  "COLOURWAYS_REVIEW",
+  "READY_TO_PUBLISH",
   "PUBLISHED",
   "ARCHIVED",
 ]);

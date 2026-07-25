@@ -3,6 +3,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -167,6 +168,34 @@ export const designInputAttestations = pgTable("design_input_attestations", {
     .notNull()
     .defaultNow(),
 });
+
+export const designLockStageEnum = pgEnum("design_lock_stage", [
+  "HERO",
+  "SIZING",
+  "ANGLE",
+  "COLOURWAY",
+]);
+
+/** One row per locked stage — points at the approved generation. */
+export const designLocks = pgTable(
+  "design_locks",
+  {
+    designId: uuid("design_id")
+      .notNull()
+      .references(() => designs.id, { onDelete: "cascade" }),
+    stage: designLockStageEnum("stage").notNull(),
+    generationId: uuid("generation_id")
+      .notNull()
+      .references(() => designGenerations.id),
+    lockedBy: uuid("locked_by")
+      .notNull()
+      .references(() => users.id),
+    lockedAt: timestamp("locked_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.designId, t.stage] })],
+);
 
 export const designInputs = pgTable("design_inputs", {
   id: uuid("id").primaryKey(),

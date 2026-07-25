@@ -21,6 +21,7 @@ import {
 import { DESIGN_TAG_VALUES } from "@aks/shared";
 import { uuidv7 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
+import { transitionDesignStatus } from "@/modules/designs/studio-pipeline";
 
 import { ensureStudioSettingsRow } from "./defaults";
 import {
@@ -476,6 +477,16 @@ export async function saveDesignBrief(
         sortOrder: 0,
         active: true,
       });
+
+      await transitionDesignStatus({
+        designId,
+        from: "DRAFT",
+        to: "BRIEF_COMPLETE",
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        note: "Design brief saved",
+        tx: tx as never,
+      });
     });
 
     await insertAuditLog(db, {
@@ -491,6 +502,7 @@ export async function saveDesignBrief(
 
     revalidatePath("/admin/designs");
     revalidatePath("/admin/studio/new");
+    revalidatePath(`/admin/studio/${designId}`);
     revalidatePath(`/admin/studio/${designId}/inputs`);
     return { ok: true, id: designId };
   } catch (e) {
