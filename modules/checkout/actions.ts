@@ -26,6 +26,7 @@ import { generateOrderNumber } from "@/modules/orders/order-number";
 import {
   CHECKOUT_GUEST_ACTOR_ID,
 } from "@/modules/orders/constants";
+import { computeCutSpecSnapshot, buildStandardMeasurementSnapshot } from "@/modules/orders/compute-cut-spec-snapshot";
 import { ORDER_TRANSITION_ALLOW } from "@/modules/orders/transitions";
 
 import "@/modules/orders/transitions";
@@ -132,7 +133,7 @@ export async function placeOrder(
       });
 
       for (const line of lines) {
-        let measurementSnapshot = null;
+        let measurementSnapshot;
         if (line.sizeMode === "MADE_TO_MEASURE" && line.measurementProfileId) {
           measurementSnapshot = await loadMeasurementSnapshot(
             line.measurementProfileId,
@@ -142,7 +143,30 @@ export async function placeOrder(
               `Measurements missing for ${line.designName}. Complete them before checkout.`,
             );
           }
+        } else if (line.sizeMode === "STANDARD" && line.sizeLabel) {
+          measurementSnapshot = await buildStandardMeasurementSnapshot(
+            {
+              designId: line.designId,
+              sizeLabel: line.sizeLabel,
+            },
+            tx,
+          );
+        } else {
+          throw new Error(
+            `Size configuration missing for ${line.designName}.`,
+          );
         }
+
+        const cutSpecSnapshot = await computeCutSpecSnapshot(
+          {
+            designId: line.designId,
+            colourwayId: line.colourwayId,
+            sizeMode: line.sizeMode,
+            sizeLabel: line.sizeLabel,
+            measurementSnapshot,
+          },
+          tx,
+        );
 
         await tx.insert(orderItems).values({
           id: uuidv7(),
@@ -158,7 +182,7 @@ export async function placeOrder(
           measurementSnapshot,
           customizationSnapshot: line.customizationSelections,
           priceBreakdownSnapshot: line.priceBreakdown,
-          cutSpecSnapshot: null,
+          cutSpecSnapshot,
           unitPriceMinor: line.unitPriceMinor,
           quantity: line.quantity,
           lineTotalMinor: line.lineTotalMinor,

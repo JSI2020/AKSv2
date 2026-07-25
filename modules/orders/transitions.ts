@@ -32,7 +32,7 @@ export function registerOrderTransitions(): void {
       if (to === "AWAITING_DEPOSIT" && from === "DRAFT") {
         patch.placedAt = new Date();
       }
-      if (to === "CANCELLED") {
+      if (to === "CANCELLED" || to === "REFUND_PENDING") {
         patch.cancelledAt = new Date();
       }
 

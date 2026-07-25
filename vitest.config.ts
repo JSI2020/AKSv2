@@ -12,6 +12,7 @@ export default defineConfig({
       ["modules/platform/**/*.test.ts", "node"],
       ["modules/auth/**/*.test.ts", "node"],
       ["modules/sizing/**/*.test.ts", "node"],
+      ["modules/orders/**/*.test.ts", "node"],
     ],
     coverage: {
       include: [
