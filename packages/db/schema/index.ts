@@ -10,3 +10,5 @@ export * from "./fabrics-archetypes";
 export * from "./catalog";
 export * from "./custom-measurements";
 export * from "./cart";
+export * from "./addresses";
+export * from "./orders";

@@ -162,13 +162,15 @@ export function CartDrawer() {
           <p className="mb-4 text-[13px] leading-relaxed text-ink/65">
             {cart.leadTimeLabel}
           </p>
-          <button
-            type="button"
-            disabled={cart.lines.length === 0}
-            className="w-full border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige disabled:opacity-40"
+          <Link
+            href="/checkout"
+            onClick={closeDrawer}
+            className="block w-full border border-ink bg-ink px-4 py-3 text-center text-[12px] uppercase tracking-[0.08em] text-greige disabled:pointer-events-none disabled:opacity-40"
+            aria-disabled={cart.lines.length === 0}
+            tabIndex={cart.lines.length === 0 ? -1 : undefined}
           >
             Checkout
-          </button>
+          </Link>
         </footer>
       </aside>
     </>

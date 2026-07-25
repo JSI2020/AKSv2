@@ -78,6 +78,13 @@
       "when": 1785012000000,
       "tag": "0010_cart",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1785008016294,
+      "tag": "0011_orange_madame_hydra",
+      "breakpoints": true
     }
   ]
 }
