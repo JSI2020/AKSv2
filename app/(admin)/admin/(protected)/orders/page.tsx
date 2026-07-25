@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AdminNuqsProvider } from "@/modules/admin";
@@ -5,6 +6,7 @@ import { EmptyState, Eyebrow } from "@/modules/ui";
 import {
   PermissionDeniedError,
   UnauthenticatedError,
+  requirePermission,
 } from "@/modules/auth";
 import {
   listOrders,
@@ -22,8 +24,15 @@ export default async function AdminOrdersPage({
   const filters = searchParamsToOrderFilters(params);
 
   let result;
+  let canCreate = false;
   try {
     result = await listOrders(filters);
+    try {
+      await requirePermission("orders.create");
+      canCreate = true;
+    } catch {
+      canCreate = false;
+    }
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -37,12 +46,22 @@ export default async function AdminOrdersPage({
   return (
     <AdminNuqsProvider>
       <div className="flex flex-col gap-6">
-        <div>
-          <Eyebrow>Orders</Eyebrow>
-          <h1 className="mt-1 font-display text-3xl text-greige">Orders</h1>
-          <p className="mt-1 max-w-xl text-[13px] text-chalk">
-            Production and payment status are tracked separately on every order.
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <Eyebrow>Orders</Eyebrow>
+            <h1 className="mt-1 font-display text-3xl text-greige">Orders</h1>
+            <p className="mt-1 max-w-xl text-[13px] text-chalk">
+              Production and payment status are tracked separately on every order.
+            </p>
+          </div>
+          {canCreate ? (
+            <Link
+              href="/admin/orders/new"
+              className="border border-zari bg-zari px-3 py-1.5 text-[13px] text-indigo"
+            >
+              New manual order
+            </Link>
+          ) : null}
         </div>
 
         {result.total === 0 && !params.q && params.production.length === 0 ? (
