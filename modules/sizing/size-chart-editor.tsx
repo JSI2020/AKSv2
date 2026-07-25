@@ -8,18 +8,22 @@ import {
   useState,
   useTransition,
 } from "react";
+import { useRouter } from "next/navigation";
 
 import { Measure, formatMeasure, parseMeasureInput } from "@/modules/ui";
 import {
   editBaseCell,
   resolveChart,
+  type PinnedCellInput,
   type SizeBlockRowInput,
 } from "@/modules/sizing/engine";
 
+import { saveSizeBlockRow, type SizeBlockDetail } from "./block-actions";
 import {
-  saveSizeBlockRow,
-  type SizeBlockDetail,
-} from "./block-actions";
+  pinSizeBlockCell,
+  revertSizeBlockFork,
+  unpinSizeBlockCell,
+} from "./fork-actions";
 
 type DisplayUnit = "in" | "cm";
 
@@ -32,10 +36,16 @@ type RowState = {
   sortOrder: number;
 };
 
-type Snapshot = RowState[];
+type PinState = {
+  measurementKey: string;
+  sizeLabel: string;
+  value: number;
+};
 
 type Props = {
   block: SizeBlockDetail;
+  /** When set, first edit of a shared default forks a private copy. */
+  designId?: string | null;
 };
 
 function cloneRows(rows: RowState[]): RowState[] {
@@ -45,13 +55,22 @@ function cloneRows(rows: RowState[]): RowState[] {
   }));
 }
 
-export function SizeChartEditor({ block }: Props) {
-  const [rows, setRows] = useState<RowState[]>(() =>
-    cloneRows(block.rows),
-  );
+function pinKey(measurementKey: string, sizeLabel: string): string {
+  return `${measurementKey}\0${sizeLabel}`;
+}
+
+export function SizeChartEditor({ block, designId = null }: Props) {
+  const router = useRouter();
+  const [blockId, setBlockId] = useState(block.id);
+  const [rows, setRows] = useState<RowState[]>(() => cloneRows(block.rows));
+  const [pins, setPins] = useState<PinState[]>(() => [...block.pinnedCells]);
   const [unit, setUnit] = useState<DisplayUnit>("in");
-  const [undoStack, setUndoStack] = useState<Snapshot[]>([]);
-  const [redoStack, setRedoStack] = useState<Snapshot[]>([]);
+  const [undoStack, setUndoStack] = useState<
+    { rows: RowState[]; pins: PinState[] }[]
+  >([]);
+  const [redoStack, setRedoStack] = useState<
+    { rows: RowState[]; pins: PinState[] }[]
+  >([]);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const saveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(
@@ -60,6 +79,18 @@ export function SizeChartEditor({ block }: Props) {
 
   const baseLabel = block.baseSizeLabel;
   const labels = block.sizeLabels;
+  const isFork = Boolean(block.ownerDesignId) || blockId !== block.id;
+  const inheriting = Boolean(designId) && block.isDefault && !block.ownerDesignId;
+
+  const pinnedInputs: PinnedCellInput[] = useMemo(
+    () =>
+      pins.map((p) => ({
+        measurementKey: p.measurementKey,
+        sizeLabel: p.sizeLabel,
+        value: p.value,
+      })),
+    [pins],
+  );
 
   const grid = useMemo(
     () =>
@@ -73,8 +104,30 @@ export function SizeChartEditor({ block }: Props) {
             gradeOverrides: r.gradeOverrides,
           }),
         ),
+        pinnedInputs,
       ),
-    [rows, labels, baseLabel],
+    [rows, labels, baseLabel, pinnedInputs],
+  );
+
+  const pushHistory = useCallback(() => {
+    setUndoStack((u) => [
+      ...u,
+      { rows: cloneRows(rows), pins: pins.map((p) => ({ ...p })) },
+    ]);
+    setRedoStack([]);
+  }, [rows, pins]);
+
+  const handleForkRedirect = useCallback(
+    (result: { ok: true; blockId?: string; forked?: boolean } | { ok: false }) => {
+      if (!result.ok) return;
+      if (result.forked && result.blockId && result.blockId !== blockId) {
+        setBlockId(result.blockId);
+        const qs = designId ? `?designId=${encodeURIComponent(designId)}` : "";
+        router.replace(`/admin/settings/sizing/blocks/${result.blockId}${qs}`);
+        router.refresh();
+      }
+    },
+    [blockId, designId, router],
   );
 
   const scheduleSave = useCallback(
@@ -84,18 +137,22 @@ export function SizeChartEditor({ block }: Props) {
       const timer = setTimeout(() => {
         startTransition(async () => {
           const result = await saveSizeBlockRow({
-            blockId: block.id,
+            blockId,
             rowId: row.id,
             baseValue: row.baseValue,
             gradeIncrement: row.gradeIncrement,
+            designId,
           });
           if (!result.ok) setSaveError(result.error);
-          else setSaveError(null);
+          else {
+            setSaveError(null);
+            handleForkRedirect(result);
+          }
         });
       }, 350);
       saveTimers.current.set(row.id, timer);
     },
-    [block.id],
+    [blockId, designId, handleForkRedirect],
   );
 
   useEffect(() => {
@@ -104,21 +161,16 @@ export function SizeChartEditor({ block }: Props) {
     };
   }, []);
 
-  function commit(next: RowState[], changed: RowState) {
-    setUndoStack((u) => [...u, cloneRows(rows)]);
-    setRedoStack([]);
-    setRows(next);
-    scheduleSave(changed);
-  }
-
   function onBaseChange(rowId: string, raw: string) {
     const parsed = parseMeasureInput(raw, unit);
     if (parsed === null) return;
     const current = rows.find((r) => r.id === rowId);
     if (!current || current.baseValue === parsed) return;
+    pushHistory();
     const edited = editBaseCell(current, parsed);
     const next = rows.map((r) => (r.id === rowId ? { ...edited } : r));
-    commit(next, edited);
+    setRows(next);
+    scheduleSave(edited);
   }
 
   function onIncrementChange(rowId: string, raw: string) {
@@ -126,18 +178,76 @@ export function SizeChartEditor({ block }: Props) {
     if (parsed === null) return;
     const current = rows.find((r) => r.id === rowId);
     if (!current || current.gradeIncrement === parsed) return;
+    pushHistory();
     const edited = { ...current, gradeIncrement: parsed };
-    const next = rows.map((r) => (r.id === rowId ? edited : r));
-    commit(next, edited);
+    setRows(rows.map((r) => (r.id === rowId ? edited : r)));
+    scheduleSave(edited);
+  }
+
+  function onPinCell(measurementKey: string, sizeLabel: string, raw: string) {
+    const parsed = parseMeasureInput(raw, unit);
+    if (parsed === null) return;
+    pushHistory();
+    setPins((prev) => {
+      const without = prev.filter(
+        (p) =>
+          !(p.measurementKey === measurementKey && p.sizeLabel === sizeLabel),
+      );
+      return [
+        ...without,
+        { measurementKey, sizeLabel, value: parsed },
+      ];
+    });
+    startTransition(async () => {
+      const result = await pinSizeBlockCell({
+        blockId,
+        measurementKey,
+        sizeLabel,
+        value: parsed,
+        designId,
+      });
+      if (!result.ok) setSaveError(result.error);
+      else {
+        setSaveError(null);
+        handleForkRedirect(result);
+      }
+    });
+  }
+
+  function onUnpin(measurementKey: string, sizeLabel: string) {
+    pushHistory();
+    setPins((prev) =>
+      prev.filter(
+        (p) =>
+          !(p.measurementKey === measurementKey && p.sizeLabel === sizeLabel),
+      ),
+    );
+    startTransition(async () => {
+      const result = await unpinSizeBlockCell({
+        blockId,
+        measurementKey,
+        sizeLabel,
+        designId,
+      });
+      if (!result.ok) setSaveError(result.error);
+      else {
+        setSaveError(null);
+        handleForkRedirect(result);
+      }
+    });
   }
 
   function undo() {
     setUndoStack((u) => {
       if (u.length === 0) return u;
       const prev = u[u.length - 1]!;
-      setRedoStack((r) => [...r, cloneRows(rows)]);
-      setRows(cloneRows(prev));
-      for (const row of prev) scheduleSave(row);
+      setRedoStack((r) => [
+        ...r,
+        { rows: cloneRows(rows), pins: pins.map((p) => ({ ...p })) },
+      ]);
+      setRows(cloneRows(prev.rows));
+      setPins(prev.pins.map((p) => ({ ...p })));
+      for (const row of prev.rows) scheduleSave(row);
       return u.slice(0, -1);
     });
   }
@@ -146,15 +256,63 @@ export function SizeChartEditor({ block }: Props) {
     setRedoStack((r) => {
       if (r.length === 0) return r;
       const next = r[r.length - 1]!;
-      setUndoStack((u) => [...u, cloneRows(rows)]);
-      setRows(cloneRows(next));
-      for (const row of next) scheduleSave(row);
+      setUndoStack((u) => [
+        ...u,
+        { rows: cloneRows(rows), pins: pins.map((p) => ({ ...p })) },
+      ]);
+      setRows(cloneRows(next.rows));
+      setPins(next.pins.map((p) => ({ ...p })));
+      for (const row of next.rows) scheduleSave(row);
       return r.slice(0, -1);
     });
   }
 
+  function onRevert() {
+    startTransition(async () => {
+      const result = await revertSizeBlockFork(blockId);
+      if (!result.ok) {
+        setSaveError(result.error);
+        return;
+      }
+      router.push("/admin/settings/sizing/blocks");
+      router.refresh();
+    });
+  }
+
+  const pinLookup = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of pins) m.set(pinKey(p.measurementKey, p.sizeLabel), p.value);
+    return m;
+  }, [pins]);
+
   return (
     <div className="flex flex-col gap-4">
+      {designId ? (
+        <div className="border border-indigo-lift px-3 py-2 text-[13px] text-greige">
+          {inheriting && !isFork ? (
+            <p>
+              Inheriting {block.categoryKey} default — first edit forks a private
+              chart for this design.
+            </p>
+          ) : (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p>Customised for this design</p>
+              <button
+                type="button"
+                onClick={onRevert}
+                className="border border-madder px-2 py-1 text-[12px] text-madder"
+              >
+                Revert to default
+              </button>
+            </div>
+          )}
+        </div>
+      ) : block.isDefault ? (
+        <p className="border border-indigo-lift px-3 py-2 text-[12px] text-chalk">
+          Shared category default — edits affect every design that inherits it.
+        </p>
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
@@ -243,12 +401,15 @@ export function SizeChartEditor({ block }: Props) {
                   const cell = grid[row.measurementKey]?.[label];
                   const value = cell?.value ?? row.baseValue;
                   const isBase = label === baseLabel;
+                  const isPinned = pinLookup.has(
+                    pinKey(row.measurementKey, label),
+                  );
                   return (
                     <td
                       key={label}
                       className={`px-1 py-1 text-center ${
                         isBase ? "bg-zari/10" : ""
-                      }`}
+                      } ${isPinned ? "bg-madder/15" : ""}`}
                     >
                       {isBase ? (
                         <MeasureInput
@@ -257,11 +418,32 @@ export function SizeChartEditor({ block }: Props) {
                           onCommit={(raw) => onBaseChange(row.id, raw)}
                         />
                       ) : (
-                        <Measure
-                          value={value}
-                          unit={unit}
-                          className="text-greige"
-                        />
+                        <div className="flex flex-col items-center gap-0.5">
+                          <MeasureInput
+                            value={value}
+                            unit={unit}
+                            onCommit={(raw) =>
+                              onPinCell(row.measurementKey, label, raw)
+                            }
+                          />
+                          {isPinned ? (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onUnpin(row.measurementKey, label)
+                              }
+                              className="font-sans text-[10px] uppercase tracking-[0.08em] text-madder"
+                            >
+                              Unpin
+                            </button>
+                          ) : (
+                            <Measure
+                              value={value}
+                              unit={unit}
+                              className="sr-only"
+                            />
+                          )}
+                        </div>
                       )}
                     </td>
                   );
@@ -280,8 +462,8 @@ export function SizeChartEditor({ block }: Props) {
       </div>
 
       <p className="text-[11px] text-chalk">
-        Storage is always integer hundredths of an inch. Display unit is
-        cosmetic only.
+        Non-base edits pin the cell. Storage is always integer hundredths of an
+        inch.
       </p>
     </div>
   );

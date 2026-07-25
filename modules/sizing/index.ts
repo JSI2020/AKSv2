@@ -32,6 +32,13 @@ export {
 export type {
   SizeBlockListItem,
   SizeBlockDetail,
-  BlockSaveResult,
 } from "./block-actions";
+export type { BlockSaveResult, BlockMutationResult } from "./types";
 export { SizeChartEditor } from "./size-chart-editor";
+export {
+  pinSizeBlockCell,
+  unpinSizeBlockCell,
+  revertSizeBlockFork,
+  resolveEditableBlockId,
+} from "./fork-actions";
+export { forkSizeBlockInTx } from "./fork";

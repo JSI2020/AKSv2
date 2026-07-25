@@ -7,11 +7,15 @@ import {
   db,
   garmentCategories,
   insertAuditLog,
+  sizeBlockCells,
   sizeBlockRows,
   sizeBlocks,
 } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
+
+import { resolveEditableBlockId } from "./fork-actions";
+import type { BlockMutationResult } from "./types";
 
 export type SizeBlockListItem = {
   id: string;
@@ -44,6 +48,11 @@ export type SizeBlockDetail = {
     gradeIncrement: number;
     gradeOverrides: Record<string, number>;
     sortOrder: number;
+  }[];
+  pinnedCells: {
+    measurementKey: string;
+    sizeLabel: string;
+    value: number;
   }[];
 };
 
@@ -114,29 +123,43 @@ export async function getSizeBlock(
     .where(eq(sizeBlockRows.blockId, id))
     .orderBy(asc(sizeBlockRows.sortOrder));
 
+  const pinned = await db
+    .select({
+      measurementKey: sizeBlockCells.measurementKey,
+      sizeLabel: sizeBlockCells.sizeLabel,
+      value: sizeBlockCells.value,
+    })
+    .from(sizeBlockCells)
+    .where(
+      and(
+        eq(sizeBlockCells.blockId, id),
+        eq(sizeBlockCells.isPinned, true),
+      ),
+    );
+
   return {
     ...block,
     rows: rows.map((r) => ({
       ...r,
       gradeOverrides: r.gradeOverrides ?? {},
     })),
+    pinnedCells: pinned,
   };
 }
-
-export type BlockSaveResult = { ok: true } | { ok: false; error: string };
 
 export async function saveSizeBlockRow(input: {
   blockId: string;
   rowId: string;
   baseValue: number;
   gradeIncrement: number;
-}): Promise<BlockSaveResult> {
+  designId?: string | null;
+}): Promise<BlockMutationResult> {
   try {
     const session = await requirePermission("settings.edit");
-    const { blockId, rowId, baseValue, gradeIncrement } = input;
+    const { rowId, baseValue, gradeIncrement } = input;
 
     if (
-      !blockId ||
+      !input.blockId ||
       !rowId ||
       !Number.isInteger(baseValue) ||
       !Number.isInteger(gradeIncrement)
@@ -144,15 +167,38 @@ export async function saveSizeBlockRow(input: {
       return { ok: false, error: "Invalid input" };
     }
 
-    const existing = await db
+    const resolved = await resolveEditableBlockId(
+      input.blockId,
+      input.designId,
+    );
+    const blockId = resolved.blockId;
+
+    const original = await db
       .select()
       .from(sizeBlockRows)
-      .where(
-        and(eq(sizeBlockRows.id, rowId), eq(sizeBlockRows.blockId, blockId)),
-      )
+      .where(eq(sizeBlockRows.id, rowId))
       .limit(1);
-    const before = existing[0];
-    if (!before) return { ok: false, error: "Row not found" };
+    const sourceRow = original[0];
+    if (!sourceRow) return { ok: false, error: "Row not found" };
+
+    let targetRow = sourceRow;
+    if (sourceRow.blockId !== blockId) {
+      const onBlock = await db
+        .select()
+        .from(sizeBlockRows)
+        .where(
+          and(
+            eq(sizeBlockRows.blockId, blockId),
+            eq(sizeBlockRows.measurementKey, sourceRow.measurementKey),
+          ),
+        )
+        .limit(1);
+      const found = onBlock[0];
+      if (!found) return { ok: false, error: "Row not found on editable block" };
+      targetRow = found;
+    }
+
+    const before = targetRow;
 
     await db
       .update(sizeBlockRows)
@@ -161,7 +207,7 @@ export async function saveSizeBlockRow(input: {
         gradeIncrement,
         updatedAt: new Date(),
       })
-      .where(eq(sizeBlockRows.id, rowId));
+      .where(eq(sizeBlockRows.id, before.id));
 
     await db
       .update(sizeBlocks)
@@ -174,7 +220,7 @@ export async function saveSizeBlockRow(input: {
       actorRole: session.user.role,
       action: "sizing.block_row.update",
       entityType: "size_block_row",
-      entityId: rowId,
+      entityId: before.id,
       before: {
         baseValue: before.baseValue,
         gradeIncrement: before.gradeIncrement,
@@ -184,7 +230,7 @@ export async function saveSizeBlockRow(input: {
 
     revalidatePath(`/admin/settings/sizing/blocks/${blockId}`);
     revalidatePath("/admin/settings/sizing/blocks");
-    return { ok: true };
+    return { ok: true, blockId, forked: resolved.forked };
   } catch (e) {
     return {
       ok: false,

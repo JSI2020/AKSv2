@@ -10,10 +10,13 @@ import { SizeChartEditor } from "@/modules/sizing/size-chart-editor";
 
 export default async function SizeBlockEditorPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ designId?: string }>;
 }) {
   const { id } = await params;
+  const { designId } = await searchParams;
 
   let block;
   try {
@@ -39,7 +42,7 @@ export default async function SizeBlockEditorPage({
           {block.categoryKey} · {block.categoryName}
         </p>
       </div>
-      <SizeChartEditor block={block} />
+      <SizeChartEditor block={block} designId={designId ?? null} />
     </div>
   );
 }
