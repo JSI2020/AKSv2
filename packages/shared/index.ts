@@ -21,3 +21,15 @@ export type {
   MeasurementKeyCode,
   CategorySeed,
 } from "./sizing-catalogue";
+export {
+  STANDARD_SIZE_LABELS,
+  DEFAULT_BASE_SIZE_LABEL,
+  DEFAULT_SIZE_BLOCK_SEEDS,
+  inches,
+  resolveRowValues,
+} from "./size-block-seeds";
+export type {
+  StandardSizeLabel,
+  SizeBlockRowSeed,
+  SizeBlockSeed,
+} from "./size-block-seeds";

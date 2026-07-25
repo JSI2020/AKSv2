@@ -16,11 +16,18 @@ async function seed() {
     rolePermissions,
     measurementKeys,
     garmentCategories,
+    sizeBlocks,
+    sizeBlockRows,
   } = await import("./schema");
-  const { eq } = await import("drizzle-orm");
+  const { and, eq } = await import("drizzle-orm");
   const {
     MEASUREMENT_KEY_DEFS,
     GARMENT_CATEGORY_SEEDS,
+    DEFAULT_SIZE_BLOCK_SEEDS,
+    STANDARD_SIZE_LABELS,
+    DEFAULT_BASE_SIZE_LABEL,
+    resolveRowValues,
+    inches,
   } = shared;
 
   // Fixed UUIDv7 for idempotent re-seeds of the probe row (no digit-run demo OTP).
@@ -165,6 +172,105 @@ async function seed() {
       console.log(`seeded garment_category ${cat.key}`);
     }
   }
+
+  // --- Sizing: default size blocks (replaceable placeholders) ---
+  const categories = await db
+    .select({ id: garmentCategories.id, key: garmentCategories.key })
+    .from(garmentCategories);
+  const categoryIdByKey = new Map(categories.map((c) => [c.key, c.id]));
+
+  for (const blockSeed of DEFAULT_SIZE_BLOCK_SEEDS) {
+    const categoryId = categoryIdByKey.get(blockSeed.categoryKey);
+    if (!categoryId) {
+      throw new Error(
+        `Missing category ${blockSeed.categoryKey} for size block seed`,
+      );
+    }
+
+    const existingDefaults = await db
+      .select({ id: sizeBlocks.id })
+      .from(sizeBlocks)
+      .where(
+        and(
+          eq(sizeBlocks.categoryId, categoryId),
+          eq(sizeBlocks.isDefault, true),
+          eq(sizeBlocks.active, true),
+        ),
+      );
+
+    for (const row of existingDefaults) {
+      // Cascade deletes size_block_rows / size_block_cells
+      await db.delete(sizeBlocks).where(eq(sizeBlocks.id, row.id));
+    }
+
+    const blockId = uuidv7();
+    await db.insert(sizeBlocks).values({
+      id: blockId,
+      name: blockSeed.name,
+      categoryId,
+      isDefault: true,
+      ownerDesignId: null,
+      sizeLabels: [...STANDARD_SIZE_LABELS],
+      baseSizeLabel: DEFAULT_BASE_SIZE_LABEL,
+      notes: blockSeed.notes,
+      active: true,
+    });
+
+    for (const row of blockSeed.rows) {
+      await db.insert(sizeBlockRows).values({
+        id: uuidv7(),
+        blockId,
+        measurementKey: row.measurementKey,
+        baseValue: row.baseValue,
+        gradeIncrement: row.gradeIncrement,
+        gradeOverrides: row.gradeOverrides ?? {},
+        sortOrder: row.sortOrder,
+      });
+    }
+    console.log(
+      `seeded size_block ${blockSeed.categoryKey} default (${blockSeed.rows.length} rows) — REPLACEABLE`,
+    );
+  }
+
+  // Exit check: KAMEEZ resolves to the Step 14 chart
+  const kameezSeed = DEFAULT_SIZE_BLOCK_SEEDS.find(
+    (b) => b.categoryKey === "KAMEEZ",
+  );
+  if (!kameezSeed) throw new Error("KAMEEZ size block seed missing");
+  const bust = kameezSeed.rows.find((r) => r.measurementKey === "BUST");
+  const length = kameezSeed.rows.find((r) => r.measurementKey === "LENGTH");
+  if (!bust || !length) throw new Error("KAMEEZ BUST/LENGTH rows missing");
+
+  const bustResolved = resolveRowValues(
+    STANDARD_SIZE_LABELS,
+    DEFAULT_BASE_SIZE_LABEL,
+    bust.baseValue,
+    bust.gradeIncrement,
+    bust.gradeOverrides ?? {},
+  );
+  const lengthResolved = resolveRowValues(
+    STANDARD_SIZE_LABELS,
+    DEFAULT_BASE_SIZE_LABEL,
+    length.baseValue,
+    length.gradeIncrement,
+    length.gradeOverrides ?? {},
+  );
+
+  const expectedBust = [32, 34, 36, 38, 41, 44].map(inches);
+  const expectedLength = [28, 29, 30, 31, 32, 33].map(inches);
+  if (JSON.stringify(bustResolved) !== JSON.stringify(expectedBust)) {
+    throw new Error(
+      `KAMEEZ BUST resolve mismatch: got ${bustResolved.join("/")} expected ${expectedBust.join("/")}`,
+    );
+  }
+  if (JSON.stringify(lengthResolved) !== JSON.stringify(expectedLength)) {
+    throw new Error(
+      `KAMEEZ LENGTH resolve mismatch: got ${lengthResolved.join("/")} expected ${expectedLength.join("/")}`,
+    );
+  }
+  console.log(
+    `KAMEEZ resolve OK — BUST ${bustResolved.map((v) => v / 100).join("/")} · LENGTH ${lengthResolved.map((v) => v / 100).join("/")}`,
+  );
 
   console.log(`uuidv7 sample: ${uuidv7()}`);
   process.exit(0);

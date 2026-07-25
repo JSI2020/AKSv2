@@ -36,6 +36,13 @@
       "when": 1784979374604,
       "tag": "0004_new_proudstar",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784979680564,
+      "tag": "0005_blue_bullseye",
+      "breakpoints": true
     }
   ]
 }

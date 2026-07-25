@@ -4,3 +4,4 @@ export * from "./platform";
 export * from "./events";
 export * from "./transition-probe";
 export * from "./sizing";
+export * from "./size-blocks";
