@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { cn } from "@/lib/utils";
 
 import type { ProductionBoardCard, StaffOption } from "../queries";
@@ -54,6 +56,13 @@ export function ProductionCard({
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
+        <Link
+          href={`/admin/production/${card.id}/spec`}
+          className="border border-zari/60 px-1.5 py-0.5 font-mono uppercase tracking-wide text-zari hover:border-zari hover:text-greige"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          Spec
+        </Link>
         <span className="border border-chalk/30 px-1.5 py-0.5 font-mono uppercase tracking-wide text-chalk">
           {card.sizeModeLabel}
         </span>
