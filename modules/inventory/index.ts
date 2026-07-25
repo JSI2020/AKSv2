@@ -6,6 +6,11 @@ export {
 } from "./order-lifecycle";
 export { lotAvailableMeters } from "./lot-status";
 export {
+  countFabricsBelowReorderPoint,
+  listFabricsBelowReorderPoint,
+} from "./stock-queries";
+export type { LowStockFabric } from "./stock-queries";
+export {
   FABRIC_RESERVATION_ORDER_STATUS,
   FabricAllocationError,
   FabricStockError,

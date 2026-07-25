@@ -1,8 +1,9 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
+import { getPermissionsForUser } from "@/modules/auth";
+import { TodayScreen } from "@/modules/admin/today/today-screen";
 import { isProductionOnlyRole } from "@/modules/auth/tailor-access";
-import { EmptyState, Eyebrow } from "@/modules/ui";
 
 export default async function AdminTodayPage() {
   const session = await auth();
@@ -10,16 +11,9 @@ export default async function AdminTodayPage() {
     redirect("/admin/production");
   }
 
-  return (
-    <div>
-      <Eyebrow>AKS · admin</Eyebrow>
-      <h1 className="mt-1 font-display text-3xl text-greige">Today</h1>
-      <div className="mt-6">
-        <EmptyState
-          title="Nothing on the board yet"
-          description="Live cards for promises, production, and attention will appear here once orders and fabric are live."
-        />
-      </div>
-    </div>
-  );
+  const permissions = session?.user
+    ? [...(await getPermissionsForUser(session.user.id))]
+    : [];
+
+  return <TodayScreen permissions={permissions} />;
 }
