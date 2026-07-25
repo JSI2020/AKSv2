@@ -41,3 +41,16 @@ export {
   formatModelDisclosure,
 } from "./fabric-archetype-seeds";
 export type { FabricSeed, HouseModelSeed } from "./fabric-archetype-seeds";
+export {
+  DESIGN_TAG_KINDS,
+  DESIGN_TAG_VALUES,
+  isValidDesignTag,
+  DESIGN_STATUSES,
+  DESIGN_STATUS_ALLOW,
+  RENDER_ANGLES,
+} from "./design-catalogue";
+export type {
+  DesignTagKind,
+  DesignStatus,
+  RenderAngle,
+} from "./design-catalogue";

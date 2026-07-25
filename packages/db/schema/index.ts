@@ -7,3 +7,4 @@ export * from "./sizing";
 export * from "./size-blocks";
 export * from "./fit-profiles";
 export * from "./fabrics-archetypes";
+export * from "./catalog";
