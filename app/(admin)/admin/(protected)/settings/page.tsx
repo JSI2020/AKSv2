@@ -29,14 +29,24 @@ export default async function AdminSettingsPage() {
             </li>
           ) : null}
           {canSettings ? (
-            <li>
-              <Link
-                href="/admin/settings/sizing/categories"
-                className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
-              >
-                Sizing — garment categories &amp; measurement keys
-              </Link>
-            </li>
+            <>
+              <li>
+                <Link
+                  href="/admin/settings/sizing/categories"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Sizing — garment categories &amp; measurement keys
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/admin/settings/sizing/blocks"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Sizing — size blocks (standard charts)
+                </Link>
+              </li>
+            </>
           ) : null}
         </ul>
       ) : (

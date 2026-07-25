@@ -22,8 +22,9 @@ describe("formatMeasure", () => {
     expect(formatMeasure(-3050)).toBe("-30.5″");
   });
 
-  it("rejects non-integers (no float measurements)", () => {
-    expect(() => formatMeasure(30.5)).toThrow(/integer/);
+  it("formats centimetres for display only", () => {
+    // 10″ = 1000 hundredths → 25.4 cm → "25.4 cm"
+    expect(formatMeasure(1000, "cm")).toBe("25.4 cm");
   });
 });
 

@@ -24,3 +24,14 @@ export type {
   ChartCell,
   ChartGrid,
 } from "./engine";
+export {
+  listSizeBlocks,
+  getSizeBlock,
+  saveSizeBlockRow,
+} from "./block-actions";
+export type {
+  SizeBlockListItem,
+  SizeBlockDetail,
+  BlockSaveResult,
+} from "./block-actions";
+export { SizeChartEditor } from "./size-chart-editor";

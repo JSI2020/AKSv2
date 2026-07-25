@@ -4,7 +4,8 @@ import { formatMeasure } from "./format";
 
 type MeasureProps = {
   value: number;
-  unit?: "in";
+  /** Display unit only — storage is always hundredths of an inch. */
+  unit?: "in" | "cm";
   className?: string;
 };
 
@@ -16,4 +17,4 @@ export function Measure({ value, unit = "in", className }: MeasureProps) {
   );
 }
 
-export { formatMeasure };
+export { formatMeasure, parseMeasureInput } from "./format";
