@@ -16,6 +16,7 @@ import {
   handleOrderTransitioned,
 } from "../modules/messaging";
 import { registerDesignGenerateHandler } from "../modules/ai/generation";
+import { registerTryOnHandlers } from "../modules/tryon";
 
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
 
@@ -31,8 +32,12 @@ async function main() {
   registerHandler("assets.purgeExpired", async () => {
     const n = await purgeExpiredAssets();
     console.log(`[worker] purged ${n} assets`);
+    const { purgeExpiredSelfies } = await import("../modules/tryon/purge");
+    const selfies = await purgeExpiredSelfies();
+    console.log(`[worker] purged ${selfies} selfies`);
   });
   registerDesignGenerateHandler();
+  registerTryOnHandlers();
   console.log(`[worker] outbox polling every ${POLL_MS}ms`);
 
   // Long-lived process — not serverless.

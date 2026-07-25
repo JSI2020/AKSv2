@@ -13,6 +13,7 @@ import { DesignGallery } from "./design-gallery";
 import { DesignSizeGuideModal } from "./design-size-guide-modal";
 import { DesignSizePicker } from "./design-size-picker";
 import { AddToCartButton } from "@/modules/cart";
+import { ReflectionPanel } from "@/modules/tryon/reflection-panel";
 import type {
   ConfiguratorState,
   DesignDetailPublic,
@@ -241,6 +242,18 @@ export function DesignConfigurator({
             {design.modelDisclosure}
           </p>
         ) : null}
+
+        <ReflectionPanel
+          designId={design.id}
+          designName={design.name}
+          colourwayId={state.colourwayId}
+          archetypeId={design.archetypeId ?? null}
+          colourways={design.colourways.map((c) => ({
+            id: c.id,
+            name: c.name,
+          }))}
+          onColourwayChange={(id) => patchState({ colourwayId: id })}
+        />
 
         {design.storyCopy ? (
           <p className="text-[14px] leading-relaxed text-ink/65">

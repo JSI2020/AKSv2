@@ -21,3 +21,4 @@ export * from "./studio";
 export * from "./production";
 export * from "./money";
 export * from "./discounts";
+export * from "./tryon";

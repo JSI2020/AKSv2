@@ -177,6 +177,7 @@ export async function getDesignBySlug(
       })),
     })),
     modelDisclosure,
+    archetypeId: archetypeId ?? null,
     collectionBreadcrumb,
   };
 }

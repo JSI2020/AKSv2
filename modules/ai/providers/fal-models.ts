@@ -3,8 +3,11 @@
  * - hero/angle: https://fal.ai/models/fal-ai/flux-general/image-to-image ($0.075/MP)
  * - draft:      https://fal.ai/models/fal-ai/flux/dev/image-to-image ($0.03/MP)
  * - colourway:  https://fal.ai/models/fal-ai/flux-2/turbo/edit ($0.008/MP input+output)
+ * - tryon:      https://fal.ai/models/easel-ai/advanced-face-swap (face swap onto frozen render)
  */
 import type { AiJobType, DefaultAiModelsMap } from "@/modules/ai/prompts";
+
+export const VERIFIED_FAL_TRYON_MODEL = "easel-ai/advanced-face-swap";
 
 export const VERIFIED_FAL_MODELS: DefaultAiModelsMap = {
   hero: "fal-ai/flux-general/image-to-image",

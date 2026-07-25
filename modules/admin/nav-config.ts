@@ -78,6 +78,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     shortcut: "G C",
   },
   {
+    title: "Reflection",
+    href: "/admin/tryon",
+    icon: Sparkles,
+    permission: "tryon.view",
+  },
+  {
     title: "Discounts",
     href: "/admin/discounts",
     icon: Percent,

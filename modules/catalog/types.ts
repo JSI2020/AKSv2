@@ -161,6 +161,7 @@ export type DesignDetailPublic = {
     }[];
   }[];
   modelDisclosure: string | null;
+  archetypeId: string | null;
   collectionBreadcrumb: {
     slug: string;
     label: string;
