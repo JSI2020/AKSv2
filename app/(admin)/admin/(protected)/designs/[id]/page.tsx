@@ -1,10 +1,16 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 
+import { auth } from "@/auth";
 import { Eyebrow } from "@/modules/ui";
 import {
+  getPermissionsForUser,
   PermissionDeniedError,
   UnauthenticatedError,
 } from "@/modules/auth";
+import {
+  DesignCostingPanel,
+  getDesignCostingData,
+} from "@/modules/money";
 import { getDesign, getDesignFormOptions } from "@/modules/designs";
 import { DesignEditor } from "@/modules/designs/design-editor";
 
@@ -32,7 +38,32 @@ export default async function DesignDetailPage({
     throw e;
   }
 
-  if (!detail) notFound();
+  if (!detail) redirect("/admin/designs");
+
+  const session = await auth();
+  const permissions = session?.user?.id
+    ? await getPermissionsForUser(session.user.id)
+    : new Set<string>();
+
+  const canViewMoney = permissions.has("money.view");
+  const canViewMargin = permissions.has("money.view_margin");
+  const canEditCosts = permissions.has("money.edit_costs");
+
+  let costingData = null;
+  if (canViewMoney) {
+    try {
+      costingData = await getDesignCostingData(id);
+    } catch (e) {
+      if (
+        e instanceof PermissionDeniedError ||
+        e instanceof UnauthenticatedError
+      ) {
+        costingData = null;
+      } else {
+        throw e;
+      }
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -46,6 +77,13 @@ export default async function DesignDetailPage({
         </p>
       </div>
       <DesignEditor detail={detail} options={options} />
+      {canViewMoney && costingData ? (
+        <DesignCostingPanel
+          data={costingData}
+          canViewMargin={canViewMargin}
+          canEdit={canEditCosts}
+        />
+      ) : null}
     </div>
   );
 }
