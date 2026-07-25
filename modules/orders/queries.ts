@@ -20,6 +20,7 @@ import {
   orderPayments,
   orderPhotos,
   orders,
+  payments,
   users,
 } from "@aks/db";
 
@@ -83,18 +84,34 @@ function buildProductionStatusFilter(
 }
 
 async function sumPaidMinor(orderId: string): Promise<number> {
-  const rows = await db
-    .select({
-      total: sql<number>`coalesce(sum(${orderPayments.amountMinor}), 0)`,
-    })
-    .from(orderPayments)
-    .where(
-      and(
-        eq(orderPayments.orderId, orderId),
-        inArray(orderPayments.status, ["SUCCEEDED", "REFUNDED"]),
+  const [manualRows, providerRows] = await Promise.all([
+    db
+      .select({
+        total: sql<number>`coalesce(sum(${orderPayments.amountMinor}), 0)`,
+      })
+      .from(orderPayments)
+      .where(
+        and(
+          eq(orderPayments.orderId, orderId),
+          inArray(orderPayments.status, ["SUCCEEDED", "REFUNDED"]),
+        ),
       ),
-    );
-  return Number(rows[0]?.total ?? 0);
+    db
+      .select({
+        total: sql<number>`coalesce(sum(${payments.amountMinor}), 0)`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.orderId, orderId),
+          inArray(payments.status, ["SUCCEEDED", "REFUNDED"]),
+        ),
+      ),
+  ]);
+
+  return (
+    Number(manualRows[0]?.total ?? 0) + Number(providerRows[0]?.total ?? 0)
+  );
 }
 
 export async function listOrders(
@@ -373,11 +390,42 @@ export async function getOrderDetail(
     .where(eq(orderEvents.entityId, orderId))
     .orderBy(desc(orderEvents.createdAt));
 
-  const payments = await db
+  const manualPayments = await db
     .select()
     .from(orderPayments)
     .where(eq(orderPayments.orderId, orderId))
     .orderBy(desc(orderPayments.createdAt));
+
+  const providerPayments = await db
+    .select()
+    .from(payments)
+    .where(eq(payments.orderId, orderId))
+    .orderBy(desc(payments.createdAt));
+
+  const paymentsCombined: OrderDetailPayment[] = [
+    ...providerPayments.map((p) => ({
+      id: p.id,
+      kind: p.kind,
+      amountMinor: p.amountMinor,
+      provider: p.provider,
+      status: p.status,
+      note: p.providerRef ? `Safepay ref ${p.providerRef}` : null,
+      createdAt: p.createdAt,
+    })),
+    ...manualPayments.map((p) => ({
+      id: p.id,
+      kind: p.kind,
+      amountMinor: p.amountMinor,
+      provider: p.provider,
+      status: p.status,
+      note: p.note,
+      createdAt: p.createdAt,
+    })),
+  ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+
+  const paidMinor = paymentsCombined
+    .filter((p) => p.status === "SUCCEEDED" || p.status === "REFUNDED")
+    .reduce((sum, p) => sum + p.amountMinor, 0);
 
   const photoRows = await db
     .select({
@@ -408,10 +456,6 @@ export async function getOrderDetail(
       createdAt: p.createdAt,
     });
   }
-
-  const paidMinor = payments
-    .filter((p) => p.status === "SUCCEEDED" || p.status === "REFUNDED")
-    .reduce((sum, p) => sum + p.amountMinor, 0);
 
   const status = order.status as OrderStatus;
 
@@ -478,15 +522,7 @@ export async function getOrderDetail(
       note: e.note,
       createdAt: e.createdAt,
     })),
-    payments: payments.map((p) => ({
-      id: p.id,
-      kind: p.kind,
-      amountMinor: p.amountMinor,
-      provider: p.provider,
-      status: p.status,
-      note: p.note,
-      createdAt: p.createdAt,
-    })),
+    payments: paymentsCombined,
     photos,
   };
 }

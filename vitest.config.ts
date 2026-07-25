@@ -13,6 +13,7 @@ export default defineConfig({
       ["modules/auth/**/*.test.ts", "node"],
       ["modules/sizing/**/*.test.ts", "node"],
       ["modules/orders/**/*.test.ts", "node"],
+      ["modules/payments/**/*.test.ts", "node"],
     ],
     coverage: {
       include: [
