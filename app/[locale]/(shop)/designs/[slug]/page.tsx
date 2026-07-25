@@ -9,9 +9,9 @@ import {
   resolveImages,
 } from "@/modules/catalog";
 import type { GalleryAngle, SizeMode } from "@/modules/catalog";
-import { resolveMeasurementProfileId } from "@/modules/cart";
+import { resolveMeasurementProfileId } from "@/modules/cart/queries";
 import { auth } from "@/auth";
-import { getOrSetAnonToken } from "@/modules/measure";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { DesignViewTracker } from "@/modules/analytics";
 
 type Props = {

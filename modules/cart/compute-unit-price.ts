@@ -8,7 +8,7 @@ import {
   designs,
 } from "@aks/db";
 
-import type { SizeMode } from "@/modules/catalog";
+import type { SizeMode } from "@/modules/catalog/types";
 
 import type { CartCustomizationSelections } from "./types";
 

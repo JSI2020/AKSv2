@@ -1,8 +1,10 @@
 import type { ReactNode } from "react";
 
 import { auth } from "@/auth";
-import { CartDrawer, CartProvider, loadActiveCart } from "@/modules/cart";
-import { getOrSetAnonToken } from "@/modules/measure";
+import { CartDrawer } from "@/modules/cart/cart-drawer";
+import { CartProvider } from "@/modules/cart/cart-context";
+import { loadActiveCart } from "@/modules/cart/queries";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import {
   ShopFloatActions,
   ShopFooter,

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { cartLines, carts, db } from "@aks/db";
 
 import { auth } from "@/auth";
-import { getOrSetAnonToken } from "@/modules/measure";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 
 import { computeCartLineUnitPrice } from "./compute-unit-price";
 import { upsertCartLine } from "./merge";
@@ -159,5 +159,3 @@ export async function removeCartLine(input: {
   revalidateShopCart();
   return { ok: true, cart };
 }
-
-export { mergeGuestCartIntoUser } from "./merge";

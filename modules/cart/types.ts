@@ -1,4 +1,4 @@
-import type { SizeMode } from "@/modules/catalog";
+import type { SizeMode } from "@/modules/catalog/types";
 
 export type CartCustomizationSelections = Record<string, string | boolean>;
 

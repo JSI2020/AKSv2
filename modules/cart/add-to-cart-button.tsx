@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
-import type { DesignDetailPublic, ResolvedImageTriple } from "@/modules/catalog";
+import type {
+  DesignDetailPublic,
+  ResolvedImageTriple,
+} from "@/modules/catalog/types";
 
 import { useCart } from "./cart-context";
 import type { CartCustomizationSelections } from "./types";

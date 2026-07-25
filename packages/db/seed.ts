@@ -22,6 +22,7 @@ async function seed() {
     fabrics,
     houseModels,
     customSizeLimits,
+    designs,
   } = await import("./schema");
   const { and, eq } = await import("drizzle-orm");
   const {
@@ -209,8 +210,21 @@ async function seed() {
       );
 
     for (const row of existingDefaults) {
-      // Cascade deletes size_block_rows / size_block_cells
-      await db.delete(sizeBlocks).where(eq(sizeBlocks.id, row.id));
+      // Cascade deletes size_block_rows / size_block_cells when unreferenced.
+      // Designs may still point at a prior default — retire it instead of failing.
+      const linked = await db
+        .select({ id: designs.id })
+        .from(designs)
+        .where(eq(designs.sizeBlockId, row.id))
+        .limit(1);
+      if (linked[0]) {
+        await db
+          .update(sizeBlocks)
+          .set({ isDefault: false, active: false })
+          .where(eq(sizeBlocks.id, row.id));
+      } else {
+        await db.delete(sizeBlocks).where(eq(sizeBlocks.id, row.id));
+      }
     }
 
     const blockId = uuidv7();

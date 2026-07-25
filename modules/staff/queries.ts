@@ -1,5 +1,3 @@
-"use server";
-
 import { and, eq, isNull, ne } from "drizzle-orm";
 
 import {

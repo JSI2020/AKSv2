@@ -2,8 +2,8 @@ import { getLocale } from "next-intl/server";
 
 import { redirect } from "@/i18n/routing";
 import { auth } from "@/auth";
-import { getOrSetAnonToken } from "@/modules/measure";
-import { loadActiveCart } from "@/modules/cart";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
+import { loadActiveCart } from "@/modules/cart/queries";
 import { CheckoutFlow, getCheckoutCodStatus } from "@/modules/checkout";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 

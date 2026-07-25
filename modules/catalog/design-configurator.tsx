@@ -12,7 +12,7 @@ import { designDetailParsers } from "./design-detail-search-params";
 import { DesignGallery } from "./design-gallery";
 import { DesignSizeGuideModal } from "./design-size-guide-modal";
 import { DesignSizePicker } from "./design-size-picker";
-import { AddToCartButton } from "@/modules/cart";
+import { AddToCartButton } from "@/modules/cart/add-to-cart-button";
 import { ReflectionPanel } from "@/modules/tryon/reflection-panel";
 import type {
   ConfiguratorState,

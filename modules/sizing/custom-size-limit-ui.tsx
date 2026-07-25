@@ -9,7 +9,7 @@ import {
   createCustomSizeLimit,
   updateCustomSizeLimit,
   type CustomSizeLimitAdminRow,
-} from "@/modules/measure";
+} from "@/modules/measure/actions";
 
 type ListProps = {
   limits: CustomSizeLimitAdminRow[];

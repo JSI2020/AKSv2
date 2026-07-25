@@ -8,7 +8,7 @@ import {
   type MeasurementKeyCode,
 } from "@aks/shared";
 
-import { resolveChart } from "@/modules/sizing";
+import { resolveChart } from "@/modules/sizing/engine";
 
 export type SizeChartRowPublic = {
   measurementKey: string;

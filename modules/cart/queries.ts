@@ -12,7 +12,7 @@ import {
 } from "@aks/db";
 
 import { createPresignedReadUrl } from "@/modules/platform/assets/r2";
-import { formatLeadTime } from "@/modules/catalog";
+import { formatLeadTime } from "@/modules/catalog/types";
 
 import type { CartPublic } from "./types";
 import { formatCartLeadTime } from "./types";

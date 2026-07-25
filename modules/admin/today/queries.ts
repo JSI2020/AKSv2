@@ -1,5 +1,3 @@
-"use server";
-
 import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 import {

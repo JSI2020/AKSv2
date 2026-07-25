@@ -103,50 +103,85 @@
     {
       "idx": 14,
       "version": "7",
+      "when": 1785027000000,
+      "tag": "0014_step33_bank_transfer_cod",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1785027500000,
+      "tag": "0015_step34_production_pipeline",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
       "when": 1785028000000,
       "tag": "0016_step35_studio_settings",
       "breakpoints": true
     },
     {
-      "idx": 15,
+      "idx": 17,
       "version": "7",
       "when": 1785032000000,
       "tag": "0017_step36_design_generations",
       "breakpoints": true
     },
     {
-      "idx": 16,
+      "idx": 18,
       "version": "7",
       "when": 1785036000000,
       "tag": "0018_step38_design_inputs",
       "breakpoints": true
     },
     {
-      "idx": 17,
+      "idx": 19,
       "version": "7",
       "when": 1785040000000,
       "tag": "0019_step39_hero_loop",
       "breakpoints": true
     },
     {
-      "idx": 18,
+      "idx": 20,
+      "version": "7",
+      "when": 1785042000000,
+      "tag": "0020_step40_sizing_overlay",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
       "version": "7",
       "when": 1785044000000,
       "tag": "0021_step43_fabric_lots",
       "breakpoints": true
     },
     {
-      "idx": 19,
+      "idx": 22,
       "version": "7",
       "when": 1785048000000,
       "tag": "0022_step44_production_board",
       "breakpoints": true
     },
     {
-      "idx": 20,
+      "idx": 23,
       "version": "7",
       "when": 1785052000000,
       "tag": "0023_step47_money",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1785056000000,
+      "tag": "0024_step49_discounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1785060000000,
+      "tag": "0025_step50_tryon",
       "breakpoints": true
     }
   ]

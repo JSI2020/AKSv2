@@ -1,10 +1,10 @@
 export {
   addToCart,
   fetchCart,
-  mergeGuestCartIntoUser,
   removeCartLine,
   updateCartLineQuantity,
 } from "./actions";
+export { mergeGuestCartIntoUser } from "./merge";
 export type {
   AddToCartInput,
   AddToCartResult,

@@ -3,28 +3,31 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 config({ path: ".env" });
 
-import { sql } from "@aks/db";
-import {
-  drainDueMessages,
-  registerHandler,
-  registerTestPingHandler,
-} from "../modules/platform/outbox";
-import { purgeExpiredAssets } from "../modules/platform/assets";
-import { handleEmailSend } from "../modules/auth/email-handler";
-import {
-  handleMessageSend,
-  handleOrderTransitioned,
-} from "../modules/messaging";
-import { registerDesignGenerateHandler } from "../modules/ai/generation";
-import { registerTryOnHandlers } from "../modules/tryon";
-
-const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
+// Dynamic imports after dotenv — static imports hoist before config() runs.
 async function main() {
+  const { sql } = await import("@aks/db");
+  const {
+    drainDueMessages,
+    registerHandler,
+    registerTestPingHandler,
+  } = await import("../modules/platform/outbox");
+  const { purgeExpiredAssets } = await import("../modules/platform/assets");
+  const { handleEmailSend } = await import("../modules/auth/email-handler");
+  const {
+    handleMessageSend,
+    handleOrderTransitioned,
+  } = await import("../modules/messaging");
+  const { registerDesignGenerateHandler } = await import(
+    "../modules/ai/generation"
+  );
+  const { registerTryOnHandlers } = await import("../modules/tryon");
+
+  const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
+
+  function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
   registerTestPingHandler();
   registerHandler("email.send", handleEmailSend);
   registerHandler("message.send", handleMessageSend);
@@ -66,6 +69,11 @@ async function main() {
 
 main().catch(async (err) => {
   console.error(err);
-  await sql.end({ timeout: 5 });
+  try {
+    const { sql } = await import("@aks/db");
+    await sql.end({ timeout: 5 });
+  } catch {
+    // ignore shutdown errors
+  }
   process.exit(1);
 });
