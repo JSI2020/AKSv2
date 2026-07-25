@@ -2,11 +2,16 @@ import { and, eq } from "drizzle-orm";
 
 import { orderEvents, orders } from "@aks/db";
 import {
+  IllegalTransitionError,
   registerEntityTransitions,
   type TransitionAllowList,
 } from "@/modules/platform/transition";
 
-import { ORDER_STATUS_ALLOW, type OrderStatus } from "./constants";
+import {
+  assertCuttingGate,
+  ORDER_STATUS_ALLOW,
+  type OrderStatus,
+} from "./constants";
 
 export const ORDER_TRANSITION_ALLOW: TransitionAllowList =
   ORDER_STATUS_ALLOW as TransitionAllowList;
@@ -19,6 +24,19 @@ export function registerOrderTransitions(): void {
 
   registerEntityTransitions("order", {
     applyStatusChange: async (tx, id, from, to) => {
+      assertCuttingGate(from as OrderStatus, to as OrderStatus);
+
+      if (to === "EMBROIDERY") {
+        const [order] = await tx
+          .select({ skipEmbroidery: orders.skipEmbroidery })
+          .from(orders)
+          .where(eq(orders.id, id))
+          .limit(1);
+        if (order?.skipEmbroidery) {
+          throw new IllegalTransitionError("order", from, to);
+        }
+      }
+
       const patch: {
         status: OrderStatus;
         updatedAt: Date;

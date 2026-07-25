@@ -324,6 +324,7 @@ export type OrderDetail = {
   customerNotes: string | null;
   internalNotes: string | null;
   cancelReason: string | null;
+  skipEmbroidery: boolean;
   customer: {
     userId: string | null;
     name: string;
@@ -490,6 +491,7 @@ export async function getOrderDetail(
     customerNotes: order.customerNotes,
     internalNotes: order.internalNotes,
     cancelReason: order.cancelReason,
+    skipEmbroidery: order.skipEmbroidery,
     customer: {
       userId: order.userId,
       name:

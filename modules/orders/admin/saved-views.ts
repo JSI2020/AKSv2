@@ -53,7 +53,7 @@ export const PRESET_VIEWS: SavedOrderView[] = [
   {
     id: "preset-in-production",
     name: "In production",
-    params: { production: ["IN_PRODUCTION", "QUALITY_CHECK"] },
+    params: { production: ["CUTTING", "STITCHING", "QUALITY_CHECK"] },
     createdAt: "",
   },
 ];

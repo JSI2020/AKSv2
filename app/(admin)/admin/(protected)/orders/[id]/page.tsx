@@ -6,6 +6,7 @@ import {
   PermissionDeniedError,
   UnauthenticatedError,
 } from "@/modules/auth";
+import { listOrderMessages } from "@/modules/messaging/actions";
 import { getOrderDetail, OrderDetailView } from "@/modules/orders";
 
 export default async function AdminOrderDetailPage({
@@ -30,6 +31,8 @@ export default async function AdminOrderDetailPage({
 
   if (!order) notFound();
 
+  const messages = await listOrderMessages(id);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -44,7 +47,7 @@ export default async function AdminOrderDetailPage({
           {order.orderNumber}
         </h1>
       </div>
-      <OrderDetailView order={order} />
+      <OrderDetailView order={order} messages={messages} />
     </div>
   );
 }

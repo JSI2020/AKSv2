@@ -6,7 +6,10 @@ export type ProductionStatus =
   | "RECEIVED"
   | "CONFIRMED"
   | "MEASUREMENTS_VERIFIED"
-  | "IN_PRODUCTION"
+  | "CUTTING"
+  | "STITCHING"
+  | "EMBROIDERY"
+  | "FINISHING"
   | "QUALITY_CHECK"
   | "PACKED"
   | "DISPATCHED"
@@ -33,7 +36,10 @@ export const PRODUCTION_STATUS_LABELS: Record<ProductionStatus, string> = {
   RECEIVED: "Received",
   CONFIRMED: "Confirmed",
   MEASUREMENTS_VERIFIED: "Measurements verified",
-  IN_PRODUCTION: "In production",
+  CUTTING: "Cutting",
+  STITCHING: "Stitching",
+  EMBROIDERY: "Embroidery",
+  FINISHING: "Finishing",
   QUALITY_CHECK: "Quality check",
   PACKED: "Packed",
   DISPATCHED: "Dispatched",
@@ -61,7 +67,11 @@ const ORDER_TO_PRODUCTION: Record<OrderStatus, ProductionStatus> = {
   AWAITING_DEPOSIT: "RECEIVED",
   DEPOSIT_PAID: "CONFIRMED",
   MEASUREMENTS_CONFIRMED: "MEASUREMENTS_VERIFIED",
-  IN_PRODUCTION: "IN_PRODUCTION",
+  CUTTING: "CUTTING",
+  STITCHING: "STITCHING",
+  EMBROIDERY: "EMBROIDERY",
+  FINISHING: "FINISHING",
+  IN_PRODUCTION: "CUTTING",
   QUALITY_CHECK: "QUALITY_CHECK",
   READY_TO_SHIP: "PACKED",
   DISPATCHED: "DISPATCHED",
@@ -127,7 +137,10 @@ export const PRODUCTION_STATUS_FILTER_VALUES = [
   "RECEIVED",
   "CONFIRMED",
   "MEASUREMENTS_VERIFIED",
-  "IN_PRODUCTION",
+  "CUTTING",
+  "STITCHING",
+  "EMBROIDERY",
+  "FINISHING",
   "QUALITY_CHECK",
   "PACKED",
   "DISPATCHED",
@@ -158,7 +171,10 @@ export const PRODUCTION_TO_ORDER_STATUSES: Record<
   RECEIVED: ["AWAITING_DEPOSIT"],
   CONFIRMED: ["DEPOSIT_PAID"],
   MEASUREMENTS_VERIFIED: ["MEASUREMENTS_CONFIRMED"],
-  IN_PRODUCTION: ["IN_PRODUCTION"],
+  CUTTING: ["CUTTING", "IN_PRODUCTION"],
+  STITCHING: ["STITCHING"],
+  EMBROIDERY: ["EMBROIDERY"],
+  FINISHING: ["FINISHING"],
   QUALITY_CHECK: ["QUALITY_CHECK"],
   PACKED: ["READY_TO_SHIP"],
   DISPATCHED: ["DISPATCHED"],
@@ -170,12 +186,43 @@ export const PRODUCTION_TO_ORDER_STATUSES: Record<
   WRITE_OFF: ["WRITE_OFF"],
 };
 
-/** Next production transition after measurements are confirmed. */
+export function getNextProductionStage(
+  status: OrderStatus,
+  skipEmbroidery: boolean,
+): OrderStatus | null {
+  switch (status) {
+    case "MEASUREMENTS_CONFIRMED":
+      return "CUTTING";
+    case "CUTTING":
+      return "STITCHING";
+    case "STITCHING":
+      return skipEmbroidery ? "FINISHING" : "EMBROIDERY";
+    case "EMBROIDERY":
+      return "FINISHING";
+    case "FINISHING":
+      return "QUALITY_CHECK";
+    case "QUALITY_CHECK":
+      return "READY_TO_SHIP";
+    case "READY_TO_SHIP":
+      return "DISPATCHED";
+    case "DISPATCHED":
+      return "DELIVERED";
+    case "DELIVERED":
+      return "COMPLETED";
+    default:
+      return null;
+  }
+}
+
+/** @deprecated use getNextProductionStage */
 export const ADVANCE_STAGE_TARGETS: Partial<
   Record<OrderStatus, OrderStatus>
 > = {
-  MEASUREMENTS_CONFIRMED: "IN_PRODUCTION",
-  IN_PRODUCTION: "QUALITY_CHECK",
+  MEASUREMENTS_CONFIRMED: "CUTTING",
+  CUTTING: "STITCHING",
+  STITCHING: "EMBROIDERY",
+  EMBROIDERY: "FINISHING",
+  FINISHING: "QUALITY_CHECK",
   QUALITY_CHECK: "READY_TO_SHIP",
   READY_TO_SHIP: "DISPATCHED",
   DISPATCHED: "DELIVERED",
@@ -201,4 +248,59 @@ export function paymentStatusLabel(input: {
   totalMinor: number;
 }): string {
   return PAYMENT_STATUS_LABELS[derivePaymentStatus(input)];
+}
+
+export type TimelineStepState = "complete" | "current" | "upcoming";
+
+export type ProductionTimelineStep = {
+  key: ProductionStatus;
+  label: string;
+  state: TimelineStepState;
+  skipped?: boolean;
+};
+
+const TIMELINE_DEFS: Array<{ key: ProductionStatus; label: string }> = [
+  { key: "RECEIVED", label: "Received" },
+  { key: "CONFIRMED", label: "Confirmed" },
+  { key: "MEASUREMENTS_VERIFIED", label: "Measurements checked" },
+  { key: "CUTTING", label: "Being cut" },
+  { key: "STITCHING", label: "With the karigar" },
+  { key: "EMBROIDERY", label: "Embroidery" },
+  { key: "FINISHING", label: "Finishing" },
+  { key: "QUALITY_CHECK", label: "Final check" },
+  { key: "PACKED", label: "Packed" },
+  { key: "DISPATCHED", label: "On its way" },
+  { key: "DELIVERED", label: "Delivered" },
+  { key: "COMPLETED", label: "Complete" },
+];
+
+const TIMELINE_ORDER = TIMELINE_DEFS.map((d) => d.key);
+
+export function timelineStepState(
+  step: ProductionStatus,
+  current: ProductionStatus,
+): TimelineStepState {
+  const currentIndex = TIMELINE_ORDER.indexOf(current);
+  const stepIndex = TIMELINE_ORDER.indexOf(step);
+  if (currentIndex < 0 || stepIndex < 0) return "upcoming";
+  if (stepIndex < currentIndex) return "complete";
+  if (stepIndex === currentIndex) return "current";
+  return "upcoming";
+}
+
+/** Customer-facing workshop timeline — embroidery omitted when skipped. */
+export function buildProductionTimeline(input: {
+  currentStatus: OrderStatus;
+  skipEmbroidery: boolean;
+}): ProductionTimelineStep[] {
+  const current = deriveProductionStatus(input.currentStatus);
+
+  return TIMELINE_DEFS.filter(
+    (def) => !(def.key === "EMBROIDERY" && input.skipEmbroidery),
+  ).map((def) => ({
+    key: def.key,
+    label: def.label,
+    state: timelineStepState(def.key, current),
+    skipped: def.key === "EMBROIDERY" && input.skipEmbroidery,
+  }));
 }

@@ -10,11 +10,16 @@ export async function ensureOrdersSchema(): Promise<void> {
   const migrationFiles = [
     "0011_orange_madame_hydra.sql",
     "0012_order_admin.sql",
+    "0015_step34_production_pipeline.sql",
   ];
 
   for (const file of migrationFiles) {
     const tableCheck =
-      file === "0011_orange_madame_hydra.sql" ? "orders" : "order_payments";
+      file === "0011_orange_madame_hydra.sql"
+        ? "orders"
+        : file === "0012_order_admin.sql"
+          ? "order_payments"
+          : "message_templates";
     const result = await db.execute(
       drizzleSql`SELECT to_regclass(${`public.${tableCheck}`}) IS NOT NULL AS ready`,
     );

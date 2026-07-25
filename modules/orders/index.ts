@@ -11,10 +11,15 @@ export {
   deriveProductionStatus,
   derivePaymentStatus,
   isOrderAtRisk,
+  getNextProductionStage,
+  buildProductionTimeline,
   PRODUCTION_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
 } from "./status";
-export type { ProductionStatus, PaymentStatus } from "./status";
+export type { ProductionStatus, PaymentStatus, ProductionTimelineStep } from "./status";
+export { getCustomerOrderByNumber, getTrackedOrderByNumber, listCustomerOrders } from "./customer-queries";
+export type { CustomerOrderView } from "./customer-queries";
+export { ProductionTimeline } from "./tracking/production-timeline";
 export { listOrders, getOrderDetail } from "./queries";
 export type { OrderListItem, OrderListResult, OrderDetail } from "./queries";
 export {

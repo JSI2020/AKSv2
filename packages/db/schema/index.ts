@@ -14,3 +14,4 @@ export * from "./addresses";
 export * from "./customers";
 export * from "./orders";
 export * from "./payments";
+export * from "./messaging";

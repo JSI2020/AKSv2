@@ -21,6 +21,10 @@ const PRE_MEASUREMENT_CANCEL: readonly OrderStatus[] = [
 /** Statuses where cancellation forfeits deposit (post MEASUREMENTS_CONFIRMED). */
 const POST_MEASUREMENT_REFUND: readonly OrderStatus[] = [
   "MEASUREMENTS_CONFIRMED",
+  "CUTTING",
+  "STITCHING",
+  "EMBROIDERY",
+  "FINISHING",
   "IN_PRODUCTION",
   "QUALITY_CHECK",
   "READY_TO_SHIP",
@@ -76,7 +80,7 @@ export async function cancelOrder(input: {
     }
 
     const allowed = ORDER_STATUS_ALLOW[from] ?? [];
-    if (!allowed.includes(to)) {
+    if (!(allowed as readonly OrderStatus[]).includes(to)) {
       throw new OrderCancelError(
         `Illegal cancellation for order in status ${from}.`,
       );

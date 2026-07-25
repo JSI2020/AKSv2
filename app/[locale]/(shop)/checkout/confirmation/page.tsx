@@ -26,8 +26,14 @@ export default async function CheckoutConfirmationPage({ searchParams }: Props) 
               Order {orderNumber}
             </p>
             <Link
+              href={`/track/${encodeURIComponent(orderNumber)}`}
+              className="mt-4 inline-block border border-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-ink"
+            >
+              Track your order
+            </Link>
+            <Link
               href={`/checkout/pay?order=${encodeURIComponent(orderNumber)}`}
-              className="mt-6 inline-block border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige"
+              className="mt-3 inline-block border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige"
             >
               Pay by bank transfer
             </Link>

@@ -19,6 +19,7 @@ import {
   updateOrderNotesAction,
   uploadOrderPhotoAction,
 } from "../actions";
+import { OrderMessagesPanel } from "./order-messages-panel";
 import {
   ORDER_CANCEL_REASONS,
   ORDER_PAYMENT_PROVIDERS,
@@ -26,7 +27,7 @@ import {
 } from "../reason-codes";
 import type { OrderDetail } from "../queries";
 import {
-  ADVANCE_STAGE_TARGETS,
+  getNextProductionStage,
   isBeforeProductionLock,
   PAYMENT_STATUS_LABELS,
   PRODUCTION_STATUS_LABELS,
@@ -44,20 +45,31 @@ function formatDateTime(value: Date | null): string {
 
 type OrderDetailViewProps = {
   order: OrderDetail;
+  messages?: Array<{
+    id: string;
+    templateKey: string;
+    recipient: string;
+    status: string;
+    sentAt: Date | null;
+    error: string | null;
+    createdAt: Date;
+  }>;
 };
 
-export function OrderDetailView({ order }: OrderDetailViewProps) {
+export function OrderDetailView({ order, messages = [] }: OrderDetailViewProps) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [customerRemark, setCustomerRemark] = useState("");
 
   const canAdvance = useCan("orders.advance_status");
   const canEdit = useCan("orders.edit");
   const canRefund = useCan("orders.refund");
   const canCancel = useCan("orders.cancel");
 
-  const nextStage = ADVANCE_STAGE_TARGETS[order.status];
+  const nextStage = getNextProductionStage(order.status, order.skipEmbroidery);
   const beforeLock = isBeforeProductionLock(order.status);
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>) {
@@ -411,6 +423,10 @@ export function OrderDetailView({ order }: OrderDetailViewProps) {
             />
           </Section>
 
+          <Section title="Customer emails">
+            <OrderMessagesPanel messages={messages} />
+          </Section>
+
           <Section title="Actions">
             <div className="flex flex-col gap-2">
               {canAdvance && order.status === "DEPOSIT_PAID" ? (
@@ -425,12 +441,32 @@ export function OrderDetailView({ order }: OrderDetailViewProps) {
               ) : null}
 
               {canAdvance && nextStage ? (
-                <ActionButton
-                  disabled={pending}
-                  onClick={() => run(() => advanceStageAction(order.id))}
-                >
-                  Advance to {productionStageLabel(nextStage as OrderStatus)}
-                </ActionButton>
+                <div className="flex flex-col gap-2 border border-indigo-lift p-2">
+                  <ActionButton
+                    disabled={pending}
+                    onClick={() =>
+                      run(() =>
+                        advanceStageAction({
+                          orderId: order.id,
+                          customerRemark: customerRemark || undefined,
+                        }),
+                      )
+                    }
+                  >
+                    Advance to {productionStageLabel(nextStage as OrderStatus)}
+                  </ActionButton>
+                  <label className="text-[12px] text-chalk">
+                    Note for customer (optional)
+                    <textarea
+                      value={customerRemark}
+                      onChange={(e) => setCustomerRemark(e.target.value)}
+                      rows={2}
+                      disabled={pending}
+                      placeholder="Included in the status email — never internal notes"
+                      className="mt-1 w-full border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
+                    />
+                  </label>
+                </div>
               ) : null}
 
               {canEdit ? (
@@ -711,6 +747,10 @@ function CancelOrderForm({
   const [ack, setAck] = useState(false);
   const needsAck =
     order.status === "MEASUREMENTS_CONFIRMED" ||
+    order.status === "CUTTING" ||
+    order.status === "STITCHING" ||
+    order.status === "EMBROIDERY" ||
+    order.status === "FINISHING" ||
     order.status === "IN_PRODUCTION" ||
     order.status === "QUALITY_CHECK" ||
     order.status === "READY_TO_SHIP" ||

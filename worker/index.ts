@@ -11,6 +11,10 @@ import {
 } from "../modules/platform/outbox";
 import { purgeExpiredAssets } from "../modules/platform/assets";
 import { handleEmailSend } from "../modules/auth/email-handler";
+import {
+  handleMessageSend,
+  handleOrderTransitioned,
+} from "../modules/messaging";
 
 const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
 
@@ -21,6 +25,8 @@ function sleep(ms: number) {
 async function main() {
   registerTestPingHandler();
   registerHandler("email.send", handleEmailSend);
+  registerHandler("message.send", handleMessageSend);
+  registerHandler("order.transitioned", handleOrderTransitioned);
   registerHandler("assets.purgeExpired", async () => {
     const n = await purgeExpiredAssets();
     console.log(`[worker] purged ${n} assets`);

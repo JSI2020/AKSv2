@@ -28,7 +28,8 @@ import {
   cancelReasonLabel,
   priceAdjustmentReasonLabel,
 } from "./reason-codes";
-import { ADVANCE_STAGE_TARGETS, isBeforeProductionLock } from "./status";
+import { orderRequiresEmbroidery } from "./embroidery";
+import { getNextProductionStage, isBeforeProductionLock } from "./status";
 import { transitionOrder } from "./transition-order";
 import { ORDER_TRANSITION_ALLOW } from "./transitions";
 import { recordCodBalanceOnDelivery } from "@/modules/payments/cod/queries";
@@ -79,6 +80,8 @@ export async function confirmMeasurementsAction(
         );
       }
 
+      const requiresEmbroidery = await orderRequiresEmbroidery(orderId, tx);
+
       await transitionOrder({
         orderId,
         from,
@@ -87,6 +90,11 @@ export async function confirmMeasurementsAction(
         note: "Measurements confirmed",
         tx,
       });
+
+      await tx
+        .update(orders)
+        .set({ skipEmbroidery: !requiresEmbroidery, updatedAt: new Date() })
+        .where(eq(orders.id, orderId));
 
       await insertAuditLog(tx as unknown as Database, {
         id: uuidv7(),
@@ -110,12 +118,14 @@ export async function confirmMeasurementsAction(
   }
 }
 
-export async function advanceStageAction(
-  orderId: string,
-  note?: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+export async function advanceStageAction(input: {
+  orderId: string;
+  customerRemark?: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const session = await requirePermission("orders.advance_status");
+    const customerRemark = input.customerRemark?.trim() || undefined;
+    let orderNumber: string | null = null;
 
     await db.transaction(async (tx) => {
       const [order] = await tx
@@ -123,30 +133,33 @@ export async function advanceStageAction(
           status: orders.status,
           userId: orders.userId,
           balanceAmountMinor: orders.balanceAmountMinor,
+          skipEmbroidery: orders.skipEmbroidery,
+          orderNumber: orders.orderNumber,
         })
         .from(orders)
-        .where(eq(orders.id, orderId))
+        .where(eq(orders.id, input.orderId))
         .limit(1);
 
       if (!order) throw new Error("Order not found.");
+      orderNumber = order.orderNumber;
       const from = order.status as OrderStatus;
-      const to = ADVANCE_STAGE_TARGETS[from];
+      const to = getNextProductionStage(from, order.skipEmbroidery);
       if (!to) {
         throw new Error(`No next stage from ${from}.`);
       }
 
       await transitionOrder({
-        orderId,
+        orderId: input.orderId,
         from,
         to,
         actor: { id: session.user.id, role: session.user.role },
-        note: note?.trim() || undefined,
+        note: customerRemark,
         tx,
       });
 
       if (to === "DELIVERED" && order.balanceAmountMinor > 0) {
         await recordCodBalanceOnDelivery(
-          orderId,
+          input.orderId,
           session.user.id,
           tx,
         );
@@ -155,7 +168,7 @@ export async function advanceStageAction(
       if (to === "DELIVERY_REFUSED" && order.userId) {
         await handleDeliveryRefused(
           order.userId,
-          orderId,
+          input.orderId,
           session.user.id,
           tx,
         );
@@ -168,16 +181,20 @@ export async function advanceStageAction(
         actorRole: session.user.role,
         action: "orders.advance_stage",
         entityType: "order",
-        entityId: orderId,
+        entityId: input.orderId,
         before: { status: from },
-        after: { status: to },
+        after: { status: to, customerRemark },
         ip: ctx.ip,
         userAgent: ctx.userAgent,
       });
     });
 
     revalidatePath("/admin/orders");
-    revalidatePath(`/admin/orders/${orderId}`);
+    revalidatePath(`/admin/orders/${input.orderId}`);
+    if (orderNumber) {
+      revalidatePath(`/account/orders/${orderNumber}`);
+      revalidatePath(`/track/${orderNumber}`);
+    }
     return { ok: true };
   } catch (error) {
     return actionError(error);

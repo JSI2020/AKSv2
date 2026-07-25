@@ -43,6 +43,10 @@ export async function getPaidSalesRanking(
           OR o.status IN (
             'DEPOSIT_PAID',
             'MEASUREMENTS_CONFIRMED',
+            'CUTTING',
+            'STITCHING',
+            'EMBROIDERY',
+            'FINISHING',
             'IN_PRODUCTION',
             'QUALITY_CHECK',
             'READY_TO_SHIP',

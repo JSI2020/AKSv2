@@ -1,7 +1,7 @@
 import { transition, type TransitionActor } from "@/modules/platform/transition";
 import type { DbTx } from "@/modules/platform/types";
 
-import { ORDER_STATUS_ALLOW, type OrderStatus } from "./constants";
+import { ORDER_STATUS_ALLOW, assertCuttingGate, type OrderStatus } from "./constants";
 
 export async function transitionOrder(input: {
   orderId: string;
@@ -11,6 +11,8 @@ export async function transitionOrder(input: {
   note?: string;
   tx: DbTx;
 }): Promise<void> {
+  assertCuttingGate(input.from, input.to);
+
   await transition({
     entity: "order",
     id: input.orderId,

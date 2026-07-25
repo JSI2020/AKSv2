@@ -8,10 +8,10 @@ import {
 
 describe("order status derivation", () => {
   it("keeps production and payment status independent", () => {
-    expect(deriveProductionStatus("IN_PRODUCTION")).toBe("IN_PRODUCTION");
+    expect(deriveProductionStatus("CUTTING")).toBe("CUTTING");
     expect(
       derivePaymentStatus({
-        status: "IN_PRODUCTION",
+        status: "CUTTING",
         balanceAmountMinor: 25_000_00,
         paidMinor: 75_000_00,
         totalMinor: 100_000_00,
@@ -24,7 +24,7 @@ describe("order status derivation", () => {
     expect(
       isOrderAtRisk({
         promisedShipDate: soon,
-        status: "IN_PRODUCTION",
+        status: "CUTTING",
       }),
     ).toBe(true);
     expect(

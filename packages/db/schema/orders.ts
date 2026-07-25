@@ -18,6 +18,11 @@ export const orderStatusEnum = pgEnum("order_status", [
   "AWAITING_DEPOSIT",
   "DEPOSIT_PAID",
   "MEASUREMENTS_CONFIRMED",
+  "CUTTING",
+  "STITCHING",
+  "EMBROIDERY",
+  "FINISHING",
+  /** @deprecated migrated to CUTTING — kept for enum compatibility */
   "IN_PRODUCTION",
   "QUALITY_CHECK",
   "READY_TO_SHIP",
@@ -101,6 +106,8 @@ export const orders = pgTable("orders", {
   placedAt: timestamp("placed_at", { withTimezone: true }),
   cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
   cancelReason: text("cancel_reason"),
+  /** Set at MEASUREMENTS_CONFIRMED — skips EMBROIDERY stage when true. */
+  skipEmbroidery: boolean("skip_embroidery").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
