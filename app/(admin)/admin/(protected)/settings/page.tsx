@@ -46,6 +46,14 @@ export default async function AdminSettingsPage() {
                   Sizing — size blocks (standard charts)
                 </Link>
               </li>
+              <li>
+                <Link
+                  href="/admin/settings/sizing/fit-profiles"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Sizing — fit profiles (ease)
+                </Link>
+              </li>
             </>
           ) : null}
         </ul>

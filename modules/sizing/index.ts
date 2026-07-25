@@ -41,4 +41,11 @@ export {
   revertSizeBlockFork,
   resolveEditableBlockId,
 } from "./fork-actions";
-export { forkSizeBlockInTx } from "./fork";
+export {
+  listFitProfiles,
+  getFitProfile,
+  updateFitProfile,
+  createFitProfile,
+} from "./fit-profile-actions";
+export type { FitProfileRow } from "./fit-profile-actions";
+export { FitProfileList, FitProfileForm } from "./fit-profile-ui";

@@ -43,6 +43,13 @@
       "when": 1784979680564,
       "tag": "0005_blue_bullseye",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784980505884,
+      "tag": "0006_gray_wild_pack",
+      "breakpoints": true
     }
   ]
 }

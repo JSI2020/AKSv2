@@ -18,6 +18,7 @@ async function seed() {
     garmentCategories,
     sizeBlocks,
     sizeBlockRows,
+    fitProfiles,
   } = await import("./schema");
   const { and, eq } = await import("drizzle-orm");
   const {
@@ -28,6 +29,8 @@ async function seed() {
     DEFAULT_BASE_SIZE_LABEL,
     resolveRowValues,
     inches,
+    FIT_PROFILE_SEEDS,
+    applyFitEase,
   } = shared;
 
   // Fixed UUIDv7 for idempotent re-seeds of the probe row (no digit-run demo OTP).
@@ -270,6 +273,48 @@ async function seed() {
   }
   console.log(
     `KAMEEZ resolve OK — BUST ${bustResolved.map((v) => v / 100).join("/")} · LENGTH ${lengthResolved.map((v) => v / 100).join("/")}`,
+  );
+
+  // --- Fit profiles (replaceable) ---
+  await db.delete(fitProfiles);
+  for (const profile of FIT_PROFILE_SEEDS) {
+    const categoryId = categoryIdByKey.get(profile.categoryKey);
+    if (!categoryId) {
+      throw new Error(`Missing category ${profile.categoryKey} for fit profile`);
+    }
+    await db.insert(fitProfiles).values({
+      id: uuidv7(),
+      name: profile.name,
+      categoryId,
+      easeByMeasurement: profile.easeByMeasurement,
+      clingFactorBps: profile.clingFactorBps,
+      isDefault: profile.isDefault ?? false,
+      notes: profile.notes ?? null,
+      sortOrder: profile.sortOrder,
+      active: true,
+    });
+    console.log(`seeded fit_profile ${profile.name} (${profile.categoryKey})`);
+  }
+
+  const palazzo = FIT_PROFILE_SEEDS.find((p) => p.name === "Palazzo");
+  if (!palazzo) throw new Error("Palazzo seed missing");
+  const trouserM = {
+    WAIST: inches(30),
+    HIP: inches(38),
+    BOTTOM_OPENING: inches(14),
+  };
+  const finished = applyFitEase(trouserM, palazzo.easeByMeasurement);
+  if (
+    finished.WAIST !== inches(31) ||
+    finished.HIP !== inches(46) ||
+    finished.BOTTOM_OPENING !== inches(24)
+  ) {
+    throw new Error(
+      `Palazzo ease mismatch: ${JSON.stringify(finished)}`,
+    );
+  }
+  console.log(
+    `Palazzo @ M OK — waist ${finished.WAIST! / 100}″ · hip ${finished.HIP! / 100}″ · bottom ${finished.BOTTOM_OPENING! / 100}″`,
   );
 
   console.log(`uuidv7 sample: ${uuidv7()}`);

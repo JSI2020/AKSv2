@@ -33,3 +33,5 @@ export type {
   SizeBlockRowSeed,
   SizeBlockSeed,
 } from "./size-block-seeds";
+export { FIT_PROFILE_SEEDS, applyFitEase } from "./fit-profile-seeds";
+export type { FitProfileSeed } from "./fit-profile-seeds";
