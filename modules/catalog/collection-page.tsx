@@ -1,14 +1,16 @@
 import { Link } from "@/i18n/routing";
 
+import { HOUSE_COLLECTIONS } from "./house-collections";
 import { CollectionFilters } from "./collection-filters";
 import { DesignCard } from "./design-card";
 import type { PublishedDesignCard, ResolvedCollection } from "./types";
 
 const COLLECTION_PILLS = [
+  ...HOUSE_COLLECTIONS.map((c) => ({
+    slug: c.slug,
+    label: c.navLabel,
+  })),
   { slug: "new", label: "New" },
-  { slug: "formal", label: "Formal" },
-  { slug: "fusion", label: "Fusion" },
-  { slug: "best-sellers", label: "Best sellers" },
 ] as const;
 
 type Facets = {
@@ -36,14 +38,23 @@ export function CollectionPageView({
           Home
         </Link>
         <span> / </span>
+        <Link href="/collections" className="text-ink/55">
+          Collections
+        </Link>
+        <span> / </span>
         <span>{collection.title}</span>
       </nav>
 
-      <header className="mb-9">
-        <h1 className="mb-2.5 font-display text-[46px] font-medium leading-none">
+      <header className="mb-9 max-w-[640px]">
+        <h1 className="mb-2.5 font-display text-[clamp(36px,4.5vw,46px)] font-medium leading-none">
           {collection.title}
         </h1>
-        <p className="max-w-[560px] text-[15px] text-ink/60">
+        {collection.tagline ? (
+          <p className="mb-4 font-display text-[18px] italic text-ink/65">
+            {collection.tagline}
+          </p>
+        ) : null}
+        <p className="text-[15px] leading-relaxed text-ink/65">
           {collection.description}
         </p>
       </header>
@@ -71,7 +82,7 @@ export function CollectionPageView({
 
       <p className="mb-6 text-[13px] text-ink/55">
         {total === 0
-          ? "No pieces match these filters yet."
+          ? "No pieces in this collection yet — check back as we open slots."
           : `${total} ${total === 1 ? "piece" : "pieces"}`}
       </p>
 

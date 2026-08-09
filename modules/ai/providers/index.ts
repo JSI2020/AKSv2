@@ -12,11 +12,12 @@ export { createFalImageGenProvider, isFalConfigured } from "./fal";
 export { createMockImageGenProvider, MOCK_PNG_BASE64 } from "./mock";
 
 export function getImageGenProvider(): ImageGenProvider {
-  if (isFalConfigured()) {
-    return createFalImageGenProvider();
-  }
+  // Explicit mock wins so CI/local tests never hit live fal.
   if (process.env.AI_GENERATION_MOCK === "1") {
     return createMockImageGenProvider();
+  }
+  if (isFalConfigured()) {
+    return createFalImageGenProvider();
   }
   throw new Error(
     "FAL_KEY is not set. Set FAL_KEY for live generation or AI_GENERATION_MOCK=1 for dev/test.",

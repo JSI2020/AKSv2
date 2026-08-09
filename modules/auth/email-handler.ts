@@ -1,6 +1,8 @@
-import { Resend } from "resend";
-
 import type { OutboxHandler } from "@/modules/platform/outbox";
+import {
+  isResendConfigured,
+  sendResendEmail,
+} from "@/modules/messaging/providers/resend";
 
 export type EmailSendPayload = {
   to: string;
@@ -31,25 +33,19 @@ export const handleEmailSend: OutboxHandler = async (payload) => {
 
   const from =
     process.env.RESEND_FROM_EMAIL?.trim() || "AKS <onboarding@resend.dev>";
-  const apiKey = process.env.RESEND_API_KEY?.trim();
 
-  if (!apiKey) {
+  if (!isResendConfigured()) {
     console.log(
       `[email.send] RESEND_API_KEY unset — logging only\n  to: ${payload.to}\n  subject: ${payload.subject}\n  text: ${payload.text ?? "(html only)"}`,
     );
     return;
   }
 
-  const resend = new Resend(apiKey);
-  const { error } = await resend.emails.send({
+  await sendResendEmail({
     from,
     to: payload.to,
     subject: payload.subject,
-    html: payload.html ?? `<pre>${payload.text ?? ""}</pre>`,
+    html: payload.html,
     text: payload.text,
   });
-
-  if (error) {
-    throw new Error(`Resend error: ${error.message}`);
-  }
 };

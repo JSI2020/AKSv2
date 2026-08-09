@@ -45,5 +45,6 @@ export {
   can,
   resolvePermissions,
 } from "./rbac";
-export { useCan, PermissionsProvider } from "./use-can";
+// Client hooks live in `./use-can` — import that path from client components.
+// Re-exporting them here pulls server auth (next/headers) into the client bundle.
 export { deleteSomethingAction } from "./actions";

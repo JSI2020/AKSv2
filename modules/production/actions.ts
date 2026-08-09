@@ -34,6 +34,7 @@ import { enterCuttingStage } from "./cutting";
 import {
   resolveNextJobStage,
   transitionProductionJob,
+  transitionProductionJobStatus,
 } from "./transition-job";
 
 import "./transitions";
@@ -200,14 +201,32 @@ export async function blockProductionJobAction(input: {
     const reason = input.reason.trim();
     if (!reason) return { ok: false, error: "Blocked reason is required." };
 
-    await db
-      .update(productionJobs)
-      .set({
-        status: "BLOCKED",
-        blockedReason: reason,
-        updatedAt: new Date(),
-      })
-      .where(eq(productionJobs.id, input.jobId));
+    await db.transaction(async (tx) => {
+      const [job] = await tx
+        .select({
+          id: productionJobs.id,
+          status: productionJobs.status,
+        })
+        .from(productionJobs)
+        .where(eq(productionJobs.id, input.jobId))
+        .limit(1);
+
+      if (!job) throw new Error("Production job not found.");
+
+      await transitionProductionJobStatus({
+        jobId: job.id,
+        from: job.status,
+        to: "BLOCKED",
+        actor: { id: session.user.id, role: session.user.role },
+        note: reason,
+        tx,
+      });
+
+      await tx
+        .update(productionJobs)
+        .set({ blockedReason: reason, updatedAt: new Date() })
+        .where(eq(productionJobs.id, job.id));
+    });
 
     revalidatePath("/admin/production");
     return { ok: true };

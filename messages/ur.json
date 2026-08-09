@@ -3,48 +3,70 @@
     "name": "AKS",
     "nameUr": "عکس",
     "tagline": "a reflection",
-    "footerBlurb": "Where East meets the West. Pakistani pret and modest fusion, cut to your measure after you order."
+    "footerBlurb": "مشرقی ہاتھ، پرسکون لکیر۔ آرڈر کے بعد آپ کے ناپ پر کٹا ہوا۔"
   },
   "Nav": {
-    "new": "New",
-    "formal": "Formal",
-    "fusion": "Fusion",
-    "fabrics": "Fabrics",
-    "sizeGuide": "Size guide",
-    "cart": "Cart",
-    "search": "Search",
-    "wishlist": "Wishlist",
+    "new": "نیا",
+    "essentials": "Essentials",
+    "tailored": "Tailored",
+    "occasion": "Occasion",
+    "signature": "Signature",
+    "separates": "Separates",
+    "whiteCollection": "Signature",
+    "formal": "فارمل",
+    "fusion": "فیوژن",
+    "fabrics": "کپڑے",
+    "sizeGuide": "سائز گائیڈ",
+    "cart": "ٹوکری",
+    "search": "تلاش",
+    "wishlist": "پسندیدہ",
     "localeEn": "EN",
     "localeUr": "اردو"
   },
   "Utility": {
-    "leadTime": "Made to order — cut after you ask, about 18–24 days",
-    "whatsapp": "Message us on WhatsApp"
+    "leadTime": "آرڈر پر تیار — آپ کے کہنے پر کٹائی، تقریباً ۱۸–۲۴ دن",
+    "whatsapp": "واٹس ایپ پر پیغام بھیجیں"
   },
   "Marquee": {
     "items": [
-      "Made to your measure",
-      "18–24 days",
-      "Pakistani pret",
-      "Modest fusion",
-      "Cut after you order"
+      "آپ کے ناپ پر",
+      "۱۸–۲۴ دن",
+      "کٹ اور کپڑا",
+      "جدید مگر معتدل",
+      "آرڈر کے بعد کٹائی"
     ]
   },
   "Home": {
     "eyebrow": "عکس · a reflection",
-    "headlineLine1": "Where East",
-    "headlineLine2": "meets the West",
-    "subhead": "Pakistani pret and modest fusion — cut to your measurements after you order.",
-    "cta": "Choose a piece"
+    "headlineLine1": "یہاں ابھی",
+    "headlineLine2": "کچھ موجود نہیں",
+    "subhead": "ہر لباس آرڈر کے بعد بنتا ہے — چارٹ کے نہیں، آپ کے ناپ پر۔ مشرقی ہاتھ، پرسکون لکیر۔",
+    "cta": "کلیکشنز دیکھیں"
+  },
+  "SizeGuide": {
+    "title": "سائز گائیڈ",
+    "lead": "معیاری سائز سب کے اوسط پر فٹ آتے ہیں — یعنی کسی خاص شخص پر نہیں۔ یہ گھر کے سائز ہیں؛ حقیقی فٹ کے لیے اپنا ناپ دیں۔",
+    "customPrimary": "آپ کے ناپ پر بنانا ہی اصل راستہ ہے۔",
+    "customCta": "کلیکشنز دیکھیں",
+    "standardNote": "پیمائش انچ میں ہے۔ یہ گھر کے ڈیفالٹ چارٹ ہیں؛ ہر ڈیزائن انہیں بہتر کر سکتا ہے۔",
+    "empty": "سائز چارٹ ابھی شائع نہیں۔ ہمیں پیغام بھیجیں، فٹ سمجھا دیں گے۔",
+    "baseSize": "بنیاد"
+  },
+  "Fabrics": {
+    "title": "کپڑے",
+    "lead": "قدرتی ریشے، میٹ یا کم چمک — گرنے اور عمر بڑھنے کے حساب سے۔ کپڑا پہلی چیز ہے جو آپ محسوس کرتے ہیں۔",
+    "empty": "کپڑوں کے نوٹس جلد یہاں آئیں گے۔",
+    "care": "دیکھ بھال",
+    "drape": "ہاتھ اور گرنا"
   },
   "Footer": {
-    "shop": "Shop",
-    "help": "Help",
-    "talk": "Talk to us",
-    "trackOrder": "Track order",
-    "shipping": "Shipping",
-    "returns": "Returns",
-    "whatsappShahneela": "WhatsApp Shahneela",
-    "copyright": "© 2026 AKS by Shahneela"
+    "shop": "خریدیں",
+    "help": "مدد",
+    "talk": "بات کریں",
+    "trackOrder": "آرڈر ٹریک کریں",
+    "shipping": "شپنگ",
+    "returns": "واپسی",
+    "whatsappShahneela": "واٹس ایپ شاہنیلا",
+    "copyright": "© ۲۰۲۶ AKS از شاہنیلا"
   }
 }

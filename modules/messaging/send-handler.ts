@@ -1,9 +1,12 @@
 import { eq } from "drizzle-orm";
-import { Resend } from "resend";
 
 import { db, messageLog } from "@aks/db";
 
 import type { OutboxHandler } from "@/modules/platform/outbox";
+import {
+  isResendConfigured,
+  sendResendEmail,
+} from "@/modules/messaging/providers/resend";
 
 import {
   appendCustomerRemark,
@@ -56,9 +59,8 @@ export const handleMessageSend: OutboxHandler = async (payload) => {
 
   const from =
     process.env.RESEND_FROM_EMAIL?.trim() || "AKS <onboarding@resend.dev>";
-  const apiKey = process.env.RESEND_API_KEY?.trim();
 
-  if (!apiKey) {
+  if (!isResendConfigured()) {
     console.log(
       `[message.send] RESEND_API_KEY unset — logging only\n  to: ${payload.recipient}\n  subject: ${subject}\n  text: ${body}`,
     );
@@ -74,33 +76,33 @@ export const handleMessageSend: OutboxHandler = async (payload) => {
     return;
   }
 
-  const resend = new Resend(apiKey);
-  const { data, error } = await resend.emails.send({
-    from,
-    to: payload.recipient,
-    subject,
-    html: `<pre style="font-family: sans-serif; white-space: pre-wrap;">${body.replace(/</g, "&lt;")}</pre>`,
-    text: body,
-  });
+  try {
+    const result = await sendResendEmail({
+      from,
+      to: payload.recipient,
+      subject,
+      html: `<pre style="font-family: sans-serif; white-space: pre-wrap;">${body.replace(/</g, "&lt;")}</pre>`,
+      text: body,
+    });
 
-  if (error) {
+    await db
+      .update(messageLog)
+      .set({
+        status: "SENT",
+        sentAt: new Date(),
+        providerRef: result.id,
+        error: null,
+      })
+      .where(eq(messageLog.id, payload.messageLogId));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Send failed";
     await db
       .update(messageLog)
       .set({
         status: "FAILED",
-        error: error.message,
+        error: message,
       })
       .where(eq(messageLog.id, payload.messageLogId));
-    throw new Error(`Resend error: ${error.message}`);
+    throw error;
   }
-
-  await db
-    .update(messageLog)
-    .set({
-      status: "SENT",
-      sentAt: new Date(),
-      providerRef: data?.id ?? null,
-      error: null,
-    })
-    .where(eq(messageLog.id, payload.messageLogId));
 };

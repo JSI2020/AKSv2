@@ -208,8 +208,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           reason: "otp_success",
         });
 
-        const { readAnonToken } = await import("@/modules/measure");
-        const { mergeGuestCartIntoUser } = await import("@/modules/cart");
+        // Direct paths — avoid measure/cart barrels (they pull client modules / next/headers).
+        const { readAnonToken } = await import("@/modules/measure/anon-cookie");
+        const { mergeGuestCartIntoUser } = await import("@/modules/cart/merge");
         const anonId = await readAnonToken();
         if (anonId) {
           await mergeGuestCartIntoUser({ userId: user.id, anonId });

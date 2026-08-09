@@ -41,7 +41,7 @@ export async function mergeGuestCartIntoUser(input: {
 
   if (!guestCart || guestCart.userId === input.userId) return;
 
-  let [userCart] = await db
+  const [userCart] = await db
     .select()
     .from(carts)
     .where(and(eq(carts.userId, input.userId), eq(carts.status, "ACTIVE")))

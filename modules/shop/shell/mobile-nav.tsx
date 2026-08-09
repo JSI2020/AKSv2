@@ -7,11 +7,11 @@ export async function ShopMobileNav() {
   const t = await getTranslations("Nav");
 
   const nav = [
-    { href: "/collections/new" as const, label: t("new") },
-    { href: "/collections/formal" as const, label: t("formal") },
-    { href: "/collections/fusion" as const, label: t("fusion") },
-    { href: "/fabrics" as const, label: t("fabrics") },
-    { href: "/size-guide" as const, label: t("sizeGuide") },
+    { href: "/collections/essentials" as const, label: t("essentials") },
+    { href: "/collections/tailored" as const, label: t("tailored") },
+    { href: "/collections/occasion" as const, label: t("occasion") },
+    { href: "/collections/signature" as const, label: t("signature") },
+    { href: "/collections/separates" as const, label: t("separates") },
   ];
 
   return (

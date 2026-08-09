@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, like } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -154,7 +154,8 @@ describe("bank transfer and COD", () => {
     await db.delete(customerProfiles);
     await db.delete(orderEvents);
     await db.delete(orders);
-    await db.delete(assets);
+    // Only wipe receipt uploads from this suite — catalogue assets stay.
+    await db.delete(assets).where(like(assets.r2Key, "uploads/%"));
   });
 
   afterAll(async () => {

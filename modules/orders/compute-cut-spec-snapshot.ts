@@ -10,6 +10,7 @@ import {
   sizeBlockCells,
   sizeBlockRows,
   sizeBlocks,
+  type Database,
   type OrderMeasurementSnapshot,
   type OrderCutSpecSnapshot,
 } from "@aks/db";
@@ -17,6 +18,9 @@ import {
 import { calculateCutSpec, resolveChart } from "@/modules/sizing/engine";
 
 import type { DbTx } from "@/modules/platform/types";
+
+/** Accept either the root db client or an in-flight transaction. */
+type DbLike = Database | DbTx;
 
 function normalizeBodyKeys(
   values: Record<string, number>,
@@ -35,7 +39,7 @@ function normalizeBodyKeys(
 
 async function loadMergedFitEase(
   fitProfileIds: Record<string, string>,
-  tx: DbTx = db,
+  tx: DbLike = db,
 ): Promise<Record<string, number>> {
   const ids = [...new Set(Object.values(fitProfileIds))];
   if (ids.length === 0) return {};
@@ -55,7 +59,7 @@ async function loadMergedFitEase(
 async function resolveStandardBody(
   sizeBlockId: string,
   sizeLabel: string,
-  tx: DbTx = db,
+  tx: DbLike = db,
 ): Promise<Record<string, number>> {
   const [block] = await tx
     .select({
@@ -130,7 +134,7 @@ async function resolveStandardBody(
 /** Frozen chart values for a standard size — never an FK. */
 export async function buildStandardMeasurementSnapshot(
   input: { designId: string; sizeLabel: string },
-  tx: DbTx = db,
+  tx: DbLike = db,
 ): Promise<Extract<OrderMeasurementSnapshot, object>> {
   const [design] = await tx
     .select({ sizeBlockId: designs.sizeBlockId })
@@ -165,7 +169,7 @@ export async function computeCutSpecSnapshot(
     sizeLabel: string | null;
     measurementSnapshot: OrderMeasurementSnapshot;
   },
-  tx: DbTx = db,
+  tx: DbLike = db,
 ): Promise<OrderCutSpecSnapshot> {
   const [design] = await tx
     .select({

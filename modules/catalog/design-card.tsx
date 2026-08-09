@@ -3,10 +3,17 @@ import Image from "next/image";
 import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
 
+import { resolveDisplayPrice } from "./pricing";
 import { titleFromTagValue, type PublishedDesignCard } from "./types";
 
 export function DesignCard({ design }: { design: PublishedDesignCard }) {
   const occasion = design.occasionLabels[0];
+  const display = resolveDisplayPrice({
+    basePriceMinor: design.basePriceMinor,
+    compareAtPriceMinor: design.compareAtPriceMinor,
+    compareAtStartsAt: design.compareAtStartsAt,
+    compareAtEndsAt: design.compareAtEndsAt,
+  });
 
   return (
     <Link href={`/designs/${design.slug}`} className="group block">
@@ -36,7 +43,15 @@ export function DesignCard({ design }: { design: PublishedDesignCard }) {
         </p>
       )}
       <p className="mb-1.5 font-display text-[19px]">{design.name}</p>
-      <Money value={design.basePriceMinor} className="text-[14px] text-ink/60" />
+      <p className="flex flex-wrap items-baseline gap-2 text-[14px] text-ink/60">
+        <Money value={display.priceMinor} />
+        {display.compareAtMinor != null ? (
+          <Money
+            value={display.compareAtMinor}
+            className="text-[12px] text-ink/40 line-through"
+          />
+        ) : null}
+      </p>
     </Link>
   );
 }

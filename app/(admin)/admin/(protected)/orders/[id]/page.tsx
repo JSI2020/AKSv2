@@ -8,7 +8,7 @@ import {
 } from "@/modules/auth";
 import { listOrderMessages } from "@/modules/messaging/actions";
 import { getOrderDetail, OrderDetailView } from "@/modules/orders";
-import { getOrderFabricLots, OrderFabricLotsPanel } from "@/modules/insights";
+import { getOrderFabricLots, OrderRelatedPanels } from "@/modules/insights";
 
 export default async function AdminOrderDetailPage({
   params,
@@ -52,7 +52,7 @@ export default async function AdminOrderDetailPage({
         </h1>
       </div>
       <OrderDetailView order={order} messages={messages} />
-      <OrderFabricLotsPanel lots={fabricLots} />
+      <OrderRelatedPanels order={order} lots={fabricLots} />
     </div>
   );
 }

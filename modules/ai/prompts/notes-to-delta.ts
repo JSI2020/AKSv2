@@ -58,62 +58,24 @@ export class HeuristicPromptModifier implements PromptModifierAdapter {
   }
 }
 
-/** Placeholder for a cheap LLM — wire when OPENAI_API_KEY or similar is available. */
+/** Uses OpenAI via providers/ when OPENAI_API_KEY (or AI_PROMPT_MODIFIER_KEY) is set. */
 export class LlmPromptModifier implements PromptModifierAdapter {
   readonly name = "llm";
 
   constructor(private readonly apiKey: string) {}
 
   async apply(input: PromptModifierInput): Promise<PromptModifications> {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${this.apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: 0,
-        messages: [
-          {
-            role: "system",
-            content:
-              "Convert designer revision notes into concise prompt modifications for fashion image generation. Return JSON: {\"deltas\": string[], \"resolvedPrompt\": string}. The resolvedPrompt must be the full final prompt including the base prompt plus your modifications. Never return only the notes.",
-          },
-          {
-            role: "user",
-            content: JSON.stringify({
-              basePrompt: input.basePrompt,
-              notes: input.notes,
-            }),
-          },
-        ],
-        response_format: { type: "json_object" },
-      }),
+    const { modifyPromptWithOpenAi } = await import(
+      "@/modules/ai/providers/openai-prompt"
+    );
+    const result = await modifyPromptWithOpenAi({
+      apiKey: this.apiKey,
+      basePrompt: input.basePrompt,
+      notes: input.notes,
     });
-
-    if (!response.ok) {
-      throw new Error(`LLM prompt modifier failed: ${response.status}`);
-    }
-
-    const body = (await response.json()) as {
-      choices?: { message?: { content?: string } }[];
-    };
-    const raw = body.choices?.[0]?.message?.content;
-    if (!raw) throw new Error("LLM prompt modifier returned empty content");
-
-    const parsed = JSON.parse(raw) as {
-      deltas?: string[];
-      resolvedPrompt?: string;
-    };
-    const resolvedPrompt = parsed.resolvedPrompt?.trim();
-    if (!resolvedPrompt) {
-      throw new Error("LLM prompt modifier missing resolvedPrompt");
-    }
-
     return {
-      resolvedPrompt,
-      deltas: parsed.deltas ?? [],
+      resolvedPrompt: result.resolvedPrompt,
+      deltas: result.deltas,
       source: "llm",
     };
   }

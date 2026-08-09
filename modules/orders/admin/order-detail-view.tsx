@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
 import { provinceLabel } from "@/modules/checkout/payment-plans";
-import { useCan } from "@/modules/auth";
+import { useCan } from "@/modules/auth/use-can";
 import { ConfirmDialog, Measure, Money } from "@/modules/ui";
 
 import {

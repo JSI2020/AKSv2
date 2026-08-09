@@ -35,10 +35,5 @@ export type {
   ResolvedRenderImage,
   SizeMode,
 } from "./types";
-export {
-  colourwayUrlValue,
-  formatLeadTime,
-  resolveColourwayId,
-  STANDARD_SIZE_LABELS,
-  tagValueToCollectionSlug,
-} from "./types";
+export { HOUSE_COLLECTIONS, COLLECTIONS_HUB_INTRO } from "./house-collections";
+export { CollectionsHubPage } from "./collections-hub";

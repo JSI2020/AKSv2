@@ -78,10 +78,14 @@ export async function handleDesignGenerate(
       imageUrl: result.imageUrl,
     });
 
-    const { calibrateGenerationOutput } = await import(
-      "@/modules/ai/studio/sizing/calibrate-generation"
-    );
-    await calibrateGenerationOutput(generationId, outputAssetId);
+    try {
+      const { calibrateGenerationOutput } = await import(
+        "@/modules/ai/studio/sizing/calibrate-generation"
+      );
+      await calibrateGenerationOutput(generationId, outputAssetId);
+    } catch {
+      // Calibration is best-effort — generation success must not depend on it.
+    }
 
     await db
       .update(designGenerations)

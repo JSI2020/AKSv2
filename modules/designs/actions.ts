@@ -27,6 +27,7 @@ import {
 import { requirePermission } from "@/modules/auth";
 import { transition } from "@/modules/platform/transition";
 
+import { evaluatePublishChecklist } from "./publish-checklist";
 import "./transitions";
 import { DESIGN_TRANSITION_ALLOW } from "./transitions";
 
@@ -725,26 +726,12 @@ export async function publishDesign(
     const detail = await getDesign(id);
     if (!detail) return { ok: false, error: "Not found" };
 
-    const missing: string[] = [];
-    if (detail.colourways.length < 1) missing.push("≥1 colourway");
-    for (const cw of detail.colourways) {
-      const cwRenders = detail.renders.filter((r) => r.colourwayId === cw.id);
-      if (cwRenders.length < 1) missing.push(`render for ${cw.name}`);
-      for (const r of cwRenders) {
-        if (!r.altText.trim()) missing.push(`alt text on ${cw.name}/${r.angle}`);
-      }
-    }
-    if (detail.design.basePriceMinor <= 0) missing.push("base price");
-    if (detail.design.fabricConsumptionMeters <= 0) {
-      missing.push("fabric consumption");
-    }
-    if (!detail.design.sizeBlockId) missing.push("size block");
-    if (Object.keys(detail.design.fitProfileIds ?? {}).length < 1) {
-      missing.push("fit profile");
-    }
-    if (!detail.tags.some((t) => t.kind === "OCCASION")) {
-      missing.push("≥1 occasion tag");
-    }
+    const missing = evaluatePublishChecklist({
+      design: detail.design,
+      colourways: detail.colourways,
+      renders: detail.renders,
+      tags: detail.tags,
+    });
     if (missing.length) {
       return {
         ok: false,

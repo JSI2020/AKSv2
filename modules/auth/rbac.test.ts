@@ -1,7 +1,8 @@
-import { eq, like } from "drizzle-orm";
+import { eq, inArray, like } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  auditLogs,
   db,
   permissions,
   rolePermissions,
@@ -79,6 +80,10 @@ async function cleanupTestUsers(): Promise<void> {
   if (fixtures.length === 0) return;
 
   const ids = fixtures.map((u) => u.id);
+  await db
+    .update(auditLogs)
+    .set({ actorId: null })
+    .where(inArray(auditLogs.actorId, ids));
   for (const id of ids) {
     await db.delete(userPermissions).where(eq(userPermissions.userId, id));
     await db.delete(users).where(eq(users.id, id));

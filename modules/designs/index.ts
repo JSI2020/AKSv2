@@ -15,3 +15,13 @@ export {
 } from "./actions";
 export type { DesignListItem, DesignDetail, DesignActionResult } from "./actions";
 export { registerDesignTransitions, DESIGN_TRANSITION_ALLOW } from "./transitions";
+export {
+  createPublishedCatalogueDesign,
+  ensureCataloguePlaceholderAsset,
+} from "./catalogue-writer";
+export type {
+  CatalogueActor,
+  CatalogueColourwayInput,
+  CreatePublishedCatalogueDesignInput,
+} from "./catalogue-writer";
+export { evaluatePublishChecklist } from "./publish-checklist";

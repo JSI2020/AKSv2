@@ -5,6 +5,8 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Required for the multi-stage Dockerfile (`.next/standalone`).
+  output: "standalone",
 };
 
 export default withNextIntl(nextConfig);

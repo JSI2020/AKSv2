@@ -250,6 +250,7 @@ export async function listOrders(
 
 export type OrderDetailItem = {
   id: string;
+  designId: string;
   designName: string;
   designSlug: string;
   sizeMode: "STANDARD" | "MADE_TO_MEASURE";
@@ -502,6 +503,7 @@ export async function getOrderDetail(
     shippingAddressSnapshot: order.shippingAddressSnapshot,
     items: items.map((item) => ({
       id: item.id,
+      designId: item.designId,
       designName: item.designSnapshot.name,
       designSlug: item.designSnapshot.slug,
       sizeMode: item.sizeMode,

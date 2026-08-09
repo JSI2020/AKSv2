@@ -31,6 +31,7 @@ yarn-error.log*
 # env files
 .env
 .env*.local
+.env.docker
 
 # vercel
 .vercel
@@ -44,3 +45,8 @@ next-env.d.ts
 
 # build prompt PDFs (local working copies)
 /Prompt
+
+# local scratch / agent logs
+/tmp-*
+/tmp_*.txt
+/coverage

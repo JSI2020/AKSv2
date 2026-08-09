@@ -1,9 +1,9 @@
 import { auth } from "@/auth";
 import {
   getPermissionsForUser,
-  PermissionsProvider,
   rolesRequiring2fa,
 } from "@/modules/auth";
+import { PermissionsProvider } from "@/modules/auth/use-can";
 import { AdminShell } from "@/modules/admin";
 import { redirect } from "next/navigation";
 

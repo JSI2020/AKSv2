@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { Link } from "@/i18n/routing";
-import { readBankTransferConfigOrDefaults } from "@/modules/payments/bank-transfer/config";
+import { readBankTransferConfigOrNull } from "@/modules/payments/bank-transfer/config";
 import { getOrderForBankTransfer } from "@/modules/payments/bank-transfer/queries";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
@@ -24,7 +24,7 @@ export default async function CheckoutPayPage({ searchParams }: Props) {
     notFound();
   }
 
-  const bank = readBankTransferConfigOrDefaults();
+  const bank = readBankTransferConfigOrNull();
 
   return (
     <ShopPageContainer>
@@ -43,17 +43,24 @@ export default async function CheckoutPayPage({ searchParams }: Props) {
           below.
         </p>
 
-        <div className="mt-8">
-          <BankTransferPayForm
-            order={{
-              orderNumber: order.orderNumber,
-              depositAmountMinor: order.depositAmountMinor,
-              hasPendingVerification: order.hasPendingVerification,
-              status: order.status,
-            }}
-            bank={bank}
-          />
-        </div>
+        {!bank ? (
+          <p className="mt-8 border border-madder/40 bg-madder/5 px-4 py-3 text-[14px] text-ink">
+            Bank transfer details are not configured. Please contact the studio
+            to complete your deposit, or try again later.
+          </p>
+        ) : (
+          <div className="mt-8">
+            <BankTransferPayForm
+              order={{
+                orderNumber: order.orderNumber,
+                depositAmountMinor: order.depositAmountMinor,
+                hasPendingVerification: order.hasPendingVerification,
+                status: order.status,
+              }}
+              bank={bank}
+            />
+          </div>
+        )}
       </div>
     </ShopPageContainer>
   );

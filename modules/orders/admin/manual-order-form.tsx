@@ -10,7 +10,7 @@ import {
   PAKISTAN_PROVINCES,
   type PaymentPlan,
 } from "@/modules/checkout/payment-plans";
-import { useCan } from "@/modules/auth";
+import { useCan } from "@/modules/auth/use-can";
 import { Money } from "@/modules/ui";
 import { ORDER_PRICE_ADJUSTMENT_REASONS } from "@/modules/orders/reason-codes";
 

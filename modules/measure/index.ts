@@ -17,4 +17,5 @@ export { loadMeasureFlowSession } from "./queries";
 export type { MeasureFlowSessionState } from "./queries";
 export { buildMeasureFlowSteps, flowValueKey } from "./build-flow-steps";
 export type { MeasureFlowStep } from "./build-flow-steps";
-export { getOrSetAnonToken, readAnonToken } from "./anon-cookie";
+// anon-cookie is server-only (next/headers) — import from
+// `@/modules/measure/anon-cookie` directly, never via this barrel.

@@ -22,6 +22,10 @@ const config = [
       "out/**",
       "coverage/**",
       "next-env.d.ts",
+      // Seed/CLI scripts intentionally call app modules; not part of runtime graph.
+      "packages/db/seed.ts",
+      "packages/db/seed-demo.ts",
+      "scripts/**",
     ],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
@@ -12,10 +12,15 @@ import {
   orderItems,
   orders,
   outbox,
+  sizeBlockRows,
   sizeBlocks,
   sql,
 } from "@aks/db";
-import { uuidv7 } from "@aks/shared";
+import {
+  DEFAULT_BASE_SIZE_LABEL,
+  STANDARD_SIZE_LABELS,
+  uuidv7,
+} from "@aks/shared";
 
 import { IllegalTransitionError } from "@/modules/platform/transition";
 
@@ -53,18 +58,46 @@ async function seedOrderFixture() {
   const categoryId = cats[0]?.id;
   if (!categoryId) throw new Error("KAMEEZ category missing — run db:seed");
 
-  const blocks = await db
-    .select({ id: sizeBlocks.id })
-    .from(sizeBlocks)
-    .where(
-      and(
-        eq(sizeBlocks.categoryId, categoryId),
-        eq(sizeBlocks.isDefault, true),
-      ),
-    )
-    .limit(1);
-  const sizeBlockId = blocks[0]?.id;
-  if (!sizeBlockId) throw new Error("KAMEEZ size block missing — run db:seed");
+  const sizeBlockId = uuidv7();
+  await db.insert(sizeBlocks).values({
+    id: sizeBlockId,
+    name: `orders-test-block-${sizeBlockId}`,
+    categoryId,
+    isDefault: false,
+    ownerDesignId: null,
+    sizeLabels: [...STANDARD_SIZE_LABELS],
+    baseSizeLabel: DEFAULT_BASE_SIZE_LABEL,
+    active: true,
+  });
+  await db.insert(sizeBlockRows).values([
+    {
+      id: uuidv7(),
+      blockId: sizeBlockId,
+      measurementKey: "BUST",
+      baseValue: 3600,
+      gradeIncrement: 200,
+      gradeOverrides: {},
+      sortOrder: 0,
+    },
+    {
+      id: uuidv7(),
+      blockId: sizeBlockId,
+      measurementKey: "WAIST",
+      baseValue: 2800,
+      gradeIncrement: 200,
+      gradeOverrides: {},
+      sortOrder: 1,
+    },
+    {
+      id: uuidv7(),
+      blockId: sizeBlockId,
+      measurementKey: "LENGTH",
+      baseValue: 3700,
+      gradeIncrement: 100,
+      gradeOverrides: {},
+      sortOrder: 2,
+    },
+  ]);
 
   const fitProfileId = uuidv7();
   await db.insert(fitProfiles).values({
@@ -90,7 +123,7 @@ async function seedOrderFixture() {
   const designId = uuidv7();
   await db.insert(designs).values({
     id: designId,
-    slug: `test-design-${designId.slice(0, 8)}`,
+    slug: `test-design-${designId}`,
     name: "Test Kameez",
     status: "PUBLISHED",
     garmentTypeId: categoryId,

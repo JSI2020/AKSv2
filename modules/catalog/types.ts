@@ -29,6 +29,7 @@ export type ResolvedCollection =
       slug: string;
       title: string;
       description: string;
+      tagline?: string;
       system: "new_arrivals" | "best_sellers";
       baseFilters: CatalogFilters;
       defaultSort: DesignSort;
@@ -38,6 +39,7 @@ export type ResolvedCollection =
       slug: string;
       title: string;
       description: string;
+      tagline?: string;
       baseFilters: CatalogFilters;
       defaultSort: DesignSort;
     };
@@ -48,6 +50,9 @@ export type PublishedDesignCard = {
   name: string;
   nameUr: string;
   basePriceMinor: number;
+  compareAtPriceMinor: number | null;
+  compareAtStartsAt: Date | null;
+  compareAtEndsAt: Date | null;
   publishedAt: Date | null;
   garmentTypeKey: string;
   garmentTypeName: string;

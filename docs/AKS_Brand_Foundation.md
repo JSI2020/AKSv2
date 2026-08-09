@@ -165,5 +165,3 @@ The philosophy is only believable if the *site itself* proves it. Copy states it
 ## 8. The single instruction, if you remember nothing else
 
 > Say the true, specific thing plainly, warmly, in the second person — and let its meaning land on its own. You have a real story. Tell it like a friend who sews, and never like a brand.
-
-and it will be used mostly on mobile so the layout should be accordingly

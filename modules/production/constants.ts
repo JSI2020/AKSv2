@@ -15,6 +15,20 @@ export type ProductionJobStatus =
   | "BLOCKED"
   | "DONE";
 
+/**
+ * Workflow status machine (separate from stage). Blocking / unblocking
+ * must go through transition() with entity `production_job_status`.
+ */
+export const PRODUCTION_JOB_STATUS_ALLOW: Record<
+  ProductionJobStatus,
+  readonly ProductionJobStatus[]
+> = {
+  PENDING: ["IN_PROGRESS", "BLOCKED"],
+  IN_PROGRESS: ["BLOCKED", "DONE", "PENDING"],
+  BLOCKED: ["IN_PROGRESS", "PENDING"],
+  DONE: [],
+};
+
 export type ReworkFaultAttribution =
   | "OUR_ERROR"
   | "CUSTOMER_MEASUREMENT"

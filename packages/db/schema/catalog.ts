@@ -79,6 +79,10 @@ export const designs = pgTable("designs", {
     .notNull()
     .default({}),
   basePriceMinor: integer("base_price_minor").notNull().default(0),
+  /** Scheduled sale “was” price — shown struck through when schedule is active. */
+  compareAtPriceMinor: integer("compare_at_price_minor"),
+  compareAtStartsAt: timestamp("compare_at_starts_at", { withTimezone: true }),
+  compareAtEndsAt: timestamp("compare_at_ends_at", { withTimezone: true }),
   madeToMeasureSurchargeMinor: integer("made_to_measure_surcharge_minor")
     .notNull()
     .default(0),

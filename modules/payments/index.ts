@@ -23,7 +23,7 @@ export {
 } from "./handle-webhook";
 export {
   readBankTransferConfig,
-  readBankTransferConfigOrDefaults,
+  readBankTransferConfigOrNull,
 } from "./bank-transfer/config";
 export {
   listAwaitingVerificationPayments,

@@ -368,6 +368,121 @@ export function OrderFabricLotsPanel({ lots }: { lots: OrderFabricLotRow[] }) {
   );
 }
 
+/** Order → customer, designs, fabric lots, payments, timeline (Related suite). */
+export function OrderRelatedPanels({
+  order,
+  lots,
+}: {
+  order: {
+    customer: {
+      userId: string | null;
+      name: string;
+      email: string | null;
+    };
+    items: Array<{
+      id: string;
+      designId: string;
+      designName: string;
+    }>;
+    payments: Array<{
+      id: string;
+      amountMinor: number;
+      status: string;
+      provider: string;
+    }>;
+    events: Array<{
+      id: string;
+      fromStatus: string;
+      toStatus: string;
+      createdAt: Date;
+    }>;
+  };
+  lots: OrderFabricLotRow[];
+}) {
+  return (
+    <div className="flex flex-col gap-4">
+      <Panel title="Customer">
+        {order.customer.userId ? (
+          <Link
+            href={`/admin/customers/${order.customer.userId}`}
+            className="text-[13px] text-zari hover:underline"
+          >
+            {order.customer.name || order.customer.email || "Customer"}
+          </Link>
+        ) : (
+          <EmptyNote>
+            Guest order
+            {order.customer.email ? ` · ${order.customer.email}` : ""}.
+          </EmptyNote>
+        )}
+      </Panel>
+
+      <Panel title="Designs">
+        {order.items.length === 0 ? (
+          <EmptyNote>No line items.</EmptyNote>
+        ) : (
+          <ul className="divide-y divide-indigo-lift border border-indigo-lift">
+            {order.items.map((item) => (
+              <li key={item.id} className="px-3 py-2 text-[13px]">
+                <Link
+                  href={`/admin/designs/${item.designId}`}
+                  className="text-zari hover:underline"
+                >
+                  {item.designName}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <OrderFabricLotsPanel lots={lots} />
+
+      <Panel title="Payments">
+        {order.payments.length === 0 ? (
+          <EmptyNote>No payments recorded.</EmptyNote>
+        ) : (
+          <ul className="divide-y divide-indigo-lift border border-indigo-lift">
+            {order.payments.map((p) => (
+              <li
+                key={p.id}
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[13px] text-greige"
+              >
+                <span>
+                  {p.provider} · {p.status}
+                </span>
+                <Money value={p.amountMinor} className="text-[12px]" />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+
+      <Panel title="Timeline">
+        {order.events.length === 0 ? (
+          <EmptyNote>No status events yet.</EmptyNote>
+        ) : (
+          <ul className="divide-y divide-indigo-lift border border-indigo-lift">
+            {order.events.slice(0, 12).map((e) => (
+              <li
+                key={e.id}
+                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-[13px] text-greige"
+              >
+                <span className="font-data text-[12px]">
+                  {e.fromStatus} → {e.toStatus}
+                </span>
+                <span className="text-[11px] text-chalk">
+                  {new Date(e.createdAt).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Panel>
+    </div>
+  );
+}
+
 export function StaffRelatedPanels({ data }: { data: StaffRelatedData }) {
   if (!data.linkedKarigarId) {
     return (

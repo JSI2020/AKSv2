@@ -221,7 +221,7 @@ describe("production board", () => {
     await sql.end({ timeout: 5 });
   });
 
-  it("creates jobs and consumes fabric when measurements are confirmed", async () => {
+  it("creates jobs and reserves fabric when measurements are confirmed", async () => {
     await db.transaction(async (tx) => {
       await transitionOrder({
         orderId: fixture.orderId,
@@ -238,6 +238,31 @@ describe("production board", () => {
       .where(eq(productionJobs.orderItemId, fixture.itemId));
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.stage).toBe("CUTTING");
+    expect(jobs[0]?.status).toBe("PENDING");
+
+    const [lotReserved] = await db
+      .select()
+      .from(fabricLots)
+      .where(eq(fabricLots.id, fixture.lotId));
+    expect(lotReserved?.metersReserved).toBeGreaterThan(0);
+    expect(lotReserved?.metersOnHand).toBe(1000_00);
+
+    const [orderConfirmed] = await db
+      .select({ status: orders.status })
+      .from(orders)
+      .where(eq(orders.id, fixture.orderId));
+    expect(orderConfirmed?.status).toBe("MEASUREMENTS_CONFIRMED");
+
+    await db.transaction(async (tx) => {
+      await enterCuttingStage(fixture.orderId, ACTOR, tx);
+      await transitionOrder({
+        orderId: fixture.orderId,
+        from: "MEASUREMENTS_CONFIRMED",
+        to: "CUTTING",
+        actor: ACTOR,
+        tx,
+      });
+    });
 
     const [lot] = await db
       .select()
@@ -316,6 +341,11 @@ describe("production board", () => {
       .update(productionJobs)
       .set({ stage: "QC", status: "IN_PROGRESS" })
       .where(eq(productionJobs.id, job!.id));
+
+    await db
+      .update(orders)
+      .set({ status: "QUALITY_CHECK" })
+      .where(eq(orders.id, fixture.orderId));
 
     await db.transaction(async (tx) => {
       await tx.insert(qcChecks).values({

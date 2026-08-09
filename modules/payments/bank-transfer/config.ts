@@ -6,10 +6,10 @@ export type BankTransferConfig = {
 };
 
 export function readBankTransferConfig(): BankTransferConfig {
-  const bankName = process.env.AKS_BANK_NAME;
-  const accountTitle = process.env.AKS_BANK_ACCOUNT_TITLE;
-  const accountNumber = process.env.AKS_BANK_ACCOUNT_NUMBER;
-  const iban = process.env.AKS_BANK_IBAN;
+  const bankName = process.env.AKS_BANK_NAME?.trim();
+  const accountTitle = process.env.AKS_BANK_ACCOUNT_TITLE?.trim();
+  const accountNumber = process.env.AKS_BANK_ACCOUNT_NUMBER?.trim();
+  const iban = process.env.AKS_BANK_IBAN?.trim();
 
   if (!bankName || !accountTitle || !accountNumber || !iban) {
     throw new Error(
@@ -20,11 +20,11 @@ export function readBankTransferConfig(): BankTransferConfig {
   return { bankName, accountTitle, accountNumber, iban };
 }
 
-export function readBankTransferConfigOrDefaults(): BankTransferConfig {
-  return {
-    bankName: process.env.AKS_BANK_NAME ?? "Meezan Bank",
-    accountTitle: process.env.AKS_BANK_ACCOUNT_TITLE ?? "AKS Studio",
-    accountNumber: process.env.AKS_BANK_ACCOUNT_NUMBER ?? "01234567890123",
-    iban: process.env.AKS_BANK_IBAN ?? "PK00MEZN0000000123456789",
-  };
+/** Returns null when bank env is incomplete (fail closed — never invent credentials). */
+export function readBankTransferConfigOrNull(): BankTransferConfig | null {
+  try {
+    return readBankTransferConfig();
+  } catch {
+    return null;
+  }
 }

@@ -6,7 +6,7 @@ import { addresses, db } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 
 import { auth } from "@/auth";
-import { getOrSetAnonToken } from "@/modules/measure";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import {
   getActiveCartId,
   hydrateCart,

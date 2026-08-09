@@ -1,0 +1,163 @@
+﻿# AKS local stack — Docker Desktop (localhost) before Hetzner.
+# Requires: Docker Desktop with WSL2 backend running.
+#
+# Usage:
+#   1. Copy .env.docker.example → .env.docker and fill OWNER_EMAIL / secrets
+#   2. docker compose --env-file .env.docker up --build
+#   3. Storefront: http://localhost:3001/en
+#      Admin:      http://localhost:3001/admin/login
+#   4. OTP codes print in the `worker` container logs (Resend optional)
+
+name: aks
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aks
+      POSTGRES_PASSWORD: aks
+      POSTGRES_DB: aks
+    ports:
+      - "5434:5432"
+    volumes:
+      - aks_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aks -d aks"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioaks
+      MINIO_ROOT_PASSWORD: minioakssecret
+    ports:
+      - "9010:9000"
+      - "9011:9001"
+    volumes:
+      - aks_minio:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minioaks minioakssecret &&
+      mc mb -p local/aks-assets || true &&
+      mc anonymous set download local/aks-assets || true
+      "
+
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://aks:aks@postgres:5432/aks
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["migrate"]
+    restart: "no"
+
+  seed:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://aks:aks@postgres:5432/aks
+      AKS_RUN_SEED_DEMO: ${AKS_RUN_SEED_DEMO:-1}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    command: ["seed"]
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://aks:aks@postgres:5432/aks
+      AUTH_URL: http://localhost:3001
+      NEXT_PUBLIC_SITE_URL: http://localhost:3001
+      # Browser-reachable MinIO; host-gateway so the container can talk to published :9010
+      R2_ENDPOINT: http://localhost:9010
+      R2_ACCESS_KEY_ID: minioaks
+      R2_SECRET_ACCESS_KEY: minioakssecret
+      R2_BUCKET: aks-assets
+      R2_REGION: us-east-1
+      AI_GENERATION_MOCK: "1"
+    extra_hosts:
+      - "localhost:host-gateway"
+    ports:
+      - "3001:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+      minio-init:
+        condition: service_completed_successfully
+    command: ["app"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "curl",
+          "-fsS",
+          "http://127.0.0.1:3000/en",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env.docker
+    environment:
+      DATABASE_URL: postgresql://aks:aks@postgres:5432/aks
+      R2_ENDPOINT: http://localhost:9010
+      R2_ACCESS_KEY_ID: minioaks
+      R2_SECRET_ACCESS_KEY: minioakssecret
+      R2_BUCKET: aks-assets
+      R2_REGION: us-east-1
+      AI_GENERATION_MOCK: "1"
+      OUTBOX_POLL_MS: "500"
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      seed:
+        condition: service_completed_successfully
+    command: ["worker"]
+    restart: unless-stopped
+
+volumes:
+  aks_pg:
+  aks_minio:

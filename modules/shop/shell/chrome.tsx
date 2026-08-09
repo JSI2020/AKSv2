@@ -58,11 +58,11 @@ export async function ShopHeader() {
   const otherLocale = locale === "en" ? "ur" : "en";
 
   const nav = [
-    { href: "/collections/new" as const, label: t("new") },
-    { href: "/collections/formal" as const, label: t("formal") },
-    { href: "/collections/fusion" as const, label: t("fusion") },
-    { href: "/fabrics" as const, label: t("fabrics") },
-    { href: "/size-guide" as const, label: t("sizeGuide") },
+    { href: "/collections/essentials" as const, label: t("essentials") },
+    { href: "/collections/tailored" as const, label: t("tailored") },
+    { href: "/collections/occasion" as const, label: t("occasion") },
+    { href: "/collections/signature" as const, label: t("signature") },
+    { href: "/collections/separates" as const, label: t("separates") },
   ];
 
   return (
@@ -161,9 +161,11 @@ export async function ShopFooter() {
             {t("shop")}
           </p>
           <div className="flex flex-col gap-2.5 text-[14px]">
-            <Link href="/collections/new">{nav("new")}</Link>
-            <Link href="/collections/formal">{nav("formal")}</Link>
-            <Link href="/collections/fusion">{nav("fusion")}</Link>
+            <Link href="/collections">{t("shop")}</Link>
+            <Link href="/collections/essentials">{nav("essentials")}</Link>
+            <Link href="/collections/signature">{nav("signature")}</Link>
+            <Link href="/fabrics">{nav("fabrics")}</Link>
+            <Link href="/size-guide">{nav("sizeGuide")}</Link>
           </div>
         </div>
         <div>

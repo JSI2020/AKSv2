@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
-import { Money } from "@/modules/ui";
+import { formatMoney, Money } from "@/modules/ui";
 
 import { saveDesignCosting } from "./actions";
 import {
@@ -147,7 +147,7 @@ export function DesignCostingPanel({
             >
               {data.fabrics.map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.name} · Rs {(f.costPerMeterMinor / 100).toFixed(2)}/m
+                  {f.name} · {formatMoney(f.costPerMeterMinor)}/m
                 </option>
               ))}
             </select>
@@ -329,7 +329,7 @@ function RateField({
           <option value="">None — use flat below</option>
           {rates.map((r) => (
             <option key={r.id} value={r.id}>
-              {r.name} · Rs {(r.amountMinor / 100).toFixed(2)} ({r.unit})
+              {r.name} · {formatMoney(r.amountMinor)} ({r.unit})
             </option>
           ))}
         </select>

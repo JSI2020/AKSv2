@@ -7,19 +7,47 @@ import {
   titleFromTagValue,
   type ResolvedCollection,
 } from "./types";
+import { getHouseCollectionBySlug } from "./house-collections";
 import { getPaidSalesRanking } from "./sales-ranking";
 
 const NEW_ARRIVAL_DAYS = 30;
 
 /**
- * Resolves a collection URL slug to either a computed system collection
- * or an attribute-filter collection (occasion / work / garment type key).
+ * Resolves a collection URL slug to a house edition, system collection,
+ * or attribute-filter collection (occasion / work / garment type key).
  */
 export async function resolveCollection(
   slug: string,
 ): Promise<ResolvedCollection | null> {
   const normalized = slug.trim().toLowerCase();
   if (!normalized) return null;
+
+  const house = getHouseCollectionBySlug(normalized);
+  if (house) {
+    return {
+      kind: "attribute",
+      slug: house.slug,
+      title: house.title,
+      tagline: house.tagline,
+      description: house.intro,
+      baseFilters: { freeTags: [house.tag] },
+      defaultSort: "newest",
+    };
+  }
+
+  // Alias: former White Collection → Signature
+  if (normalized === "white-collection") {
+    const signature = getHouseCollectionBySlug("signature")!;
+    return {
+      kind: "attribute",
+      slug: signature.slug,
+      title: signature.title,
+      tagline: signature.tagline,
+      description: signature.intro,
+      baseFilters: { freeTags: [signature.tag, "WHITE_COLLECTION"] },
+      defaultSort: "newest",
+    };
+  }
 
   const system =
     SYSTEM_COLLECTION_SLUGS[
@@ -77,7 +105,6 @@ export async function resolveCollection(
     };
   }
 
-  // Nav "Fusion" — FREE tag until a dedicated garment category exists.
   if (normalized === "fusion") {
     return {
       kind: "attribute",

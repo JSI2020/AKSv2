@@ -23,6 +23,7 @@ export {
   DesignRelatedPanels,
   FabricRelatedPanels,
   OrderFabricLotsPanel,
+  OrderRelatedPanels,
   StaffRelatedPanels,
 } from "./related-panels";
 

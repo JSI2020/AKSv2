@@ -3,10 +3,16 @@
     "name": "AKS",
     "nameUr": "عکس",
     "tagline": "a reflection",
-    "footerBlurb": "Where East meets the West. Pakistani pret and modest fusion, cut to your measure after you order."
+    "footerBlurb": "Eastern hands, a quieter line. Cut to your measure after you order."
   },
   "Nav": {
     "new": "New",
+    "essentials": "Essentials",
+    "tailored": "Tailored",
+    "occasion": "Occasion",
+    "signature": "Signature",
+    "separates": "Separates",
+    "whiteCollection": "Signature",
     "formal": "Formal",
     "fusion": "Fusion",
     "fabrics": "Fabrics",
@@ -25,17 +31,33 @@
     "items": [
       "Made to your measure",
       "18–24 days",
-      "Pakistani pret",
-      "Modest fusion",
+      "Cut and cloth",
+      "Modern but modest",
       "Cut after you order"
     ]
   },
   "Home": {
     "eyebrow": "عکس · a reflection",
-    "headlineLine1": "Where East",
-    "headlineLine2": "meets the West",
-    "subhead": "Pakistani pret and modest fusion — cut to your measurements after you order.",
-    "cta": "Choose a piece"
+    "headlineLine1": "Nothing here",
+    "headlineLine2": "exists yet",
+    "subhead": "We make each piece after you order it — cut to your measurements, not a chart’s. Eastern hands, a quieter line.",
+    "cta": "See the collections"
+  },
+  "SizeGuide": {
+    "title": "Size guide",
+    "lead": "Standard sizes fit the average of everyone, which is to say, no one in particular. Here’s how each house size measures up — but if you want it to truly fit, give us your own.",
+    "customPrimary": "Made to your measurements is the way it should fit.",
+    "customCta": "See the collections",
+    "standardNote": "Numbers are garment / body measures in inches. Charts are house defaults; a design may refine them.",
+    "empty": "Size charts aren’t published yet. Message us and we’ll walk you through fit.",
+    "baseSize": "Graded from"
+  },
+  "Fabrics": {
+    "title": "Fabrics",
+    "lead": "Natural fibres, matte or low-sheen — chosen for how they drape and how they age. The cloth is the first thing you feel.",
+    "empty": "Fabric notes will appear here as we lock the launch library.",
+    "care": "Care",
+    "drape": "Hand & drape"
   },
   "Footer": {
     "shop": "Shop",

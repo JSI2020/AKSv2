@@ -6,8 +6,10 @@ import { transition, type TransitionActor } from "@/modules/platform/transition"
 import type { DbTx } from "@/modules/platform/types";
 
 import {
+  PRODUCTION_JOB_STATUS_ALLOW,
   PRODUCTION_STAGE_ALLOW,
   type ProductionJobStage,
+  type ProductionJobStatus,
 } from "./constants";
 import { orderItemRequiresEmbroidery } from "./embroidery";
 
@@ -54,6 +56,26 @@ export async function transitionProductionJob(input: {
     actor: input.actor,
     note: input.note,
     allowList: PRODUCTION_STAGE_ALLOW,
+    tx: input.tx,
+  });
+}
+
+export async function transitionProductionJobStatus(input: {
+  jobId: string;
+  from: ProductionJobStatus;
+  to: ProductionJobStatus;
+  actor: TransitionActor;
+  note?: string;
+  tx: DbTx;
+}): Promise<void> {
+  await transition({
+    entity: "production_job_status",
+    id: input.jobId,
+    from: input.from,
+    to: input.to,
+    actor: input.actor,
+    note: input.note,
+    allowList: PRODUCTION_JOB_STATUS_ALLOW,
     tx: input.tx,
   });
 }

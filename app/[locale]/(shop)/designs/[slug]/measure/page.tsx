@@ -4,11 +4,8 @@ import { setRequestLocale } from "next-intl/server";
 import { auth } from "@/auth";
 import { Link } from "@/i18n/routing";
 import { getDesignBySlug } from "@/modules/catalog";
-import {
-  MeasureFlow,
-  getOrSetAnonToken,
-  loadMeasureFlowSession,
-} from "@/modules/measure";
+import { MeasureFlow, loadMeasureFlowSession } from "@/modules/measure";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
