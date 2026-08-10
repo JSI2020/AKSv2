@@ -1,22 +1,18 @@
 import { redirect } from "next/navigation";
 
 import { Eyebrow } from "@/modules/ui";
-import { DesignBriefWizard } from "@/modules/ai/studio/design-brief-wizard";
-import { getDesignBriefFormData } from "@/modules/ai/studio/brief-actions";
 import {
   PermissionDeniedError,
   UnauthenticatedError,
 } from "@/modules/auth";
+import { getStudioFormOptions } from "@/modules/designs/studio-manual-actions";
+import { StudioManualForm } from "@/modules/designs/studio-manual-form";
 
-type Props = {
-  searchParams: Promise<{ collection?: string }>;
-};
-
-export default async function NewStudioBriefPage({ searchParams }: Props) {
-  const params = await searchParams;
-  let data;
+/** Manual catalogue create — admin photos, no photoreal brief. */
+export default async function NewStudioDesignPage() {
+  let options;
   try {
-    data = await getDesignBriefFormData(params.collection ?? null);
+    options = await getStudioFormOptions();
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -30,15 +26,16 @@ export default async function NewStudioBriefPage({ searchParams }: Props) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Eyebrow>Studio · Brief</Eyebrow>
-        <h1 className="mt-1 font-display text-3xl text-greige">New design brief</h1>
-        <p className="mt-1 max-w-2xl text-[13px] text-chalk">
-          Pick fabric and colour — everything else inherits from studio defaults
-          {data.collection ? ` and ${data.collection.label}` : ""}. Save a
-          complete brief in under 30 seconds.
+        <Eyebrow className="text-ink/55">Studio · New</Eyebrow>
+        <h1 className="mt-1 font-display text-3xl font-light text-ink">
+          New design
+        </h1>
+        <p className="mt-1 max-w-2xl text-[13.5px] text-ink/55">
+          Name, sizes, colours, photos, costing, and price. Upload your own
+          imagery — this is not the AI generation path.
         </p>
       </div>
-      <DesignBriefWizard data={data} />
+      <StudioManualForm options={options} />
     </div>
   );
 }

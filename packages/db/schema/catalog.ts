@@ -64,6 +64,12 @@ export const designs = pgTable("designs", {
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
   nameUr: text("name_ur").notNull().default(""),
+  /** Card / PDP secondary line (admin-controlled). */
+  subtitle: text("subtitle").notNull().default(""),
+  /** e.g. "Panelled kurta" — italic silhouette line on PDP. */
+  silhouetteLabel: text("silhouette_label").notNull().default(""),
+  /** Model disclosure shown on PDP. */
+  modelInfo: text("model_info").notNull().default(""),
   description: text("description"),
   storyCopy: text("story_copy"),
   status: designStatusEnum("status").notNull().default("DRAFT"),
@@ -73,6 +79,13 @@ export const designs = pgTable("designs", {
   /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */
   components: jsonb("components").$type<string[]>().notNull().default([]),
   sizeBlockId: uuid("size_block_id").references(() => sizeBlocks.id),
+  /**
+   * Standard size labels offered on PDP (subset of the size block).
+   * Empty = offer all labels from the linked size block.
+   */
+  availableSizeLabels: text("available_size_labels").array().notNull().default([]),
+  /** When true, storefront offers custom / made-to-measure alongside standard sizes. */
+  madeToMeasureOffered: boolean("made_to_measure_offered").notNull().default(true),
   /** Per-component fit profile ids. */
   fitProfileIds: jsonb("fit_profile_ids")
     .$type<Record<string, string>>()
