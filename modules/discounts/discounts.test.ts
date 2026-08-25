@@ -19,6 +19,9 @@ import { ensureDiscountsSchema } from "./test-setup";
 describe("checkout discounts", () => {
   beforeAll(async () => {
     await ensureDiscountsSchema();
+    // Clear leftover rows from interrupted prior runs (shared test DB).
+    await db.delete(discountRedemptions);
+    await db.delete(discounts);
   });
 
   afterAll(async () => {
@@ -30,7 +33,7 @@ describe("checkout discounts", () => {
 
   it("applies a first-order percentage code with min spend, snapshots onto order, and blocks reuse", async () => {
     const discountId = uuidv7();
-    const code = "WELCOME15";
+    const code = `WELCOME15-${discountId.slice(0, 8)}`;
     const guestEmail = `discount-${uuidv7()}@example.com`;
     const subtotalMinor = 30_000_00;
 

@@ -17,6 +17,7 @@ import {
 import { uuidv7 } from "@aks/shared";
 
 import { auth } from "@/auth";
+import { clientIpFromHeaders } from "@/modules/auth/sessions";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { completeUpload } from "@/modules/platform/assets";
 import { enqueue } from "@/modules/platform/outbox";
@@ -128,7 +129,7 @@ export async function startTryOnSession(
   if (!rate.ok) return { ok: false, error: rate.message };
 
   const hdrs = await headers();
-  const ipAddress = hdrs.get("x-forwarded-for")?.split(",")[0]?.trim() ?? null;
+  const ipAddress = clientIpFromHeaders(hdrs);
   const userAgent = hdrs.get("user-agent");
 
   const purgeAt = new Date(Date.now() + SELFIE_PURGE_HOURS * 60 * 60 * 1000);

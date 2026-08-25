@@ -1,5 +1,3 @@
-"use client";
-
 const STORAGE_KEY = "aks.admin.orders.savedViews";
 
 export type SavedOrderView = {
@@ -37,23 +35,95 @@ export function createSavedView(
   };
 }
 
+/** Mock-aligned presets — chip counts come from overview, not these. */
 export const PRESET_VIEWS: SavedOrderView[] = [
   {
-    id: "preset-awaiting-deposit",
-    name: "Awaiting deposit",
-    params: { payment: ["AWAITING_DEPOSIT"] },
+    id: "preset-all-open",
+    name: "All open",
+    params: {
+      production: [
+        "RECEIVED",
+        "CONFIRMED",
+        "MEASUREMENTS_VERIFIED",
+        "CUTTING",
+        "STITCHING",
+        "EMBROIDERY",
+        "FINISHING",
+        "QUALITY_CHECK",
+        "PACKED",
+        "DISPATCHED",
+        "DELIVERED",
+      ],
+      due: null,
+      completedThisMonth: null,
+      payment: [],
+    },
     createdAt: "",
   },
   {
-    id: "preset-at-risk",
-    name: "At risk",
-    params: { atRisk: true },
+    id: "preset-new",
+    name: "New",
+    params: {
+      production: ["RECEIVED"],
+      due: null,
+      completedThisMonth: null,
+      payment: [],
+    },
     createdAt: "",
   },
   {
-    id: "preset-in-production",
-    name: "In production",
-    params: { production: ["CUTTING", "STITCHING", "QUALITY_CHECK"] },
+    id: "preset-in-progress",
+    name: "In progress",
+    params: {
+      production: [
+        "CONFIRMED",
+        "MEASUREMENTS_VERIFIED",
+        "CUTTING",
+        "STITCHING",
+        "EMBROIDERY",
+        "FINISHING",
+        "QUALITY_CHECK",
+        "PACKED",
+        "DISPATCHED",
+        "DELIVERED",
+      ],
+      due: null,
+      completedThisMonth: null,
+      payment: [],
+    },
+    createdAt: "",
+  },
+  {
+    id: "preset-overdue",
+    name: "Overdue",
+    params: {
+      production: [],
+      due: "overdue",
+      completedThisMonth: null,
+      payment: [],
+    },
+    createdAt: "",
+  },
+  {
+    id: "preset-completed",
+    name: "Completed",
+    params: {
+      production: ["COMPLETED"],
+      due: null,
+      completedThisMonth: true,
+      payment: [],
+    },
+    createdAt: "",
+  },
+  {
+    id: "preset-balance-due",
+    name: "Balance due",
+    params: {
+      production: [],
+      due: null,
+      completedThisMonth: null,
+      payment: ["BALANCE_DUE"],
+    },
     createdAt: "",
   },
 ];

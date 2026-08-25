@@ -1,15 +1,13 @@
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { Eyebrow } from "@/modules/ui";
+import { auth } from "@/auth";
 import {
   PermissionDeniedError,
   UnauthenticatedError,
+  userHasPermission,
 } from "@/modules/auth";
-import {
-  CustomerRelatedPanels,
-  getCustomerRelated,
-} from "@/modules/insights";
+import { CustomerDetailView } from "@/modules/customers/customer-detail-view";
+import { getCustomerDetail } from "@/modules/customers/queries";
 
 export default async function CustomerDetailPage({
   params,
@@ -18,9 +16,9 @@ export default async function CustomerDetailPage({
 }) {
   const { userId } = await params;
 
-  let data;
+  let detail;
   try {
-    data = await getCustomerRelated(userId);
+    detail = await getCustomerDetail(userId);
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -31,26 +29,12 @@ export default async function CustomerDetailPage({
     throw e;
   }
 
-  if (!data) notFound();
+  if (!detail) notFound();
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Link
-          href="/admin/customers"
-          className="font-sans text-[12px] text-chalk hover:text-zari"
-        >
-          ← All customers
-        </Link>
-        <Eyebrow>Customers</Eyebrow>
-        <h1 className="mt-1 font-display text-3xl text-greige">
-          {data.name ?? data.email ?? "Customer"}
-        </h1>
-        {data.email ? (
-          <p className="mt-1 font-data text-[12px] text-chalk">{data.email}</p>
-        ) : null}
-      </div>
-      <CustomerRelatedPanels data={data} />
-    </div>
-  );
+  const session = await auth();
+  const canEdit = session?.user?.id
+    ? await userHasPermission(session.user.id, "customers.edit")
+    : false;
+
+  return <CustomerDetailView detail={detail} canEdit={canEdit} />;
 }

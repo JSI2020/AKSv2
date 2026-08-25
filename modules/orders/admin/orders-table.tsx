@@ -5,6 +5,8 @@ import { useQueryStates } from "nuqs";
 import { useMemo, useState } from "react";
 
 import { Money } from "@/modules/ui";
+import { cn } from "@/lib/utils";
+import { AdminTimeFilter } from "@/modules/admin/time-filter";
 
 import {
   orderListParsers,
@@ -24,13 +26,13 @@ import {
   PAYMENT_STATUS_FILTER_VALUES,
   PRODUCTION_STATUS_FILTER_VALUES,
 } from "../status";
-import type { OrderListItem, OrderListResult } from "../queries";
+import type { OrderListItem, OrderListResult, OrdersListOverview } from "../queries";
 
-function formatDate(value: Date | null): string {
+function formatDueDate(value: Date | null): string {
   if (!value) return "—";
-  return new Intl.DateTimeFormat("en-PK", {
-    dateStyle: "medium",
-    timeStyle: "short",
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
   }).format(value);
 }
 
@@ -42,9 +44,10 @@ function toggleValue<T extends string>(list: T[], value: T): T[] {
 
 type OrdersTableProps = {
   result: OrderListResult;
+  overview: OrdersListOverview;
 };
 
-export function OrdersTable({ result }: OrdersTableProps) {
+export function OrdersTable({ result, overview }: OrdersTableProps) {
   const [params, setParams] = useQueryStates(orderListParsers, {
     history: "push",
     shallow: false,
@@ -53,13 +56,20 @@ export function OrdersTable({ result }: OrdersTableProps) {
     typeof window === "undefined" ? PRESET_VIEWS : loadSavedViews(),
   );
   const [viewName, setViewName] = useState("");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
-  const allViews = useMemo(() => {
-    const custom = savedViews.filter(
-      (v) => !PRESET_VIEWS.some((p) => p.id === v.id),
-    );
-    return [...PRESET_VIEWS, ...custom];
+  const customViews = useMemo(() => {
+    return savedViews.filter((v) => !PRESET_VIEWS.some((p) => p.id === v.id));
   }, [savedViews]);
+
+  const activeFilterCount =
+    params.production.length +
+    params.payment.length +
+    params.source.length +
+    params.sizeMode.length +
+    (params.atRisk !== null && params.atRisk !== undefined ? 1 : 0) +
+    (params.due ? 1 : 0) +
+    (params.completedThisMonth ? 1 : 0);
 
   function applyView(view: SavedOrderView) {
     void setParams({
@@ -69,11 +79,30 @@ export function OrdersTable({ result }: OrdersTableProps) {
       source: [],
       sizeMode: [],
       atRisk: null,
+      due: null,
+      completedThisMonth: null,
       dateFrom: null,
       dateTo: null,
       page: 1,
       view: view.id,
       ...(view.params as Partial<typeof params>),
+    });
+  }
+
+  function clearAll() {
+    void setParams({
+      q: null,
+      production: [],
+      payment: [],
+      source: [],
+      sizeMode: [],
+      atRisk: null,
+      due: null,
+      completedThisMonth: null,
+      dateFrom: null,
+      dateTo: null,
+      page: 1,
+      view: null,
     });
   }
 
@@ -88,6 +117,8 @@ export function OrdersTable({ result }: OrdersTableProps) {
         source: params.source,
         sizeMode: params.sizeMode,
         atRisk: params.atRisk,
+        due: params.due,
+        completedThisMonth: params.completedThisMonth,
         dateFrom: params.dateFrom?.toISOString() ?? null,
         dateTo: params.dateTo?.toISOString() ?? null,
       }),
@@ -97,155 +128,191 @@ export function OrdersTable({ result }: OrdersTableProps) {
     setViewName("");
   }
 
+  const chipCounts: Record<string, number> = {
+    "preset-all-open": overview.open,
+    "preset-new": overview.newCount,
+    "preset-in-progress": overview.inProgress,
+    "preset-overdue": overview.overdue,
+    "preset-completed": overview.completedThisMonth,
+    "preset-balance-due": overview.balanceDue,
+  };
+
   const totalPages = Math.max(1, Math.ceil(result.total / result.perPage));
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col gap-3 border border-indigo-lift p-3">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="flex min-w-[12rem] flex-1 flex-col gap-1">
-            <span className="font-sans text-[11px] uppercase tracking-[0.08em] text-chalk">
-              Search
-            </span>
-            <input
-              type="search"
-              value={params.q ?? ""}
-              onChange={(e) =>
-                void setParams({ q: e.target.value || null, page: 1 })
-              }
-              placeholder="Order number, name, phone…"
-              className="border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="font-sans text-[11px] uppercase tracking-[0.08em] text-chalk">
-              At risk
-            </span>
-            <select
-              value={
-                params.atRisk === null || params.atRisk === undefined
-                  ? ""
-                  : params.atRisk
-                    ? "yes"
-                    : "no"
-              }
-              onChange={(e) => {
-                const v = e.target.value;
-                void setParams({
-                  atRisk: v === "" ? null : v === "yes",
-                  page: 1,
-                });
-              }}
-              className="border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
-            >
-              <option value="">Any</option>
-              <option value="yes">At risk only</option>
-              <option value="no">Not at risk</option>
-            </select>
-          </label>
-        </div>
+      <AdminTimeFilter />
+      <div className="flex gap-3">
+        <input
+          type="search"
+          value={params.q ?? ""}
+          onChange={(e) =>
+            void setParams({ q: e.target.value || null, page: 1 })
+          }
+          placeholder="Search order number, customer, phone…"
+          className="flex-1 border border-ink/12 bg-milk px-4 py-2.5 text-[13px] text-ink outline-none focus:border-ink"
+        />
+      </div>
 
-        <FilterChips
-          label="Production"
-          values={PRODUCTION_STATUS_FILTER_VALUES}
-          active={params.production}
-          labels={PRODUCTION_STATUS_LABELS}
-          onToggle={(value) =>
-            void setParams({
-              production: toggleValue(params.production, value),
-              page: 1,
-            })
-          }
-        />
-        <FilterChips
-          label="Payment"
-          values={PAYMENT_STATUS_FILTER_VALUES}
-          active={params.payment}
-          labels={PAYMENT_STATUS_LABELS}
-          onToggle={(value) =>
-            void setParams({
-              payment: toggleValue(params.payment, value),
-              page: 1,
-            })
-          }
-        />
-        <FilterChips
-          label="Source"
-          values={ORDER_SOURCE_VALUES}
-          active={params.source}
-          labels={Object.fromEntries(
-            ORDER_SOURCE_VALUES.map((s) => [s, s.replaceAll("_", " ")]),
-          )}
-          onToggle={(value) =>
-            void setParams({
-              source: toggleValue(params.source, value),
-              page: 1,
-            })
-          }
-        />
-        <FilterChips
-          label="Size mode"
-          values={ORDER_SIZE_MODE_VALUES}
-          active={params.sizeMode}
-          labels={{
-            STANDARD: "Standard",
-            MADE_TO_MEASURE: "Made to measure",
-          }}
-          onToggle={(value) =>
-            void setParams({
-              sizeMode: toggleValue(params.sizeMode, value),
-              page: 1,
-            })
-          }
-        />
-
-        <div className="flex flex-wrap items-end gap-2 border-t border-indigo-lift pt-3">
-          <span className="font-sans text-[11px] uppercase tracking-[0.08em] text-chalk">
-            Saved views
-          </span>
-          {allViews.map((view) => (
+      <div className="flex flex-wrap items-center gap-2">
+        {PRESET_VIEWS.map((view) => {
+          const isOn =
+            params.view === view.id ||
+            (view.id === "preset-all-open" &&
+              !params.view &&
+              !params.due &&
+              !params.completedThisMonth &&
+              params.payment.length === 0);
+          const isOverdue = view.id === "preset-overdue";
+          return (
             <button
               key={view.id}
               type="button"
               onClick={() => applyView(view)}
-              className={`border px-2 py-1 text-[12px] ${
-                params.view === view.id
-                  ? "border-zari text-zari"
-                  : "border-indigo-lift text-chalk hover:text-greige"
-              }`}
+              className={cn(
+                "flex items-center gap-2 border border-ink/12 bg-milk px-4 py-2 text-[12.5px] transition-colors",
+                isOn && !isOverdue && "border-ink bg-ink text-milk",
+                isOn && isOverdue && "border-madder bg-madder text-milk",
+                !isOn && "text-ink/70 hover:border-ink",
+              )}
             >
               {view.name}
+              <span className="font-data text-[10px] opacity-70">
+                {chipCounts[view.id] ?? 0}
+              </span>
             </button>
-          ))}
-          <input
-            type="text"
-            value={viewName}
-            onChange={(e) => setViewName(e.target.value)}
-            placeholder="Save current filters as…"
-            className="min-w-[10rem] border border-indigo-lift bg-indigo px-2 py-1 text-[13px] text-greige"
-          />
+          );
+        })}
+        {customViews.map((view) => (
+          <button
+            key={view.id}
+            type="button"
+            onClick={() => applyView(view)}
+            className={cn(
+              "flex items-center gap-2 border border-ink/12 bg-milk px-4 py-2 text-[12.5px]",
+              params.view === view.id
+                ? "border-ink bg-ink text-milk"
+                : "text-ink/70 hover:border-ink",
+            )}
+          >
+            {view.name}
+          </button>
+        ))}
+        <div className="mx-1 hidden h-5 w-px bg-ink/12 sm:block" aria-hidden />
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          className={cn(
+            "flex items-center gap-2 border border-dashed border-ink/20 px-4 py-2 text-[12px] text-ink/55 hover:border-ink/40 hover:text-ink",
+            filtersOpen && "border-solid border-ink/40 text-ink",
+          )}
+        >
+          ⁘ More filters
+          {activeFilterCount > 0 ? (
+            <span className="font-data text-[10px]">{activeFilterCount}</span>
+          ) : null}
+        </button>
+        {!params.view && activeFilterCount === 0 ? null : (
           <button
             type="button"
-            onClick={saveCurrentView}
-            className="border border-zari px-2 py-1 text-[12px] text-zari"
+            onClick={clearAll}
+            className="px-2 text-[12px] text-ink/45 hover:text-ink"
           >
-            Save view
+            Clear
           </button>
-        </div>
+        )}
       </div>
 
-      <div className="overflow-x-auto border border-indigo-lift">
+      {filtersOpen ? (
+        <div className="border border-ink/12 bg-milk px-5 py-4">
+          <FilterChips
+            label="Production"
+            values={PRODUCTION_STATUS_FILTER_VALUES}
+            active={params.production}
+            labels={PRODUCTION_STATUS_LABELS}
+            onToggle={(value) =>
+              void setParams({
+                production: toggleValue(params.production, value),
+                page: 1,
+                view: null,
+              })
+            }
+          />
+          <FilterChips
+            label="Payment"
+            values={PAYMENT_STATUS_FILTER_VALUES}
+            active={params.payment}
+            labels={PAYMENT_STATUS_LABELS}
+            onToggle={(value) =>
+              void setParams({
+                payment: toggleValue(params.payment, value),
+                page: 1,
+                view: null,
+              })
+            }
+          />
+          <FilterChips
+            label="Source"
+            values={ORDER_SOURCE_VALUES}
+            active={params.source}
+            labels={Object.fromEntries(
+              ORDER_SOURCE_VALUES.map((s) => [s, s.replaceAll("_", " ")]),
+            )}
+            onToggle={(value) =>
+              void setParams({
+                source: toggleValue(params.source, value),
+                page: 1,
+                view: null,
+              })
+            }
+          />
+          <FilterChips
+            label="Size"
+            values={ORDER_SIZE_MODE_VALUES}
+            active={params.sizeMode}
+            labels={{
+              STANDARD: "Standard",
+              MADE_TO_MEASURE: "Made to measure",
+            }}
+            onToggle={(value) =>
+              void setParams({
+                sizeMode: toggleValue(params.sizeMode, value),
+                page: 1,
+                view: null,
+              })
+            }
+          />
+          <div className="mt-3 flex flex-wrap items-end gap-2 border-t border-ink/10 pt-3">
+            <input
+              type="text"
+              value={viewName}
+              onChange={(e) => setViewName(e.target.value)}
+              placeholder="Save current filters as…"
+              className="min-w-[10rem] border border-ink/12 bg-greige px-2 py-1.5 text-[13px] text-ink"
+            />
+            <button
+              type="button"
+              onClick={saveCurrentView}
+              className="border border-ink px-3 py-1.5 text-[12px] text-ink"
+            >
+              Save view
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      <div className="overflow-x-auto border border-ink/12 bg-milk">
         <table className="w-full min-w-[960px] border-collapse text-[13px]">
           <thead>
-            <tr className="border-b border-indigo-lift bg-indigo-lift/30">
+            <tr className="border-b border-ink/12 bg-greige">
+              <Th className="w-8" />
               <Th>Order</Th>
               <Th>Customer</Th>
-              <Th>Date</Th>
+              <Th>Item · Size</Th>
               <Th>Production</Th>
               <Th>Payment</Th>
+              <Th>Due date</Th>
               <Th align="end">Total</Th>
-              <Th>Promised</Th>
-              <Th>At risk</Th>
             </tr>
           </thead>
           <tbody>
@@ -253,7 +320,7 @@ export function OrdersTable({ result }: OrdersTableProps) {
               <tr>
                 <td
                   colSpan={8}
-                  className="px-3 py-8 text-center text-chalk"
+                  className="px-4 py-8 text-center text-ink/55"
                 >
                   No orders match these filters.
                 </td>
@@ -267,17 +334,20 @@ export function OrdersTable({ result }: OrdersTableProps) {
         </table>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-chalk">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[12px] text-ink/55">
         <p>
-          {result.total} order{result.total === 1 ? "" : "s"} · page{" "}
-          {result.page} of {totalPages}
+          {overview.open} open · {overview.completedThisMonth} completed this
+          month
         </p>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-3">
+          <span>
+            Page {result.page} of {totalPages}
+          </span>
           <button
             type="button"
             disabled={result.page <= 1}
             onClick={() => void setParams({ page: result.page - 1 })}
-            className="border border-indigo-lift px-2 py-1 disabled:opacity-40"
+            className="border border-ink/12 px-3 py-1 disabled:opacity-40"
           >
             Previous
           </button>
@@ -285,7 +355,7 @@ export function OrdersTable({ result }: OrdersTableProps) {
             type="button"
             disabled={result.page >= totalPages}
             onClick={() => void setParams({ page: result.page + 1 })}
-            className="border border-indigo-lift px-2 py-1 disabled:opacity-40"
+            className="border border-ink/12 px-3 py-1 disabled:opacity-40"
           >
             Next
           </button>
@@ -298,15 +368,19 @@ export function OrdersTable({ result }: OrdersTableProps) {
 function Th({
   children,
   align = "start",
+  className,
 }: {
-  children: React.ReactNode;
+  children?: React.ReactNode;
   align?: "start" | "end";
+  className?: string;
 }) {
   return (
     <th
-      className={`px-3 py-2 font-sans text-[11px] font-normal uppercase tracking-[0.08em] text-chalk ${
-        align === "end" ? "text-end" : "text-start"
-      }`}
+      className={cn(
+        "px-4 py-3 font-sans text-[9.5px] font-normal uppercase tracking-[0.14em] text-ink/55",
+        align === "end" ? "text-end" : "text-start",
+        className,
+      )}
     >
       {children}
     </th>
@@ -314,40 +388,102 @@ function Th({
 }
 
 function OrderRow({ row }: { row: OrderListItem }) {
+  const muted = row.dueTone === "done";
   return (
-    <tr className="border-b border-indigo-lift/60 hover:bg-indigo-lift/20">
-      <td className="px-3 py-2">
+    <tr
+      className={cn(
+        "border-b border-ink/10 transition-colors hover:bg-greige/80",
+        muted && "opacity-60",
+      )}
+    >
+      <td className="px-4 py-3.5">
+        <span
+          className={cn(
+            "inline-block size-2 rounded-full",
+            row.dueTone === "overdue" && "bg-madder",
+            row.dueTone === "soon" && "bg-zari",
+            (row.dueTone === "ok" || row.dueTone === "done") && "bg-chalk",
+          )}
+          aria-label={row.dueTone}
+        />
+      </td>
+      <td className="px-4 py-3.5">
         <Link
           href={`/admin/orders/${row.id}`}
-          className="font-data text-greige hover:text-zari"
+          className="font-data text-[12px] text-ink hover:text-madder"
         >
           {row.orderNumber}
         </Link>
       </td>
-      <td className="px-3 py-2 text-greige">{row.customerName}</td>
-      <td className="px-3 py-2 font-data text-[12px] text-chalk">
-        {formatDate(row.placedAt)}
-      </td>
-      <td className="px-3 py-2">
-        <StatusBadge label={PRODUCTION_STATUS_LABELS[row.productionStatus]} />
-      </td>
-      <td className="px-3 py-2">
-        <StatusBadge label={PAYMENT_STATUS_LABELS[row.paymentStatus]} tone="payment" />
-      </td>
-      <td className="px-3 py-2 text-end">
-        <Money value={row.totalMinor} className="text-[12px] text-greige" />
-      </td>
-      <td className="px-3 py-2 font-data text-[12px] text-chalk">
-        {formatDate(row.promisedShipDate)}
-      </td>
-      <td className="px-3 py-2">
-        {row.atRisk ? (
-          <span className="font-sans text-[11px] uppercase tracking-[0.08em] text-madder">
-            At risk
-          </span>
+      <td className="px-4 py-3.5 text-ink">
+        {row.customerUserId ? (
+          <Link
+            href={`/admin/customers/${row.customerUserId}`}
+            className="text-ink hover:text-zari"
+          >
+            {row.customerName}
+          </Link>
+        ) : row.customerWhatsapp ? (
+          <Link
+            href={`/admin/customers/guest/${encodeURIComponent(row.customerWhatsapp)}`}
+            className="text-ink hover:text-zari"
+          >
+            {row.customerName}
+          </Link>
         ) : (
-          <span className="text-chalk/50">—</span>
+          row.customerName
         )}
+      </td>
+      <td className="px-4 py-3.5 text-ink">
+        {row.itemSummary}
+        {row.sizeLabel ? (
+          <>
+            {" · "}
+            <span className="inline-block border border-ink/12 px-1.5 py-0.5 font-data text-[11px]">
+              {row.sizeLabel}
+            </span>
+          </>
+        ) : null}
+      </td>
+      <td className="px-4 py-3.5">
+        <StatusBadge
+          label={PRODUCTION_STATUS_LABELS[row.productionStatus]}
+          done={row.dueTone === "done"}
+        />
+      </td>
+      <td className="px-4 py-3.5">
+        <StatusBadge
+          label={PAYMENT_STATUS_LABELS[row.paymentStatus]}
+          tone="payment"
+        />
+      </td>
+      <td
+        className={cn(
+          "px-4 py-3.5 font-data text-[12px]",
+          row.dueTone === "overdue" && "text-madder",
+          row.dueTone === "soon" && "text-zari",
+          row.dueTone === "ok" && "text-ink",
+          row.dueTone === "done" && "text-ink/55",
+        )}
+      >
+        {formatDueDate(row.promisedShipDate)}
+        <span
+          className={cn(
+            "mt-0.5 block text-[10px] tracking-[0.04em]",
+            row.dueTone === "overdue" && "text-madder",
+            row.dueTone === "soon" && "text-zari",
+            row.dueTone === "ok" && "text-chalk",
+            row.dueTone === "done" && "text-ink/45",
+          )}
+        >
+          {row.relativeDue}
+        </span>
+      </td>
+      <td className="px-4 py-3.5 text-end">
+        <Money
+          value={row.totalMinor}
+          className="font-data text-[12px] text-ink"
+        />
       </td>
     </tr>
   );
@@ -356,17 +492,20 @@ function OrderRow({ row }: { row: OrderListItem }) {
 function StatusBadge({
   label,
   tone = "production",
+  done = false,
 }: {
   label: string;
   tone?: "production" | "payment";
+  done?: boolean;
 }) {
   return (
     <span
-      className={`inline-block border px-1.5 py-0.5 font-sans text-[11px] uppercase tracking-[0.06em] ${
-        tone === "payment"
-          ? "border-chalk/40 text-chalk"
-          : "border-zari/50 text-zari"
-      }`}
+      className={cn(
+        "inline-block border px-2.5 py-1 font-sans text-[10px] uppercase tracking-[0.06em]",
+        tone === "payment" && "border-zari text-zari",
+        tone === "production" && !done && "border-chalk text-chalk",
+        tone === "production" && done && "border-chalk bg-chalk text-milk",
+      )}
     >
       {label}
     </span>
@@ -387,8 +526,8 @@ function FilterChips<T extends string>({
   onToggle: (value: T) => void;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="min-w-[5.5rem] font-sans text-[11px] uppercase tracking-[0.08em] text-chalk">
+    <div className="flex flex-wrap items-baseline gap-2 py-2">
+      <span className="min-w-[90px] font-sans text-[10px] uppercase tracking-[0.14em] text-ink/55">
         {label}
       </span>
       {values.map((value) => {
@@ -398,11 +537,10 @@ function FilterChips<T extends string>({
             key={value}
             type="button"
             onClick={() => onToggle(value)}
-            className={`border px-2 py-0.5 text-[12px] ${
-              isActive
-                ? "border-zari text-zari"
-                : "border-indigo-lift text-chalk hover:text-greige"
-            }`}
+            className={cn(
+              "border border-ink/12 px-2.5 py-1 text-[11.5px] text-ink/55 transition-colors hover:border-ink hover:text-ink",
+              isActive && "border-ink text-ink",
+            )}
           >
             {labels[value] ?? value}
           </button>

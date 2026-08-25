@@ -24,3 +24,4 @@ export { CartProvider, useCart } from "./cart-context";
 export { CartDrawer } from "./cart-drawer";
 export { CartHeaderButton } from "./cart-header-button";
 export { AddToCartButton } from "./add-to-cart-button";
+export { AddToCartToast } from "./add-toast";

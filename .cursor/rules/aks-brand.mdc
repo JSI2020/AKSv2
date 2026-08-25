@@ -8,16 +8,18 @@ alwaysApply: true
 Source of truth:
 - Voice & copy: `docs/AKS_Brand_Foundation.md`
 - Positioning, fashion palette, roadmap: `docs/AKS_Brand_Concept_Roadmap.md`
-- UI chrome tokens: `.cursorrules` (six colours only)
+- UI chrome tokens: `.cursorrules` (six colours only) — **admin**
+- Storefront Quiet Luxury prototype: milk / ivory / bone tokens under `.shop-proto`
 
 ## Positioning
 - Quiet-luxury **pret**: value = cut, cloth, drape, finishing — not embroidery or logos.
 - East–West lives in the silhouette and bilingual wordmark — never “East meets West” as a banner slogan.
-- Customer copy: never say “luxury / elevated / curated / timeless elegance.” Internal docs may say quiet-luxury pret.
+- Customer copy: never say “luxury / elevated / curated / timeless elegance.” Internal docs may say quiet-luxury pret. Storefront prototype may use “Quiet luxury · rooted in heritage” as the locked hero eyebrow from Prototype C.
 
 ## Two palettes — never mix
-1. **UI chrome** (app only): greige, ink, indigo, chalk, zari, madder. Storefront greige ground; admin indigo. No gradients, no shadows, radius 2px.
-2. **Fashion colourways** (garments): milk / ivory / bone / oyster / sand / stone / taupe + muted accents (tea rose, antique gold, soft olive…) + sparse deep anchors. Launch = White Collection, then Lahore Edit.
+1. **Admin UI chrome**: greige, ink, indigo, chalk, zari, madder. Admin indigo ground. No gradients, no shadows, radius 2px.
+2. **Storefront (shop-proto / Quiet Luxury prototype)**: may use milk `#F4EEE1`, ivory, bone, oyster, sand, stone, taupe, antique, sage, espresso, shop-ink `#2B2926`. Gradients and soft overlays allowed **only** inside `.shop-proto`. Radius 1px in shop-proto.
+3. **Fashion colourways** (garments): milk / ivory / bone / oyster / sand / stone / taupe + muted accents (tea rose, antique gold, soft olive…) + sparse deep anchors. Launch = White Collection / Signature, then Lahore Edit.
 
 ## Product & merchandising
 - Prefer tight on-brand editions over noisy catalogues.
@@ -25,7 +27,9 @@ Source of truth:
 - Do not add embellishment options to close a sale.
 - Motion/drape imagery over flat-lay-first selling.
 - Pakistan-first shipping until Phase 4 explicitly expands.
+- Four house doors on storefront: Essentials, Tailored, Occasion, Signature.
 
 ## When changing copy or demo data
 - Match Brand Foundation voice (friend who sews; second person; specific).
 - Align new swatches/hexes to the fashion palette in the Roadmap doc, not random bright fashion colours.
+- Prototype C home/shell/PDP copy lives in `messages/*/HomeProto` and `ShopShell`.

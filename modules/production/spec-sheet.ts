@@ -23,6 +23,10 @@ import { MEASUREMENT_KEY_DEFS } from "@aks/shared";
 import { createPresignedReadUrl } from "@/modules/platform/assets/r2";
 import { formatMeasure } from "@/modules/ui";
 
+import { formatMetres } from "./format-metres";
+
+export { formatMetres } from "./format-metres";
+
 export type TailorSpecCutRow = {
   key: string;
   labelEn: string;
@@ -66,26 +70,6 @@ const MEASUREMENT_LABEL_UR = new Map(
 const CUT_KEY_ORDER = new Map(
   MEASUREMENT_KEY_DEFS.map((d, index) => [d.key, index]),
 );
-
-/** Integer hundredths of a metre → display string (e.g. 450 → "4.5 m"). */
-export function formatMetres(hundredths: number): string {
-  if (!Number.isInteger(hundredths)) {
-    throw new TypeError("Metres value must be integer hundredths");
-  }
-  const negative = hundredths < 0;
-  const abs = Math.abs(hundredths);
-  const whole = Math.trunc(abs / 100);
-  const frac = abs % 100;
-  let body: string;
-  if (frac === 0) {
-    body = `${whole}`;
-  } else if (frac % 10 === 0) {
-    body = `${whole}.${frac / 10}`;
-  } else {
-    body = `${whole}.${frac.toString().padStart(2, "0")}`;
-  }
-  return `${negative ? "-" : ""}${body} m`;
-}
 
 export function bareMeasurementKey(key: string): string {
   return key.includes(":") ? (key.split(":")[1] ?? key) : key;

@@ -4,10 +4,21 @@ import { useCart } from "./cart-context";
 
 type Props = {
   label: string;
+  /** Prototype C header uses text label instead of bag icon. */
+  textOnly?: boolean;
 };
 
-export function CartHeaderButton({ label }: Props) {
+export function CartHeaderButton({ label, textOnly = false }: Props) {
   const { cart, toggleDrawer } = useCart();
+
+  if (textOnly) {
+    return (
+      <button type="button" onClick={toggleDrawer} aria-label={label}>
+        {label}
+        {cart.itemCount > 0 ? ` (${cart.itemCount})` : ""}
+      </button>
+    );
+  }
 
   return (
     <button

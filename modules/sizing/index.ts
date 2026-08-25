@@ -46,6 +46,7 @@ export {
   unpinSizeBlockCell,
   revertSizeBlockFork,
   resolveEditableBlockId,
+  findDesignForkBlockId,
 } from "./fork-actions";
 export {
   listFitProfiles,

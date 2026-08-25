@@ -1,69 +1,90 @@
+import Image from "next/image";
+
 import { Link } from "@/i18n/routing";
 
-/** Hourglass mark from the Atelier prototype. */
-export function AksMark({ className }: { className?: string }) {
+/** Exact brand lockup — do not redraw or restyle the artwork. */
+export const AKS_LOGO = {
+  src: "/brand/aks-logo.png",
+  width: 1024,
+  height: 559,
+  alt: "AKS — Minimalist Luxury",
+} as const;
+
+const SIZE_HEIGHT_PX = {
+  header: 52,
+  footer: 96,
+  admin: 40,
+  lockup: 120,
+  compact: 36,
+} as const;
+
+export type AksLogoSize = keyof typeof SIZE_HEIGHT_PX;
+
+type AksLogoImageProps = {
+  size?: AksLogoSize;
+  className?: string;
+  priority?: boolean;
+};
+
+/** Renders the official AKS logo PNG at the given height (width scales). */
+export function AksLogoImage({
+  size = "header",
+  className,
+  priority = false,
+}: AksLogoImageProps) {
   return (
-    <svg
-      width="30"
-      height="30"
-      viewBox="0 0 44 44"
-      fill="none"
-      className={className}
-      aria-hidden
-    >
-      <path
-        d="M22 5 L30 21 M22 5 L14 21 M17.2 16.5 H26.8"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinecap="round"
-      />
-      <line
-        x1="9"
-        y1="22"
-        x2="35"
-        y2="22"
-        stroke="currentColor"
-        strokeWidth="0.8"
-      />
-      <g opacity="0.4">
-        <path
-          d="M22 39 L30 23 M22 39 L14 23 M17.2 27.5 H26.8"
-          stroke="currentColor"
-          strokeWidth="1.3"
-          strokeLinecap="round"
-        />
-      </g>
-    </svg>
+    <Image
+      src={AKS_LOGO.src}
+      alt={AKS_LOGO.alt}
+      width={AKS_LOGO.width}
+      height={AKS_LOGO.height}
+      priority={priority}
+      unoptimized
+      className={[
+        "aks-logo",
+        `aks-logo--${size}`,
+        className,
+      ]
+        .filter(Boolean)
+        .join(" ")}
+    />
   );
 }
 
-export function AksWordmark({
-  name,
-  nameUr,
-  invert = false,
-}: {
-  name: string;
-  nameUr: string;
-  invert?: boolean;
-}) {
+type AksLogoLinkProps = AksLogoImageProps & {
+  href?: "/" | string;
+};
+
+/** Logo as home link — used in storefront header/footer. */
+export function AksLogoLink({
+  href = "/",
+  size = "header",
+  className,
+  priority = false,
+}: AksLogoLinkProps) {
   return (
     <Link
-      href="/"
-      className={`inline-flex items-center gap-3 ${invert ? "text-greige" : "text-ink"}`}
+      href={href as "/"}
+      className={["brand aks-logo-link", className].filter(Boolean).join(" ")}
+      aria-label="AKS home"
     >
-      <AksMark className={invert ? "text-zari" : "text-madder"} />
-      <span className="inline-flex items-baseline gap-2.5">
-        <span className="font-display text-[26px] font-semibold tracking-[0.12em]">
-          {name}
-        </span>
-        <span
-          className={`font-urdu text-[20px] italic ${invert ? "text-zari" : "text-madder"}`}
-          lang="ur"
-          dir="rtl"
-        >
-          {nameUr}
-        </span>
-      </span>
+      <AksLogoImage size={size} priority={priority} />
     </Link>
   );
+}
+
+/** @deprecated Prefer AksLogoImage — kept for any leftover imports. */
+export function AksMark({ className }: { className?: string }) {
+  return <AksLogoImage size="compact" className={className} />;
+}
+
+/** @deprecated Prefer AksLogoLink — wordmark text replaced by official logo. */
+export function AksWordmark({
+  invert: _invert = false,
+}: {
+  name?: string;
+  nameUr?: string;
+  invert?: boolean;
+}) {
+  return <AksLogoLink size="header" priority />;
 }

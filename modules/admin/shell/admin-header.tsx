@@ -14,21 +14,21 @@ export function AdminHeader({
   const crumbs = breadcrumbForPath(pathname);
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-indigo-lift bg-indigo px-4 py-2.5">
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-ink/10 bg-greige/90 px-4 py-3 backdrop-blur-md md:px-8">
       <nav aria-label="Breadcrumb" className="min-w-0">
-        <ol className="flex flex-wrap items-center gap-1.5 font-sans text-[12px] text-chalk">
+        <ol className="flex flex-wrap items-center gap-1.5 font-sans text-[12px] tracking-[0.06em] text-ink/55">
           {crumbs.map((c, i) => (
             <li key={`${c.label}-${i}`} className="flex items-center gap-1.5">
-              {i > 0 ? <span aria-hidden className="text-chalk/50">/</span> : null}
+              {i > 0 ? <span aria-hidden className="text-ink/30">/</span> : null}
               {c.href && i < crumbs.length - 1 ? (
                 <Link
                   href={c.href}
-                  className="truncate text-chalk hover:text-greige"
+                  className="truncate text-ink/55 hover:text-ink"
                 >
                   {c.label}
                 </Link>
               ) : (
-                <span className="truncate text-greige">{c.label}</span>
+                <span className="truncate font-normal text-ink">{c.label}</span>
               )}
             </li>
           ))}
@@ -37,10 +37,10 @@ export function AdminHeader({
       <button
         type="button"
         onClick={onOpenCommand}
-        className="shrink-0 border border-indigo-lift px-2 py-1 font-sans text-[11px] text-chalk hover:border-chalk hover:text-greige"
+        className="flex shrink-0 items-center gap-2 border border-ink/12 bg-milk px-3 py-1.5 font-sans text-[12.5px] text-ink/55 hover:border-ink/30 hover:text-ink"
       >
-        <span className="hidden sm:inline">Search </span>
-        <kbd className="font-data text-greige">⌘K</kbd>
+        <span className="hidden sm:inline">Search</span>
+        <kbd className="ms-auto font-data text-[10px] opacity-60">⌘K</kbd>
       </button>
     </header>
   );

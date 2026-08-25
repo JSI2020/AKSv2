@@ -1,33 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { EmptyState, Eyebrow } from "@/modules/ui";
-import {
-  PermissionDeniedError,
-  UnauthenticatedError,
-} from "@/modules/auth";
-import { listFabricsBelowReorderPoint } from "@/modules/inventory";
-import { listFabrics } from "@/modules/sizing/fabric-archetype-actions";
-import { FabricListRow } from "@/modules/sizing/fabric-archetype-ui";
+import { PermissionDeniedError, UnauthenticatedError } from "@/modules/auth";
+import { listFabricsCatalog } from "@/modules/inventory";
+import { FabricCatalog } from "@/modules/fabrics/admin/fabric-catalog";
 
 export default async function FabricsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ lowStock?: string }>;
+  searchParams: Promise<{ q?: string; drape?: string; lowStock?: string }>;
 }) {
-  const { lowStock } = await searchParams;
+  const { q, drape, lowStock } = await searchParams;
   const lowStockOnly = lowStock === "true";
 
-  let fabrics;
+  const drapeClass =
+    drape === "LIGHT" || drape === "MEDIUM" || drape === "HEAVY"
+      ? drape
+      : undefined;
+  let result;
   try {
-    if (lowStockOnly) {
-      const lowRows = await listFabricsBelowReorderPoint();
-      const all = await listFabrics();
-      const lowIds = new Set(lowRows.map((row) => row.id));
-      fabrics = all.filter((f) => lowIds.has(f.id));
-    } else {
-      fabrics = await listFabrics();
-    }
+    result = await listFabricsCatalog({ q, drapeClass, lowStockOnly });
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -40,56 +32,34 @@ export default async function FabricsPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <p className="text-[12px] text-ink/55">
+        Admin / <span className="text-ink">Fabric</span>
+      </p>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Eyebrow>Fabric</Eyebrow>
-          <h1 className="mt-1 font-display text-3xl text-greige">Fabrics</h1>
-          <p className="mt-1 max-w-xl text-[13px] text-chalk">
-            {lowStockOnly
-              ? "Fabrics below their reorder point — reorder before cutting stalls."
-              : "Fit-affecting properties. Lots and suppliers come later — this table stays stable."}
+          <p className="font-sans text-[10px] uppercase tracking-[0.24em] text-ink/55">
+            Make
+          </p>
+          <h1 className="mt-2 font-display text-[2.4rem] font-light leading-none text-ink">
+            Fabric
+          </h1>
+          <p className="mt-2 max-w-xl text-[13px] text-ink/55">
+            The cloth you make from. Tap a fabric for detail, stock, and lots.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {lowStockOnly ? (
-            <Link
-              href="/admin/fabrics"
-              className="border border-indigo-lift px-3 py-1.5 text-[13px] text-chalk"
-            >
-              Show all fabrics
-            </Link>
-          ) : null}
-          <Link
-            href="/admin/fabrics/new"
-            className="border border-zari px-3 py-1.5 text-[13px] text-zari"
-          >
-            New fabric
-          </Link>
-        </div>
+        <Link
+          href="/admin/fabrics/new"
+          className="bg-ink px-5 py-2.5 text-[12px] uppercase tracking-[0.1em] text-milk transition-colors hover:bg-madder"
+        >
+          + New fabric
+        </Link>
       </div>
-      {fabrics.length === 0 ? (
-        <EmptyState
-          title={lowStockOnly ? "No low-stock fabrics" : "No fabrics"}
-          description={
-            lowStockOnly
-              ? "Every fabric is above its reorder point."
-              : "Seed or create a fabric."
-          }
-        />
-      ) : (
-        <ul className="divide-y divide-indigo-lift border border-indigo-lift">
-          {fabrics.map((f) => (
-            <li key={f.id}>
-              <Link
-                href={`/admin/fabrics/${f.id}`}
-                className="block hover:bg-indigo-lift/40"
-              >
-                <FabricListRow fabric={f} />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
+      <FabricCatalog
+        result={result}
+        q={q}
+        drape={drapeClass}
+        lowStock={lowStockOnly}
+      />
     </div>
   );
 }

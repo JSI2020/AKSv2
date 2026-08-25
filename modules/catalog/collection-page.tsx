@@ -6,7 +6,11 @@ import { DesignCard } from "./design-card";
 import type { PublishedDesignCard, ResolvedCollection } from "./types";
 
 const COLLECTION_PILLS = [
-  ...HOUSE_COLLECTIONS.map((c) => ({
+  ...HOUSE_COLLECTIONS.filter((c) =>
+    ["essentials", "tailored", "occasion", "signature", "separates"].includes(
+      c.slug,
+    ),
+  ).map((c) => ({
     slug: c.slug,
     label: c.navLabel,
   })),
@@ -32,45 +36,61 @@ export function CollectionPageView({
   facets: Facets;
 }) {
   return (
-    <main className="mx-auto max-w-[1400px] px-4 pb-24 pt-9 md:px-10">
-      <nav className="mb-6 text-[12px] tracking-[0.05em] text-ink/55">
-        <Link href="/" className="text-ink/55">
+    <main className="collection-page mx-auto max-w-[1500px] px-[2.5rem] pb-24 pt-28 max-[900px]:px-[1.4rem]">
+      <nav
+        className="mb-6 text-[12px] tracking-[0.05em]"
+        style={{ color: "var(--taupe)" }}
+      >
+        <Link href="/" style={{ color: "var(--taupe)" }}>
           Home
         </Link>
         <span> / </span>
-        <Link href="/collections" className="text-ink/55">
+        <Link href="/collections" style={{ color: "var(--taupe)" }}>
           Collections
         </Link>
         <span> / </span>
-        <span>{collection.title}</span>
+        <span style={{ color: "var(--ink)" }}>{collection.title}</span>
       </nav>
 
       <header className="mb-9 max-w-[640px]">
-        <h1 className="mb-2.5 font-display text-[clamp(36px,4.5vw,46px)] font-medium leading-none">
+        <h1
+          className="serif mb-2.5 text-[clamp(2rem,4vw,2.8rem)] font-light leading-none"
+        >
           {collection.title}
         </h1>
         {collection.tagline ? (
-          <p className="mb-4 font-display text-[18px] italic text-ink/65">
+          <p
+            className="serif mb-4 text-[1.15rem] italic"
+            style={{ color: "var(--taupe)" }}
+          >
             {collection.tagline}
           </p>
         ) : null}
-        <p className="text-[15px] leading-relaxed text-ink/65">
+        <p style={{ color: "var(--espresso)", fontSize: "15px", lineHeight: 1.7 }}>
           {collection.description}
         </p>
       </header>
 
-      <div className="mb-11 flex flex-wrap gap-2.5">
+      <div className="filters mb-8">
         {COLLECTION_PILLS.map((pill) => {
           const active = collection.slug === pill.slug;
           return (
             <Link
               key={pill.slug}
               href={`/collections/${pill.slug}`}
-              className={
-                active
-                  ? "border border-ink bg-ink px-4 py-2 text-[13px] text-greige"
-                  : "border border-greige-deep px-4 py-2 text-[13px] text-ink"
-              }
+              className={active ? "on" : undefined}
+              style={{
+                display: "inline-block",
+                fontSize: "11px",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "0.5rem 0.9rem",
+                border: "1px solid var(--line)",
+                borderRadius: "var(--r)",
+                color: active ? "var(--milk)" : "var(--espresso)",
+                background: active ? "var(--ink)" : "transparent",
+                borderColor: active ? "var(--ink)" : "var(--line)",
+              }}
             >
               {pill.label}
             </Link>
@@ -80,13 +100,16 @@ export function CollectionPageView({
 
       <CollectionFilters facets={facets} />
 
-      <p className="mb-6 text-[13px] text-ink/55">
+      <p
+        className="mb-6 text-[13px]"
+        style={{ color: "var(--taupe)" }}
+      >
         {total === 0
           ? "No pieces in this collection yet — check back as we open slots."
           : `${total} ${total === 1 ? "piece" : "pieces"}`}
       </p>
 
-      <div className="grid grid-cols-2 gap-5 md:grid-cols-3 md:gap-7 lg:grid-cols-4">
+      <div className="grid">
         {items.map((design) => (
           <DesignCard key={design.id} design={design} />
         ))}

@@ -236,7 +236,7 @@ export function AddressStep({ initial, isSignedIn, onContinue }: Props) {
 
       <button
         type="submit"
-        className="w-full border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige"
+        className="btn-primary"
       >
         Continue to payment
       </button>

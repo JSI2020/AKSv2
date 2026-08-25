@@ -1,9 +1,15 @@
 "use server";
 
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { db, insertAuditLog, garmentCategories, measurementKeys } from "@aks/db";
+import {
+  db,
+  designs,
+  insertAuditLog,
+  garmentCategories,
+  measurementKeys,
+} from "@aks/db";
 import {
   isMeasurementKeyCode,
   uuidv7,
@@ -83,6 +89,26 @@ export async function updateGarmentCategory(
       .limit(1);
     const before = existing[0];
     if (!before) return { ok: false, error: "Category not found" };
+
+    if (before.active && !active) {
+      const inUse = await db
+        .select({ id: designs.id })
+        .from(designs)
+        .where(
+          or(
+            eq(designs.garmentTypeId, id),
+            sql`${designs.components}::jsonb ? ${before.key}`,
+          ),
+        )
+        .limit(1);
+      if (inUse[0]) {
+        return {
+          ok: false,
+          error:
+            "Cannot deactivate — at least one design uses this article type",
+        };
+      }
+    }
 
     const after = {
       name,

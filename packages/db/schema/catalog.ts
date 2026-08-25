@@ -59,7 +59,9 @@ export const customizationInputTypeEnum = pgEnum("customization_input_type", [
  * Catalog design — entered by hand in Step 21; AI studio attaches later.
  * Status changes go through transition() + design_events.
  */
-export const designs = pgTable("designs", {
+export const designs = pgTable(
+  "designs",
+  {
   id: uuid("id").primaryKey(),
   slug: text("slug").notNull().unique(),
   name: text("name").notNull(),
@@ -70,6 +72,11 @@ export const designs = pgTable("designs", {
   silhouetteLabel: text("silhouette_label").notNull().default(""),
   /** Model disclosure shown on PDP. */
   modelInfo: text("model_info").notNull().default(""),
+  /**
+   * Catalogue item number — AKS-{es|tl|oc|sg|sp}-{XXXX}.
+   * Auto-assigned from house door; unique when set.
+   */
+  itemNumber: text("item_number"),
   description: text("description"),
   storyCopy: text("story_copy"),
   status: designStatusEnum("status").notNull().default("DRAFT"),
@@ -78,7 +85,24 @@ export const designs = pgTable("designs", {
     .references(() => garmentCategories.id),
   /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */
   components: jsonb("components").$type<string[]>().notNull().default([]),
+  /**
+   * Admin-picked gallery angles for Studio Generate (exactly 3 when set).
+   * Falls back to FRONT / THREE_QUARTER / BACK.
+   */
+  studioAnglePicks: text("studio_angle_picks")
+    .array()
+    .$type<string[]>()
+    .notNull()
+    .default([]),
   sizeBlockId: uuid("size_block_id").references(() => sizeBlocks.id),
+  /**
+   * Per-piece forked size block ids (category key → block id).
+   * Absent key = inheriting that category's shared default.
+   */
+  pieceSizeBlocks: jsonb("piece_size_blocks")
+    .$type<Record<string, string>>()
+    .notNull()
+    .default({}),
   /**
    * Standard size labels offered on PDP (subset of the size block).
    * Empty = offer all labels from the linked size block.
@@ -86,7 +110,7 @@ export const designs = pgTable("designs", {
   availableSizeLabels: text("available_size_labels").array().notNull().default([]),
   /** When true, storefront offers custom / made-to-measure alongside standard sizes. */
   madeToMeasureOffered: boolean("made_to_measure_offered").notNull().default(true),
-  /** Per-component fit profile ids. */
+  /** Per-component fit profile ids (pieceFitProfiles). */
   fitProfileIds: jsonb("fit_profile_ids")
     .$type<Record<string, string>>()
     .notNull()
@@ -120,7 +144,9 @@ export const designs = pgTable("designs", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
-});
+  },
+  (t) => [uniqueIndex("designs_item_number_uidx").on(t.itemNumber)],
+);
 
 export const designEvents = createEntityEventsTable("design_events");
 
@@ -150,6 +176,14 @@ export const colourways = pgTable(
       .notNull()
       .references(() => fabrics.id),
     hexApproximation: text("hex_approximation"),
+    /**
+     * Per-article fabric map for multi-piece looks.
+     * Keys = garment category keys (e.g. KAMEEZ, TROUSER).
+     */
+    pieceFabrics: jsonb("piece_fabrics")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
     priceDeltaMinor: integer("price_delta_minor").notNull().default(0),
     isDefault: boolean("is_default").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),

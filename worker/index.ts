@@ -16,11 +16,13 @@ async function main() {
   const {
     handleMessageSend,
     handleOrderTransitioned,
+    handleWhatsappNotify,
   } = await import("../modules/messaging");
   const { registerDesignGenerateHandler } = await import(
     "../modules/ai/generation"
   );
-  const { registerTryOnHandlers } = await import("../modules/tryon");
+  // Deep-import handler — barrel `modules/tryon` pulls server-actions → server-only.
+  const { registerTryOnHandlers } = await import("../modules/tryon/handler");
 
   const POLL_MS = Number(process.env.OUTBOX_POLL_MS ?? 500);
 
@@ -31,6 +33,7 @@ async function main() {
   registerTestPingHandler();
   registerHandler("email.send", handleEmailSend);
   registerHandler("message.send", handleMessageSend);
+  registerHandler("whatsapp.notify", handleWhatsappNotify);
   registerHandler("order.transitioned", handleOrderTransitioned);
   registerHandler("assets.purgeExpired", async () => {
     const n = await purgeExpiredAssets();

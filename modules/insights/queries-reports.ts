@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gt, isNotNull, sql } from "drizzle-orm";
+import { and, desc, eq, gt, gte, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 
 import {
   customerProfiles,
@@ -12,12 +12,16 @@ import {
   orderEvents,
   orderItems,
   orders,
-  users,
 } from "@aks/db";
 
 import { requirePermission } from "@/modules/auth";
 
 const PLACED = sql`${orders.status} not in ('DRAFT', 'CANCELLED')`;
+
+export type InsightsDateRange = {
+  from?: Date;
+  to?: Date;
+};
 
 export type SalesByDesignRow = {
   designId: string;
@@ -93,7 +97,16 @@ export type InsightsReportData = {
   };
 };
 
-export async function getInsightsReportData(): Promise<InsightsReportData> {
+function placedWhere(range?: InsightsDateRange): SQL | undefined {
+  const parts: SQL[] = [PLACED];
+  if (range?.from) parts.push(gte(orders.placedAt, range.from));
+  if (range?.to) parts.push(lte(orders.placedAt, range.to));
+  return and(...parts);
+}
+
+export async function getInsightsReportData(
+  range?: InsightsDateRange,
+): Promise<InsightsReportData> {
   await requirePermission("insights.view");
 
   const [
@@ -107,14 +120,14 @@ export async function getInsightsReportData(): Promise<InsightsReportData> {
     fabricWastage,
     repeatStats,
   ] = await Promise.all([
-    loadSalesByDesign(),
-    loadSalesByCategory(),
-    loadSalesByCity(),
-    loadSizeDistribution(),
-    loadAvgMeasurements(),
-    loadSizeModeSplit(),
-    loadLeadTimes(),
-    loadFabricWastage(),
+    loadSalesByDesign(range),
+    loadSalesByCategory(range),
+    loadSalesByCity(range),
+    loadSizeDistribution(range),
+    loadAvgMeasurements(range),
+    loadSizeModeSplit(range),
+    loadLeadTimes(range),
+    loadFabricWastage(range),
     loadRepeatCustomerRate(),
   ]);
 
@@ -138,7 +151,9 @@ export async function getInsightsReportData(): Promise<InsightsReportData> {
   };
 }
 
-async function loadSalesByDesign(): Promise<SalesByDesignRow[]> {
+async function loadSalesByDesign(
+  range?: InsightsDateRange,
+): Promise<SalesByDesignRow[]> {
   const rows = await db
     .select({
       designId: orderItems.designId,
@@ -148,14 +163,16 @@ async function loadSalesByDesign(): Promise<SalesByDesignRow[]> {
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(PLACED)
+    .where(placedWhere(range))
     .groupBy(orderItems.designId, sql`${orderItems.designSnapshot}->>'name'`)
     .orderBy(desc(sql`sum(${orderItems.lineTotalMinor})`));
 
   return rows;
 }
 
-async function loadSalesByCategory(): Promise<SalesByCategoryRow[]> {
+async function loadSalesByCategory(
+  range?: InsightsDateRange,
+): Promise<SalesByCategoryRow[]> {
   const rows = await db
     .select({
       categoryId: designs.garmentTypeId,
@@ -167,14 +184,16 @@ async function loadSalesByCategory(): Promise<SalesByCategoryRow[]> {
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
     .innerJoin(designs, eq(orderItems.designId, designs.id))
     .innerJoin(garmentCategories, eq(designs.garmentTypeId, garmentCategories.id))
-    .where(PLACED)
+    .where(placedWhere(range))
     .groupBy(designs.garmentTypeId, garmentCategories.name)
     .orderBy(desc(sql`sum(${orderItems.lineTotalMinor})`));
 
   return rows;
 }
 
-async function loadSalesByCity(): Promise<SalesByCityRow[]> {
+async function loadSalesByCity(
+  range?: InsightsDateRange,
+): Promise<SalesByCityRow[]> {
   const rows = await db
     .select({
       city: sql<string>`${orders.shippingAddressSnapshot}->>'city'`,
@@ -182,7 +201,7 @@ async function loadSalesByCity(): Promise<SalesByCityRow[]> {
       revenueMinor: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
     })
     .from(orders)
-    .where(and(PLACED, isNotNull(orders.placedAt)))
+    .where(and(placedWhere(range), isNotNull(orders.placedAt)))
     .groupBy(sql`${orders.shippingAddressSnapshot}->>'city'`)
     .orderBy(desc(sql`sum(${orders.totalMinor})`));
 
@@ -193,7 +212,9 @@ async function loadSalesByCity(): Promise<SalesByCityRow[]> {
   }));
 }
 
-async function loadSizeDistribution(): Promise<SizeDistributionRow[]> {
+async function loadSizeDistribution(
+  range?: InsightsDateRange,
+): Promise<SizeDistributionRow[]> {
   const rows = await db
     .select({
       sizeLabel: sql<string>`coalesce(${orderItems.sizeLabel}, 'MTM')`,
@@ -203,14 +224,21 @@ async function loadSizeDistribution(): Promise<SizeDistributionRow[]> {
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(PLACED)
+    .where(placedWhere(range))
     .groupBy(orderItems.sizeMode, sql`coalesce(${orderItems.sizeLabel}, 'MTM')`)
     .orderBy(desc(sql`sum(${orderItems.quantity})`));
 
   return rows;
 }
 
-async function loadAvgMeasurements(): Promise<AvgMeasurementRow[]> {
+async function loadAvgMeasurements(
+  range?: InsightsDateRange,
+): Promise<AvgMeasurementRow[]> {
+  const fromClause = range?.from
+    ? sql`AND o.placed_at >= ${range.from}`
+    : sql``;
+  const toClause = range?.to ? sql`AND o.placed_at <= ${range.to}` : sql``;
+
   const rows = await db.execute<{
     measurement_key: string;
     avg_value: number;
@@ -233,6 +261,8 @@ async function loadAvgMeasurements(): Promise<AvgMeasurementRow[]> {
     WHERE o.status NOT IN ('DRAFT', 'CANCELLED')
       AND oi.size_mode = 'MADE_TO_MEASURE'
       AND val ~ '^-?[0-9]+$'
+      ${fromClause}
+      ${toClause}
     GROUP BY key
     ORDER BY sample_count DESC
   `);
@@ -244,9 +274,9 @@ async function loadAvgMeasurements(): Promise<AvgMeasurementRow[]> {
   }));
 }
 
-async function loadSizeModeSplit(): Promise<
-  Omit<SizeModeSplitRow, "percentUnits">[]
-> {
+async function loadSizeModeSplit(
+  range?: InsightsDateRange,
+): Promise<Omit<SizeModeSplitRow, "percentUnits">[]> {
   const rows = await db
     .select({
       sizeMode: orderItems.sizeMode,
@@ -255,7 +285,7 @@ async function loadSizeModeSplit(): Promise<
     })
     .from(orderItems)
     .innerJoin(orders, eq(orderItems.orderId, orders.id))
-    .where(PLACED)
+    .where(placedWhere(range))
     .groupBy(orderItems.sizeMode)
     .orderBy(desc(sql`sum(${orderItems.quantity})`));
 
@@ -267,7 +297,9 @@ async function loadSizeModeSplit(): Promise<
   }));
 }
 
-async function loadLeadTimes(): Promise<LeadTimeRow[]> {
+async function loadLeadTimes(
+  range?: InsightsDateRange,
+): Promise<LeadTimeRow[]> {
   const rows = await db
     .select({
       orderId: orders.id,
@@ -276,7 +308,7 @@ async function loadLeadTimes(): Promise<LeadTimeRow[]> {
       promisedShipDate: orders.promisedShipDate,
     })
     .from(orders)
-    .where(and(PLACED, isNotNull(orders.placedAt)))
+    .where(and(placedWhere(range), isNotNull(orders.placedAt)))
     .orderBy(desc(orders.placedAt))
     .limit(100);
 
@@ -326,7 +358,9 @@ async function loadLeadTimes(): Promise<LeadTimeRow[]> {
   return result;
 }
 
-async function loadFabricWastage(): Promise<FabricWastageRow[]> {
+async function loadFabricWastage(
+  range?: InsightsDateRange,
+): Promise<FabricWastageRow[]> {
   const rows = await db
     .select({
       designId: orderItems.designId,
@@ -346,7 +380,7 @@ async function loadFabricWastage(): Promise<FabricWastageRow[]> {
     .leftJoin(designCosts, eq(designCosts.designId, orderItems.designId))
     .where(
       and(
-        PLACED,
+        placedWhere(range),
         sql`${fabricReservations.status} is null or ${fabricReservations.status} in ('CONSUMED', 'RESERVED')`,
       ),
     )

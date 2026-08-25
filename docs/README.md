@@ -8,3 +8,14 @@
 | Tier / admin prompts | Only when the current build step names them |
 
 Read docs when the current step references them — do not invent ahead of the roadmap.
+
+## Photoreal (admin sketch tool)
+
+Separate from Design Studio (`modules/ai/studio`). After pulling schema changes:
+
+```bash
+npm run db:ensure:photoreal
+npm run db:seed   # seeds photoreal.view / generate / edit permissions
+```
+
+Admin route: `/admin/photoreal` (requires `photoreal.view`).

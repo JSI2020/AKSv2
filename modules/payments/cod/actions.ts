@@ -39,6 +39,7 @@ export async function recordCodRemittanceAction(input: {
   receivedAmountMinor: number;
   receivedAt: string;
   orderIds: string[];
+  perOrderExpected?: Record<string, number>;
   discrepancyNote?: string;
 }): Promise<{ ok: true; remittanceId: string } | { ok: false; error: string }> {
   try {
@@ -67,6 +68,7 @@ export async function recordCodRemittanceAction(input: {
           receivedAmountMinor: input.receivedAmountMinor,
           receivedAt,
           orderIds: input.orderIds,
+          perOrderExpected: input.perOrderExpected,
           discrepancyNote: input.discrepancyNote,
           recordedById: session.user.id,
         },
@@ -94,6 +96,7 @@ export async function recordCodRemittanceAction(input: {
     });
 
     revalidatePath("/admin/payments/cod");
+    revalidatePath("/admin/finance");
     return { ok: true, remittanceId };
   } catch (error) {
     return actionError(error);

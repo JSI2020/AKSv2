@@ -81,6 +81,11 @@ export const codRemittances = pgTable("cod_remittances", {
   receivedAmountMinor: integer("received_amount_minor").notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
   orderIds: jsonb("order_ids").$type<string[]>().notNull(),
+  /** Snapshot of expected COD balance per order at remittance time (paisa). */
+  perOrderExpected: jsonb("per_order_expected")
+    .$type<Record<string, number>>()
+    .notNull()
+    .default({}),
   discrepancyNote: text("discrepancy_note"),
   recordedById: uuid("recorded_by_id").references(() => users.id),
   createdAt: timestamp("created_at", { withTimezone: true })

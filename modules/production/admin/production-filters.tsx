@@ -3,6 +3,7 @@
 import { useQueryStates } from "nuqs";
 
 import { cn } from "@/lib/utils";
+import { AdminTimeFilter } from "@/modules/admin/time-filter";
 
 import {
   PRODUCTION_JOB_STAGES,
@@ -34,6 +35,7 @@ export function ProductionFilters({ staff }: ProductionFiltersProps) {
 
   return (
     <div className="space-y-3 border border-chalk/20 p-3">
+      <AdminTimeFilter />
       <div className="flex flex-wrap gap-2">
         <button
           type="button"

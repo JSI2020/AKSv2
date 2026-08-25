@@ -17,8 +17,21 @@
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
     "db:seed": "tsx packages/db/seed.ts",
     "db:seed:demo": "tsx packages/db/seed-demo.ts",
+    "db:seed:pipeline": "tsx packages/db/seed-pipeline-ui.ts",
+    "db:seed:inventory": "tsx packages/db/seed-inventory-ledger.ts",
+    "db:seed:portal": "tsx packages/db/seed-portal.ts",
+    "db:ensure:inventory-ledger": "tsx scripts/ensure-inventory-ledger-schema.ts",
+    "db:ensure:finance": "tsx scripts/ensure-finance-schema.ts",
+    "db:ensure:size-block-rows": "tsx scripts/ensure-default-size-block-rows.ts",
+    "db:ensure:customer-merge": "tsx scripts/ensure-customer-merge-schema.ts",
+    "db:ensure:content-settings": "tsx scripts/ensure-content-settings-schema.ts",
     "worker:dev": "tsx worker/index.ts",
-    "prove:fal": "tsx scripts/prove-fal-generation.ts"
+    "prove:fal": "tsx scripts/prove-fal-generation.ts",
+    "db:ensure:photoreal": "tsx scripts/ensure-photoreal-schema.ts",
+    "db:ensure:content": "tsx scripts/ensure-content-schema.ts",
+    "db:ensure:studio-editor": "tsx scripts/ensure-studio-editor-schema.ts",
+    "db:sync:permissions": "tsx scripts/sync-permissions.ts",
+    "db:seed:dress-sizing": "tsx scripts/seed-dress-sizing.ts"
   },
   "dependencies": {
     "@auth/drizzle-adapter": "^1.11.3",

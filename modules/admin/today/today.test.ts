@@ -7,7 +7,12 @@ import {
   emptyTodayActionCounts,
   ownerPermissionSet,
 } from "./action-cards";
-import { endOfTodayInShop, getTodayScreenData, startOfTodayInShop } from "./queries";
+import {
+  endOfTodayInShop,
+  getTodayScreenData,
+  parseOverviewRange,
+  startOfTodayInShop,
+} from "./queries";
 
 describe("startOfTodayInShop", () => {
   it("returns midnight PKT for the shop calendar day", () => {
@@ -16,6 +21,17 @@ describe("startOfTodayInShop", () => {
     expect(endOfTodayInShop(new Date("2026-07-25T20:00:00.000Z")).getTime()).toBe(
       start.getTime() + 24 * 60 * 60 * 1000 - 1,
     );
+  });
+});
+
+describe("parseOverviewRange", () => {
+  it("defaults to today and swaps inverted from/to", () => {
+    const swapped = parseOverviewRange({
+      from: "2026-08-10",
+      to: "2026-08-01",
+    });
+    expect(swapped.fromKey).toBe("2026-08-01");
+    expect(swapped.toKey).toBe("2026-08-10");
   });
 });
 

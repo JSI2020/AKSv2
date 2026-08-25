@@ -1,16 +1,40 @@
 import { redirect } from "next/navigation";
 
-import { EmptyState, Eyebrow } from "@/modules/ui";
+import { auth } from "@/auth";
 import {
   PermissionDeniedError,
   UnauthenticatedError,
+  userHasPermission,
 } from "@/modules/auth";
-import { CustomersTable, listCustomers } from "@/modules/insights";
+import { CustomersDirectoryView } from "@/modules/customers/customers-directory-view";
+import { listCustomerDirectory } from "@/modules/customers/queries";
+import {
+  CRM_SOURCES,
+  type CrmSourceFilter,
+} from "@/modules/customers/source";
 
-export default async function AdminCustomersPage() {
-  let customers;
+function parseSource(raw: string | undefined): CrmSourceFilter {
+  if (!raw) return "ALL";
+  if (raw === "ALL" || raw === "DUPLICATES") return raw;
+  const upper = raw.toUpperCase();
+  if ((CRM_SOURCES as readonly string[]).includes(upper)) {
+    return upper as CrmSourceFilter;
+  }
+  return "ALL";
+}
+
+export default async function AdminCustomersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; source?: string }>;
+}) {
+  const params = await searchParams;
+  const query = params.q ?? "";
+  const source = parseSource(params.source);
+
+  let directory;
   try {
-    customers = await listCustomers();
+    directory = await listCustomerDirectory({ query, source });
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -21,23 +45,18 @@ export default async function AdminCustomersPage() {
     throw e;
   }
 
+  const session = await auth();
+  const canEdit = session?.user?.id
+    ? await userHasPermission(session.user.id, "customers.edit")
+    : false;
+
   return (
-    <div>
-      <Eyebrow>Customers</Eyebrow>
-      <h1 className="mt-1 font-display text-3xl text-greige">Customers</h1>
-      <p className="mt-2 max-w-[640px] text-[13px] leading-relaxed text-chalk">
-        Profiles, measurements, order history, and related panels.
-      </p>
-      <div className="mt-6">
-        {customers.length === 0 ? (
-          <EmptyState
-            title="No customers yet"
-            description="Customer profiles appear after the first web or manual order."
-          />
-        ) : (
-          <CustomersTable customers={customers} />
-        )}
-      </div>
-    </div>
+    <CustomersDirectoryView
+      rows={directory.rows}
+      duplicatePairCount={directory.duplicatePairCount}
+      initialQuery={query}
+      initialSource={source}
+      canEdit={canEdit}
+    />
   );
 }

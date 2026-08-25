@@ -157,17 +157,10 @@ export function PaymentStep({
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row">
-        <button
-          type="button"
-          onClick={onBack}
-          className="w-full border border-greige-deep px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-ink"
-        >
+        <button type="button" onClick={onBack} className="btn-secondary">
           Back
         </button>
-        <button
-          type="submit"
-          className="w-full border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige"
-        >
+        <button type="submit" className="btn-primary">
           Review order
         </button>
       </div>

@@ -1,5 +1,6 @@
 export { Money, formatMoney } from "./money/money";
 export { Measure, formatMeasure, parseMeasureInput } from "./measure/measure";
+export { Metres, formatMetres, parseMetresInput } from "./metres/metres";
 export { Ground } from "./ground";
 export { Eyebrow } from "./eyebrow";
 export { StitchRule } from "./stitch-rule";

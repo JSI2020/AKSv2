@@ -1,18 +1,14 @@
 import { setRequestLocale } from "next-intl/server";
 
-import { ShopHomeHero } from "@/modules/shop/shell/home-hero";
+import { HomePage } from "@/modules/shop/home/home-page";
 
 type Props = {
   params: Promise<{ locale: string }>;
 };
 
-export default async function HomePage({ params }: Props) {
+export default async function ShopHomePage({ params }: Props) {
   const { locale } = await params;
   setRequestLocale(locale);
 
-  return (
-    <main>
-      <ShopHomeHero />
-    </main>
-  );
+  return <HomePage />;
 }

@@ -1,3 +1,7 @@
+import { redirect } from "next/navigation";
+
+import { auth } from "@/auth";
+
 import { PrimitivesDemo } from "./primitives-demo";
 
 const COLORS = [
@@ -39,7 +43,12 @@ const TYPE_SIZES = [
   },
 ] as const;
 
-export default function TokensPage() {
+export default async function TokensPage() {
+  const session = await auth();
+  if (!session?.user?.id) redirect("/admin/login");
+  const role = (session.user as { role?: string }).role;
+  if (!role || role === "CUSTOMER") redirect("/admin/login");
+
   return (
     <main className="mx-auto max-w-5xl px-6 py-10">
       <p className="mb-2 font-sans text-xs uppercase tracking-[0.12em] text-chalk">

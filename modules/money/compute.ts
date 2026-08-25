@@ -17,6 +17,8 @@ export type DesignCostInputs = {
   stitchingRateId: string | null;
   stitchingFlatMinor: number | null;
   packagingMinor: number;
+  shippingMinor: number;
+  overheadMinor: number;
   aiCostMinor: number;
   sellingPriceMinor: number;
   ratesById: ReadonlyMap<string, RateRow>;
@@ -27,6 +29,8 @@ export type DesignCostBreakdown = {
   embroideryMinor: number;
   stitchingMinor: number;
   packagingMinor: number;
+  shippingMinor: number;
+  overheadMinor: number;
   aiCostMinor: number;
   totalCostMinor: number;
   sellingPriceMinor: number;
@@ -100,12 +104,16 @@ export function computeDesignCost(
     input.fabricMeters,
   );
   const packagingMinor = Math.max(0, input.packagingMinor);
+  const shippingMinor = Math.max(0, input.shippingMinor);
+  const overheadMinor = Math.max(0, input.overheadMinor);
   const aiCostMinor = Math.max(0, input.aiCostMinor);
   const totalCostMinor =
     fabricMinor +
     embroideryMinor +
     stitchingMinor +
     packagingMinor +
+    shippingMinor +
+    overheadMinor +
     aiCostMinor;
   const sellingPriceMinor = Math.max(0, input.sellingPriceMinor);
   const marginPercent = computeMarginPercent(sellingPriceMinor, totalCostMinor);
@@ -115,6 +123,8 @@ export function computeDesignCost(
     embroideryMinor,
     stitchingMinor,
     packagingMinor,
+    shippingMinor,
+    overheadMinor,
     aiCostMinor,
     totalCostMinor,
     sellingPriceMinor,

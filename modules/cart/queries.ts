@@ -16,6 +16,7 @@ import { formatLeadTime } from "@/modules/catalog/types";
 
 import type { CartPublic } from "./types";
 import { formatCartLeadTime } from "./types";
+import { consolidateDuplicateCartLines } from "./merge";
 
 const CART_TTL_DAYS = 90;
 
@@ -90,6 +91,8 @@ export async function hydrateCart(cartId: string): Promise<CartPublic | null> {
     .limit(1);
 
   if (!cart) return null;
+
+  await consolidateDuplicateCartLines(cartId);
 
   const lines = await db
     .select()

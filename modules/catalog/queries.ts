@@ -257,18 +257,49 @@ export async function getPublishedDesigns(
   const tags = await db
     .select({
       designId: designTags.designId,
+      kind: designTags.kind,
       value: designTags.value,
     })
     .from(designTags)
     .where(
-      and(inArray(designTags.designId, ids), eq(designTags.kind, "OCCASION")),
+      and(
+        inArray(designTags.designId, ids),
+        inArray(designTags.kind, ["OCCASION", "FREE"]),
+      ),
     );
 
-  const tagsByDesign = new Map<string, string[]>();
+  const occasionByDesign = new Map<string, string[]>();
+  const freeByDesign = new Map<string, string[]>();
   for (const t of tags) {
-    const list = tagsByDesign.get(t.designId) ?? [];
-    list.push(t.value);
-    tagsByDesign.set(t.designId, list);
+    if (t.kind === "OCCASION") {
+      const list = occasionByDesign.get(t.designId) ?? [];
+      list.push(t.value);
+      occasionByDesign.set(t.designId, list);
+    } else if (t.kind === "FREE") {
+      const list = freeByDesign.get(t.designId) ?? [];
+      list.push(t.value);
+      freeByDesign.set(t.designId, list);
+    }
+  }
+
+  const hexRows = await db
+    .select({
+      designId: colourways.designId,
+      hex: colourways.hexApproximation,
+      sortOrder: colourways.sortOrder,
+      isDefault: colourways.isDefault,
+    })
+    .from(colourways)
+    .where(and(inArray(colourways.designId, ids), eq(colourways.active, true)))
+    .orderBy(desc(colourways.isDefault), asc(colourways.sortOrder));
+
+  const hexesByDesign = new Map<string, string[]>();
+  for (const row of hexRows) {
+    if (!row.hex) continue;
+    const list = hexesByDesign.get(row.designId) ?? [];
+    if (list.length >= 4) continue;
+    list.push(row.hex);
+    hexesByDesign.set(row.designId, list);
   }
 
   const thumbs = await db
@@ -277,6 +308,7 @@ export async function getPublishedDesigns(
       assetId: designRenders.assetId,
       altText: designRenders.altText,
       r2Key: assets.r2Key,
+      angle: designRenders.angle,
       isDefault: colourways.isDefault,
       sortOrder: designRenders.sortOrder,
     })
@@ -286,26 +318,50 @@ export async function getPublishedDesigns(
     .where(
       and(
         inArray(designRenders.designId, ids),
-        eq(designRenders.angle, "FRONT"),
+        inArray(designRenders.angle, ["FRONT", "THREE_QUARTER"]),
         eq(colourways.active, true),
       ),
     )
     .orderBy(desc(colourways.isDefault), asc(designRenders.sortOrder));
 
   const thumbByDesign = new Map<string, (typeof thumbs)[number]>();
+  const hoverByDesign = new Map<string, (typeof thumbs)[number]>();
   for (const t of thumbs) {
-    if (!thumbByDesign.has(t.designId)) thumbByDesign.set(t.designId, t);
+    if (t.angle === "FRONT" && !thumbByDesign.has(t.designId)) {
+      thumbByDesign.set(t.designId, t);
+    }
+    if (t.angle === "THREE_QUARTER" && !hoverByDesign.has(t.designId)) {
+      hoverByDesign.set(t.designId, t);
+    }
+  }
+  // Fall back: second FRONT from another colourway if no three-quarter
+  for (const t of thumbs) {
+    if (t.angle !== "FRONT") continue;
+    const primary = thumbByDesign.get(t.designId);
+    if (!primary || hoverByDesign.has(t.designId)) continue;
+    if (t.assetId !== primary.assetId) {
+      hoverByDesign.set(t.designId, t);
+    }
   }
 
   const items: PublishedDesignCard[] = await Promise.all(
     rows.map(async (r) => {
       const thumb = thumbByDesign.get(r.id);
+      const hover = hoverByDesign.get(r.id);
       let url: string | null = null;
+      let hoverUrl: string | null = null;
       if (thumb) {
         try {
           url = await createPresignedReadUrl(thumb.r2Key, 3600);
         } catch {
           url = null;
+        }
+      }
+      if (hover) {
+        try {
+          hoverUrl = await createPresignedReadUrl(hover.r2Key, 3600);
+        } catch {
+          hoverUrl = null;
         }
       }
       return {
@@ -320,13 +376,23 @@ export async function getPublishedDesigns(
         publishedAt: r.publishedAt,
         garmentTypeKey: r.garmentTypeKey,
         garmentTypeName: r.garmentTypeName,
-        occasionLabels: tagsByDesign.get(r.id) ?? [],
+        occasionLabels: occasionByDesign.get(r.id) ?? [],
+        freeTags: freeByDesign.get(r.id) ?? [],
+        colourwayHexes: hexesByDesign.get(r.id) ?? [],
         thumbnail: thumb
           ? {
               assetId: thumb.assetId,
               r2Key: thumb.r2Key,
               altText: thumb.altText,
               url,
+            }
+          : null,
+        hoverThumbnail: hover
+          ? {
+              assetId: hover.assetId,
+              r2Key: hover.r2Key,
+              altText: hover.altText,
+              url: hoverUrl,
             }
           : null,
       };

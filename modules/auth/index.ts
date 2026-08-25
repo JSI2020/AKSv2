@@ -11,8 +11,11 @@ export {
 } from "./otp";
 export {
   checkOtpRequestRateLimit,
+  checkOtpVerifyRateLimit,
+  checkBankReceiptRateLimit,
   OTP_EMAIL_LIMIT,
   OTP_IP_LIMIT,
+  OTP_VERIFY_LIMIT,
 } from "./rate-limit";
 export { logSignInAttempt } from "./attempts";
 export {

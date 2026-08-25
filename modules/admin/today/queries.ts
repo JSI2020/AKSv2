@@ -20,15 +20,23 @@ import {
   emptyTodayActionCounts,
   type TodayActionCard,
 } from "./action-cards";
+import { parseOverviewRange, type OverviewRange } from "./overview-range";
 
 export type { TodayActionCard } from "./action-cards";
 export { DESIGN_AWAITING_REVIEW_STATUSES } from "./constants";
+export {
+  endOfTodayInShop,
+  parseOverviewRange,
+  startOfTodayInShop,
+  type OverviewRange,
+} from "./overview-range";
 
 export type TodayStats = {
   ordersPlaced: number;
   revenueMinor: number;
   inProduction: number;
-  dispatchedToday: number;
+  /** Dispatched within the selected range (not only calendar today). */
+  dispatchedInRange: number;
 };
 
 const IN_PRODUCTION_STATUSES = [
@@ -48,33 +56,12 @@ const AT_RISK_TERMINAL: readonly OrderStatus[] = [
   "DELIVERY_REFUSED",
 ];
 
-const SHOP_TIME_ZONE = "Asia/Karachi";
-
 export type TodayScreenData = {
   cards: TodayActionCard[];
   stats: TodayStats | null;
   allClear: boolean;
+  range: OverviewRange;
 };
-
-export function startOfTodayInShop(now = new Date()): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: SHOP_TIME_ZONE,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(now);
-
-  const year = parts.find((p) => p.type === "year")?.value ?? "1970";
-  const month = parts.find((p) => p.type === "month")?.value ?? "01";
-  const day = parts.find((p) => p.type === "day")?.value ?? "01";
-
-  return new Date(`${year}-${month}-${day}T00:00:00+05:00`);
-}
-
-export function endOfTodayInShop(now = new Date()): Date {
-  const start = startOfTodayInShop(now);
-  return new Date(start.getTime() + 24 * 60 * 60 * 1000 - 1);
-}
 
 async function countOrdersByStatus(status: OrderStatus): Promise<number> {
   const [row] = await db
@@ -159,7 +146,10 @@ async function countDesignsAwaitingReview(): Promise<number> {
   return Number(row?.total ?? 0);
 }
 
-async function getTodayOrderStats(start: Date, end: Date): Promise<TodayStats> {
+async function getOverviewOrderStats(
+  start: Date,
+  end: Date,
+): Promise<TodayStats> {
   const [placedRow] = await db
     .select({
       total: count(),
@@ -194,16 +184,21 @@ async function getTodayOrderStats(start: Date, end: Date): Promise<TodayStats> {
     ordersPlaced: Number(placedRow?.total ?? 0),
     revenueMinor: Number(placedRow?.revenueMinor ?? 0),
     inProduction: Number(productionRow?.total ?? 0),
-    dispatchedToday: Number(dispatchedRow?.total ?? 0),
+    dispatchedInRange: Number(dispatchedRow?.total ?? 0),
   };
 }
 
+/** @deprecated alias — tests */
+const getTodayOrderStats = getOverviewOrderStats;
+
 /**
- * Live Today screen payload — counts and stats filtered by caller permissions.
+ * Overview screen payload — attention cards are live; numbers respect range.
  */
 export async function getTodayScreenData(
   granted: ReadonlySet<string>,
+  rangeInput?: { from?: string; to?: string },
 ): Promise<TodayScreenData> {
+  const range = parseOverviewRange(rangeInput ?? {});
   const counts = emptyTodayActionCounts();
 
   if (can(granted, "orders.view")) {
@@ -240,14 +235,12 @@ export async function getTodayScreenData(
 
   let stats: TodayStats | null = null;
   if (can(granted, "orders.view")) {
-    const start = startOfTodayInShop();
-    const end = endOfTodayInShop();
-    stats = await getTodayOrderStats(start, end);
+    stats = await getOverviewOrderStats(range.from, range.to);
   }
 
   const allClear = cards.length > 0 && cards.every((card) => card.count === 0);
 
-  return { cards, stats, allClear };
+  return { cards, stats, allClear, range };
 }
 
 /** @internal exported for tests */

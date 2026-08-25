@@ -227,4 +227,58 @@ export const DEFAULT_SIZE_BLOCK_SEEDS: readonly SizeBlockSeed[] = [
       },
     ],
   },
+  {
+    categoryKey: "SKIRT",
+    name: "SKIRT default (placeholder)",
+    notes:
+      "REPLACEABLE placeholder — replace with designer pattern-block numbers before real orders.",
+    rows: [
+      {
+        measurementKey: "WAIST",
+        baseValue: inches(30),
+        gradeIncrement: inches(2),
+        gradeOverrides: { XL: inches(3), XXL: inches(3) },
+        sortOrder: 10,
+      },
+      {
+        measurementKey: "HIP",
+        baseValue: inches(38),
+        gradeIncrement: inches(2),
+        gradeOverrides: { XL: inches(3), XXL: inches(3) },
+        sortOrder: 20,
+      },
+      {
+        measurementKey: "LENGTH",
+        baseValue: inches(36),
+        gradeIncrement: inches(1),
+        sortOrder: 30,
+      },
+      {
+        measurementKey: "SWEEP",
+        baseValue: inches(48),
+        gradeIncrement: inches(2),
+        sortOrder: 40,
+      },
+    ],
+  },
+  {
+    categoryKey: "DUPATTA",
+    name: "DUPATTA default (placeholder)",
+    notes:
+      "REPLACEABLE placeholder — length/width rarely grade; keep increments at 0 unless the house wants size steps.",
+    rows: [
+      {
+        measurementKey: "LENGTH",
+        baseValue: inches(90),
+        gradeIncrement: inches(0),
+        sortOrder: 10,
+      },
+      {
+        measurementKey: "WIDTH",
+        baseValue: inches(36),
+        gradeIncrement: inches(0),
+        sortOrder: 20,
+      },
+    ],
+  },
 ];

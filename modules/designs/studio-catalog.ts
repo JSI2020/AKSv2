@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ne } from "drizzle-orm";
 
 import {
   assets,
@@ -25,6 +25,8 @@ export type StudioCatalogCard = {
   compareAtPriceMinor: number | null;
   categoryKey: string;
   categoryName: string;
+  /** Piece keys from design.components; falls back to categoryKey. */
+  components: string[];
   colourwayHexes: string[];
   colourwayCount: number;
   availableSizeLabels: string[];
@@ -65,6 +67,7 @@ export async function listStudioCatalogGrouped(): Promise<StudioCatalogGroup[]> 
       status: designs.status,
       basePriceMinor: designs.basePriceMinor,
       compareAtPriceMinor: designs.compareAtPriceMinor,
+      components: designs.components,
       availableSizeLabels: designs.availableSizeLabels,
       madeToMeasureOffered: designs.madeToMeasureOffered,
       featured: designs.featured,
@@ -78,6 +81,7 @@ export async function listStudioCatalogGrouped(): Promise<StudioCatalogGroup[]> 
       garmentCategories,
       eq(designs.garmentTypeId, garmentCategories.id),
     )
+    .where(ne(designs.status, "ARCHIVED"))
     .orderBy(asc(garmentCategories.sortOrder), desc(designs.updatedAt));
 
   if (rows.length === 0) {
@@ -174,6 +178,8 @@ export async function listStudioCatalogGrouped(): Promise<StudioCatalogGroup[]> 
         compareAtPriceMinor: r.compareAtPriceMinor,
         categoryKey: r.categoryKey,
         categoryName: r.categoryName,
+        components:
+          r.components?.length > 0 ? r.components : [r.categoryKey],
         colourwayHexes: hexesByDesign.get(r.id) ?? [],
         colourwayCount: countByDesign.get(r.id) ?? 0,
         availableSizeLabels: r.availableSizeLabels ?? [],

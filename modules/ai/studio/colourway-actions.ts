@@ -470,11 +470,17 @@ async function enqueueColourwayBatch(
   colourwayId: string,
   attemptN: number,
   tx?: Parameters<typeof enqueueDesignGeneration>[1],
+  options?: {
+    angles?: readonly RenderAngle[];
+    posePrompt?: string | null;
+    manualStudio?: boolean;
+  },
 ): Promise<void> {
   const contexts = await buildColourwayBatchContexts(
     designId,
     colourwayId,
     attemptN,
+    options,
   );
 
   for (const ctx of contexts) {
@@ -494,6 +500,7 @@ async function enqueueColourwayBatch(
         sourceImageUrl: ctx.sourceImageUrl,
         seed: ctx.batchSeed,
         attemptN,
+        skipHeroLock: Boolean(options?.manualStudio),
       },
       tx,
     );
@@ -569,19 +576,51 @@ export async function addColourway(payload: {
 export async function generateColourways(payload: {
   designId: string;
   colourwayIds?: string[];
+  /** Manual Studio path — allow DRAFT/PUBLISHED when a FRONT reference exists. */
+  manualStudio?: boolean;
+  includeDefault?: boolean;
+  /** Generate only these gallery angles (cost-saving single-slot path). */
+  angles?: RenderAngle[];
+  /** Commercial pose prompt appended — design + model stay fixed. */
+  posePrompt?: string | null;
 }): Promise<ActionResult> {
   try {
     const session = await requirePermission("designs.create");
     const status = await getDesignPipelineStatus(payload.designId);
-    if (
-      status !== "ANGLES_LOCKED" &&
-      status !== "COLOURWAYS_REVIEW" &&
-      status !== "COLOURWAYS_GENERATING"
-    ) {
+    const pipelineOk =
+      status === "ANGLES_LOCKED" ||
+      status === "COLOURWAYS_REVIEW" ||
+      status === "COLOURWAYS_GENERATING";
+    const manualOk =
+      payload.manualStudio &&
+      (status === "DRAFT" ||
+        status === "PUBLISHED" ||
+        status === "READY_TO_PUBLISH");
+
+    if (!pipelineOk && !manualOk) {
       return {
         ok: false,
         error: `Cannot generate colourways while design is in status "${status ?? "unknown"}".`,
       };
+    }
+
+    if (manualOk) {
+      const front = await db
+        .select({ id: designRenders.id })
+        .from(designRenders)
+        .where(
+          and(
+            eq(designRenders.designId, payload.designId),
+            eq(designRenders.angle, "FRONT"),
+          ),
+        )
+        .limit(1);
+      if (!front[0]) {
+        return {
+          ok: false,
+          error: "Upload a FRONT reference photo before generating angles.",
+        };
+      }
     }
 
     const allCws = await db
@@ -591,15 +630,25 @@ export async function generateColourways(payload: {
 
     let targetIds = payload.colourwayIds?.length
       ? payload.colourwayIds
-      : allCws.filter((c) => !c.isDefault).map((c) => c.id);
+      : payload.includeDefault || payload.manualStudio
+        ? allCws.map((c) => c.id)
+        : allCws.filter((c) => !c.isDefault).map((c) => c.id);
 
-    targetIds = targetIds.filter(
-      (id) => !allCws.find((c) => c.id === id)?.isDefault,
-    );
+    if (!payload.includeDefault && !payload.manualStudio) {
+      targetIds = targetIds.filter(
+        (id) => !allCws.find((c) => c.id === id)?.isDefault,
+      );
+    }
 
     if (targetIds.length === 0) {
-      return { ok: false, error: "No additional colourways to generate." };
+      return { ok: false, error: "No colourways to generate." };
     }
+
+    const angleOpts = {
+      angles: payload.angles,
+      posePrompt: payload.posePrompt,
+      manualStudio: Boolean(payload.manualStudio),
+    };
 
     await db.transaction(async (tx) => {
       if (status === "ANGLES_LOCKED" || status === "COLOURWAYS_REVIEW") {
@@ -624,6 +673,7 @@ export async function generateColourways(payload: {
           colourwayId,
           attemptN,
           tx as never,
+          angleOpts,
         );
       }
     });

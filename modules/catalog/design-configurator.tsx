@@ -4,7 +4,6 @@ import { useQueryStates } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
 import type { BodyOrGarment } from "@aks/shared";
 
-import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
 
 import { DesignColourwayPicker } from "./design-colourway-picker";
@@ -38,7 +37,18 @@ type Props = {
   initialSizeLabel: string | null;
   initialQuantity: number;
   measurementProfileId: string | null;
+  leadTimePromise?: string;
 };
+
+function leadLine(
+  daysOverride: number | null,
+  promise?: string,
+): string {
+  if (daysOverride != null) {
+    return `Made when you order · ${daysOverride} days`;
+  }
+  return promise ?? "Made when you order · 18–24 days";
+}
 
 export function DesignConfigurator({
   design,
@@ -50,6 +60,7 @@ export function DesignConfigurator({
   initialSizeLabel,
   initialQuantity,
   measurementProfileId,
+  leadTimePromise,
 }: Props) {
   const [urlState, setUrlState] = useQueryStates(designDetailParsers, {
     history: "push",
@@ -111,6 +122,13 @@ export function DesignConfigurator({
     imagesByColourway[state.colourwayId] ??
     imagesByColourway[design.defaultColourwayId]!;
 
+  const houseTag = design.tags.find((t) => t.kind === "FREE");
+  const silLine =
+    design.silhouetteLabel ||
+    (houseTag
+      ? `${houseTag.value.replace(/_/g, " ").toLowerCase()} · ${design.garmentCategory.name}`
+      : design.garmentCategory.name);
+
   const patchState = useCallback(
     (patch: Partial<ConfiguratorState>) => {
       if (patch.measurements !== undefined) {
@@ -145,7 +163,7 @@ export function DesignConfigurator({
   );
 
   return (
-    <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+    <div className="pdp-grid">
       <DesignGallery
         images={images}
         angle={state.angle}
@@ -153,19 +171,19 @@ export function DesignConfigurator({
         onAngleChange={(angle) => patchState({ angle })}
       />
 
-      <div>
-        <p className="mb-3.5 text-[12px] uppercase tracking-[0.1em] text-madder">
-          {design.garmentCategory.name}
-        </p>
-        <h1 className="mb-3.5 font-display text-[38px] font-medium leading-tight">
-          {design.name}
-        </h1>
-        <Money value={displayPriceMinor} className="mb-6 block text-[22px]" />
+      <div className="pdp-info">
+        <span className="eyebrow">Made to order</span>
+        <h1 className="serif">{design.name}</h1>
+        <div className="pdp-sil">{silLine}</div>
+        <div className="pdp-price">
+          <Money value={displayPriceMinor} />
+        </div>
+        <div className="pdp-lead">
+          {leadLine(design.leadTimeDaysOverride, leadTimePromise)}
+        </div>
 
         {design.description ? (
-          <p className="mb-7 text-[15px] leading-[1.7] text-ink/75">
-            {design.description}
-          </p>
+          <p className="pdp-desc">{design.description}</p>
         ) : null}
 
         <DesignColourwayPicker
@@ -174,16 +192,14 @@ export function DesignConfigurator({
           onSelect={(id) => patchState({ colourwayId: id })}
         />
 
-        <div className="my-7 border-y border-greige-deep py-5">
-          <DesignSizePicker
-            designSlug={design.slug}
-            sizeMode={state.sizeMode}
-            sizeLabel={state.sizeLabel}
-            onSizeModeChange={(sizeMode) => patchState({ sizeMode })}
-            onSizeLabelChange={(sizeLabel) => patchState({ sizeLabel })}
-            onOpenSizeGuide={() => setSizeGuideOpen(true)}
-          />
-        </div>
+        <DesignSizePicker
+          designSlug={design.slug}
+          sizeMode={state.sizeMode}
+          sizeLabel={state.sizeLabel}
+          onSizeModeChange={(sizeMode) => patchState({ sizeMode })}
+          onSizeLabelChange={(sizeLabel) => patchState({ sizeLabel })}
+          onOpenSizeGuide={() => setSizeGuideOpen(true)}
+        />
 
         <DesignSizeGuideModal
           open={sizeGuideOpen}
@@ -194,72 +210,6 @@ export function DesignConfigurator({
           onMeasurementViewChange={setMeasurementView}
           onSelectSize={handleSelectSizeFromGuide}
         />
-
-        <dl className="mb-7 space-y-3 text-[14px]">
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink/55">Fabric</dt>
-            <dd className="text-end">
-              {selectedColourway.fabricName}
-              {" · "}
-              <Link
-                href={`/fabrics?fabric=${selectedColourway.fabricId}`}
-                className="border-b border-ink/30 text-ink"
-              >
-                Fabric story
-              </Link>
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink/55">Lead time</dt>
-            <dd className="text-end">
-              {formatLeadTime(design.leadTimeDaysOverride)}
-            </dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink/55">Colour</dt>
-            <dd className="text-end">{selectedColourway.name}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-ink/55">Quantity</dt>
-            <dd className="text-end">
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={state.quantity}
-                onChange={(e) => {
-                  const n = Math.max(1, Math.min(99, Number(e.target.value) || 1));
-                  patchState({ quantity: n });
-                }}
-                className="w-16 border border-greige-deep bg-greige px-2 py-1 text-end text-[14px]"
-              />
-            </dd>
-          </div>
-        </dl>
-
-        {design.modelDisclosure ? (
-          <p className="mb-7 text-[13px] leading-relaxed text-ink/60">
-            {design.modelDisclosure}
-          </p>
-        ) : null}
-
-        <ReflectionPanel
-          designId={design.id}
-          designName={design.name}
-          colourwayId={state.colourwayId}
-          archetypeId={design.archetypeId ?? null}
-          colourways={design.colourways.map((c) => ({
-            id: c.id,
-            name: c.name,
-          }))}
-          onColourwayChange={(id) => patchState({ colourwayId: id })}
-        />
-
-        {design.storyCopy ? (
-          <p className="text-[14px] leading-relaxed text-ink/65">
-            {design.storyCopy}
-          </p>
-        ) : null}
 
         <AddToCartButton
           design={design}
@@ -274,6 +224,47 @@ export function DesignConfigurator({
           displayPriceMinor={displayPriceMinor}
           images={images}
         />
+
+        <div className="pdp-detail">
+          <div className="drow">
+            <span className="k">Fabric</span>
+            <span>{selectedColourway.fabricName}</span>
+          </div>
+          <div className="drow">
+            <span className="k">Silhouette</span>
+            <span>{design.garmentCategory.name}</span>
+          </div>
+          <div className="drow">
+            <span className="k">Lead time</span>
+            <span>{formatLeadTime(design.leadTimeDaysOverride)}</span>
+          </div>
+          {design.modelDisclosure ? (
+            <div className="drow">
+              <span className="k">Model</span>
+              <span>{design.modelDisclosure}</span>
+            </div>
+          ) : null}
+        </div>
+
+        <div style={{ marginTop: "2rem" }}>
+          <ReflectionPanel
+            designId={design.id}
+            designName={design.name}
+            colourwayId={state.colourwayId}
+            archetypeId={design.archetypeId ?? null}
+            colourways={design.colourways.map((c) => ({
+              id: c.id,
+              name: c.name,
+            }))}
+            onColourwayChange={(id) => patchState({ colourwayId: id })}
+          />
+        </div>
+
+        {design.storyCopy ? (
+          <p className="pdp-desc" style={{ marginTop: "1.5rem" }}>
+            {design.storyCopy}
+          </p>
+        ) : null}
       </div>
     </div>
   );

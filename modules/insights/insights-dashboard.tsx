@@ -1,7 +1,8 @@
 "use client";
 
 import { Money, Measure } from "@/modules/ui";
-import { formatMetres } from "@/modules/production";
+import { formatMetres } from "@/modules/production/format-metres";
+import { AdminTimeFilter } from "@/modules/admin/time-filter";
 
 import type { InsightsReportData } from "./queries-reports";
 import { ReportTable } from "./report-table";
@@ -13,6 +14,7 @@ import {
 export function InsightsDashboard({ data }: { data: InsightsReportData }) {
   return (
     <div className="flex flex-col gap-8">
+      <AdminTimeFilter />
       <section className="border border-indigo-lift p-4">
         <h2 className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
           Repeat customer rate

@@ -106,6 +106,30 @@ export async function validateCartForCheckout(
   const designById = new Map(designRows.map((d) => [d.id, d]));
   const colourwayById = new Map(colourwayRows.map((c) => [c.id, c]));
 
+  const measurementProfileIds = [
+    ...new Set(
+      lines
+        .filter(
+          (l) =>
+            l.sizeMode === "MADE_TO_MEASURE" && l.measurementProfileId,
+        )
+        .map((l) => l.measurementProfileId!),
+    ),
+  ];
+  const measurementSessions =
+    measurementProfileIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: measurementFlowSessions.id,
+            completedAt: measurementFlowSessions.completedAt,
+          })
+          .from(measurementFlowSessions)
+          .where(inArray(measurementFlowSessions.id, measurementProfileIds));
+  const measurementById = new Map(
+    measurementSessions.map((s) => [s.id, s] as const),
+  );
+
   const issues: CartValidationIssue[] = [];
   const validated: ValidatedCartLine[] = [];
   let subtotalMinor = 0;
@@ -135,11 +159,7 @@ export async function validateCartForCheckout(
       line.sizeMode === "MADE_TO_MEASURE" &&
       line.measurementProfileId
     ) {
-      const [session] = await db
-        .select({ completedAt: measurementFlowSessions.completedAt })
-        .from(measurementFlowSessions)
-        .where(eq(measurementFlowSessions.id, line.measurementProfileId))
-        .limit(1);
+      const session = measurementById.get(line.measurementProfileId);
 
       if (!session?.completedAt) {
         issues.push({

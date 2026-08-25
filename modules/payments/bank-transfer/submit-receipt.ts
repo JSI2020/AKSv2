@@ -1,8 +1,19 @@
 "use server";
 
+import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-import { completeUpload } from "@/modules/platform/assets";
+import { auth } from "@/auth";
+import {
+  checkBankReceiptRateLimit,
+  clientIpFromHeaders,
+  logSignInAttempt,
+} from "@/modules/auth";
+import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
+import {
+  completeUpload,
+  uploadKeyOwnedByPrefix,
+} from "@/modules/platform/assets";
 
 import { createBankTransferPaymentStandalone } from "./create-payment";
 
@@ -21,29 +32,73 @@ export async function submitBankTransferReceipt(input: {
     return { ok: false, error: "Receipt must be an image." };
   }
 
+  const hdrs = await headers();
+  const ip = clientIpFromHeaders(hdrs);
+  const orderNumber = input.orderNumber.trim();
+
+  const rate = await checkBankReceiptRateLimit({ ip, orderNumber });
+  if (!rate.ok) {
+    await logSignInAttempt({
+      email: `order:${orderNumber.toUpperCase()}`,
+      ip,
+      success: false,
+      reason: "bank_receipt_rate",
+    });
+    return {
+      ok: false,
+      error: "Too many receipt uploads. Wait a bit and try again.",
+    };
+  }
+
+  const session = await auth();
+  const allowed: string[] = [];
+  if (session?.user?.id) {
+    allowed.push(`uploads/user/${session.user.id}`);
+  }
+  const anon = await getOrSetAnonToken();
+  allowed.push(`uploads/anon/${anon}`);
+  if (!uploadKeyOwnedByPrefix(input.key, allowed)) {
+    await logSignInAttempt({
+      email: `order:${orderNumber.toUpperCase()}`,
+      ip,
+      success: false,
+      reason: "bank_receipt_bad_key",
+    });
+    return { ok: false, error: "Upload a receipt from this browser session." };
+  }
+
   try {
     const asset = await completeUpload({
       key: input.key,
       mime: input.mime,
       kind: "IMAGE",
+      uploadedById: session?.user?.id,
     });
 
     const { paymentId } = await createBankTransferPaymentStandalone({
-      orderNumber: input.orderNumber,
+      orderNumber,
       receiptAssetId: asset.id,
     });
 
+    await logSignInAttempt({
+      email: `order:${orderNumber.toUpperCase()}`,
+      ip,
+      success: true,
+      reason: "bank_receipt_submit",
+    });
+
     revalidatePath("/admin/payments/verification");
+    revalidatePath("/admin/finance");
     return { ok: true, paymentId };
   } catch (error) {
+    await logSignInAttempt({
+      email: `order:${orderNumber.toUpperCase()}`,
+      ip,
+      success: false,
+      reason: "bank_receipt_submit",
+    });
     const message =
       error instanceof Error ? error.message : "Could not submit receipt.";
     return { ok: false, error: message };
   }
 }
-
-export {
-  applyVerifiedBankTransfer,
-  applyRejectedBankTransfer,
-  CHECKOUT_GUEST_ACTOR_ID,
-} from "./verify-core";

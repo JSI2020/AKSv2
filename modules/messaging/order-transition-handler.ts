@@ -57,6 +57,7 @@ export const handleOrderTransitioned: OutboxHandler = async (payload) => {
       id: orders.id,
       orderNumber: orders.orderNumber,
       guestEmail: orders.guestEmail,
+      whatsappNumber: orders.whatsappNumber,
       userId: orders.userId,
       shippingAddressSnapshot: orders.shippingAddressSnapshot,
     })
@@ -74,41 +75,68 @@ export const handleOrderTransitioned: OutboxHandler = async (payload) => {
         .limit(1)
     : [null];
 
-  const recipient = resolveRecipient({
+  const customerName =
+    user?.name ?? order.shippingAddressSnapshot.recipientName ?? "there";
+  const vars = {
+    orderNumber: order.orderNumber,
+    customerName,
+    trackUrl: trackUrl(order.orderNumber),
+  };
+
+  const emailRecipient = resolveRecipient({
     guestEmail: order.guestEmail,
     userEmail: user?.email ?? null,
   });
-  if (!recipient) return;
-
-  const customerName =
-    user?.name ?? order.shippingAddressSnapshot.recipientName ?? "there";
-
-  const messageLogId = uuidv7();
 
   await db.transaction(async (tx) => {
-    await tx.insert(messageLog).values({
-      id: messageLogId,
-      recipient,
-      templateKey,
-      orderId: order.id,
-      status: "PENDING",
-    });
-
-    await enqueue(
-      "message.send",
-      {
-        messageLogId,
-        recipient,
+    if (emailRecipient) {
+      const messageLogId = uuidv7();
+      await tx.insert(messageLog).values({
+        id: messageLogId,
+        recipient: emailRecipient,
         templateKey,
-        locale: "en",
-        vars: {
+        orderId: order.id,
+        status: "PENDING",
+      });
+      await enqueue(
+        "message.send",
+        {
+          messageLogId,
+          recipient: emailRecipient,
+          templateKey,
+          locale: "en",
+          vars,
+          customerRemark: payload.note ?? null,
+        },
+        tx,
+      );
+    }
+
+    // WhatsApp provider wires later — queue the intent with each stage change.
+    const whatsapp = order.whatsappNumber?.replace(/\D/g, "") ?? "";
+    if (whatsapp.length >= 10) {
+      const waLogId = uuidv7();
+      await tx.insert(messageLog).values({
+        id: waLogId,
+        recipient: whatsapp,
+        templateKey: `whatsapp.${templateKey}`,
+        orderId: order.id,
+        status: "PENDING",
+      });
+      await enqueue(
+        "whatsapp.notify",
+        {
+          messageLogId: waLogId,
+          to: whatsapp,
+          templateKey,
+          orderId: order.id,
           orderNumber: order.orderNumber,
           customerName,
-          trackUrl: trackUrl(order.orderNumber),
+          note: payload.note ?? null,
+          trackUrl: vars.trackUrl,
         },
-        customerRemark: payload.note ?? null,
-      },
-      tx,
-    );
+        tx,
+      );
+    }
   });
 };

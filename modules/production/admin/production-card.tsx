@@ -48,10 +48,32 @@ export function ProductionCard({
         )}
         <div className="min-w-0 flex-1">
           <p className="truncate font-mono text-[12px] text-greige">
-            {card.orderNumber}
+            {card.orderId ? (
+              <Link
+                href={`/admin/orders/${card.orderId}`}
+                className="text-greige hover:text-zari"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {card.orderNumber}
+              </Link>
+            ) : (
+              card.orderNumber
+            )}
           </p>
           <p className="truncate text-[13px] text-greige">{card.customerFirstName}</p>
-          <p className="truncate text-[11px] text-chalk">{card.designName}</p>
+          <p className="truncate text-[11px] text-chalk">
+            {card.designId ? (
+              <Link
+                href={`/admin/designs/${card.designId}`}
+                className="text-chalk hover:text-zari"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                {card.designName}
+              </Link>
+            ) : (
+              card.designName
+            )}
+          </p>
         </div>
       </div>
 

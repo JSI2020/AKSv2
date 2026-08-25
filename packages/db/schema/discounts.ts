@@ -21,6 +21,7 @@ export const discountTypeEnum = pgEnum("discount_type", [
 export const discountAppliesToEnum = pgEnum("discount_applies_to", [
   "ORDER",
   "COLLECTION",
+  "CATEGORY",
   "DESIGN",
   "GARMENT_TYPE",
 ]);

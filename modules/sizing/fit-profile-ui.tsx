@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { applyFitEase, inches } from "@aks/shared";
-import { Measure } from "@/modules/ui";
+import { Measure, formatMeasure, parseMeasureInput } from "@/modules/ui";
 
 import {
   createFitProfile,
@@ -37,10 +37,44 @@ const GOWN_M_BODY: Record<string, number> = {
   LENGTH: inches(52),
 };
 
+const DEFAULT_EASE: Record<string, number> = {
+  WAIST: inches(1),
+  HIP: inches(2),
+};
+
 function bodyForCategory(key: string): Record<string, number> {
   if (key === "TROUSER") return TROUSER_M_BODY;
   if (key === "GOWN") return GOWN_M_BODY;
   return KAMEEZ_M_BODY;
+}
+
+function easeKeysFor(
+  categoryKey: string,
+  ease: Record<string, number>,
+): string[] {
+  const body = bodyForCategory(categoryKey);
+  const keys = new Set([...Object.keys(body), ...Object.keys(ease)]);
+  return [...keys].sort((a, b) => a.localeCompare(b));
+}
+
+function seedEaseForCategory(
+  categoryKey: string,
+  existing?: Record<string, number>,
+): Record<string, number> {
+  const body = bodyForCategory(categoryKey);
+  const next: Record<string, number> = {};
+  for (const key of Object.keys(body)) {
+    next[key] =
+      existing?.[key] ??
+      DEFAULT_EASE[key] ??
+      (key === "BOTTOM_OPENING" ? body[key]! : 0);
+  }
+  if (existing) {
+    for (const [key, value] of Object.entries(existing)) {
+      if (!(key in next)) next[key] = value;
+    }
+  }
+  return next;
 }
 
 type ListProps = {
@@ -170,19 +204,44 @@ export function FitProfileForm({ profile, categories, mode }: FormProps) {
   const [active, setActive] = useState(profile?.active ?? true);
   const [isDefault, setIsDefault] = useState(profile?.isDefault ?? false);
   const [notes, setNotes] = useState(profile?.notes ?? "");
-  const [easeJson, setEaseJson] = useState(
-    JSON.stringify(profile?.easeByMeasurement ?? { WAIST: 100, HIP: 200 }, null, 2),
+
+  const categoryKey = useMemo(() => {
+    if (mode === "edit" && profile) return profile.categoryKey;
+    return categories.find((c) => c.id === categoryId)?.key ?? "KAMEEZ";
+  }, [mode, profile, categories, categoryId]);
+
+  const [ease, setEase] = useState<Record<string, number>>(() =>
+    seedEaseForCategory(
+      mode === "edit" && profile
+        ? profile.categoryKey
+        : (categories.find((c) => c.id === categoryId)?.key ?? "KAMEEZ"),
+      profile?.easeByMeasurement,
+    ),
   );
+
+  // Create mode: when category changes, re-seed ease keys from the new body sample.
+  useEffect(() => {
+    if (mode !== "create") return;
+    setEase((prev) => seedEaseForCategory(categoryKey, prev));
+  }, [mode, categoryKey]);
+
+  const body = useMemo(() => bodyForCategory(categoryKey), [categoryKey]);
+  const keys = useMemo(() => easeKeysFor(categoryKey, ease), [categoryKey, ease]);
+  const finished = useMemo(() => applyFitEase(body, ease), [body, ease]);
+
+  function setEaseKey(key: string, value: number) {
+    setEase((prev) => ({ ...prev, [key]: value }));
+  }
 
   function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    let ease: unknown;
-    try {
-      ease = JSON.parse(easeJson);
-    } catch {
-      setError("easeByMeasurement must be valid JSON");
-      return;
+
+    for (const [key, value] of Object.entries(ease)) {
+      if (!Number.isInteger(value)) {
+        setError(`${key} ease must be integer hundredths of an inch.`);
+        return;
+      }
     }
 
     const fd = new FormData();
@@ -216,7 +275,7 @@ export function FitProfileForm({ profile, categories, mode }: FormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-3">
+    <form onSubmit={onSubmit} className="flex max-w-2xl flex-col gap-3">
       <label className="flex flex-col gap-1">
         <span className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
           Name
@@ -266,17 +325,65 @@ export function FitProfileForm({ profile, categories, mode }: FormProps) {
         />
       </label>
 
-      <label className="flex flex-col gap-1">
-        <span className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
-          Ease by measurement (JSON, hundredths)
-        </span>
-        <textarea
-          value={easeJson}
-          onChange={(e) => setEaseJson(e.target.value)}
-          rows={8}
-          className="border border-indigo-lift bg-indigo px-2 py-1.5 font-data text-[12px] text-greige outline-none focus:border-zari"
-        />
-      </label>
+      <div className="border border-indigo-lift p-3">
+        <p className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
+          Ease · size M preview
+        </p>
+        <p className="mt-1 text-[12px] text-chalk">
+          Ease is stored as hundredths of an inch. Finished = body + ease
+          (BOTTOM_OPENING is absolute finished opening).
+        </p>
+        <table className="mt-3 w-full border-collapse text-[13px]">
+          <thead>
+            <tr className="border-b border-indigo-lift">
+              <th className="py-1 text-start font-sans text-[11px] uppercase tracking-[0.1em] text-chalk">
+                Key
+              </th>
+              <th className="py-1 text-end font-sans text-[11px] uppercase tracking-[0.1em] text-chalk">
+                Ease
+              </th>
+              <th className="py-1 text-end font-sans text-[11px] uppercase tracking-[0.1em] text-chalk">
+                Body
+              </th>
+              <th className="py-1 text-end font-sans text-[11px] uppercase tracking-[0.1em] text-chalk">
+                Finished
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {keys.map((key) => (
+              <tr key={key} className="border-b border-indigo-lift/60">
+                <td className="py-1.5 font-data text-[12px] text-greige">
+                  {key}
+                  {key === "BOTTOM_OPENING" ? (
+                    <span className="ms-1 text-[10px] text-chalk">abs</span>
+                  ) : null}
+                </td>
+                <td className="py-1.5 text-end">
+                  <EaseInput
+                    value={ease[key] ?? 0}
+                    onCommit={(raw) => {
+                      const parsed = parseMeasureInput(raw, "in");
+                      if (parsed === null) return;
+                      setEaseKey(key, parsed);
+                    }}
+                  />
+                </td>
+                <td className="py-1.5 text-end">
+                  {body[key] !== undefined ? (
+                    <Measure value={body[key]!} />
+                  ) : (
+                    <span className="text-chalk">—</span>
+                  )}
+                </td>
+                <td className="py-1.5 text-end text-zari">
+                  <Measure value={finished[key] ?? ease[key] ?? 0} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <label className="flex flex-col gap-1">
         <span className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
@@ -337,5 +444,45 @@ export function FitProfileForm({ profile, categories, mode }: FormProps) {
         {pending ? "Saving…" : "Save"}
       </button>
     </form>
+  );
+}
+
+/** Editable ease cell — display inches, store hundredths. */
+function EaseInput({
+  value,
+  onCommit,
+}: {
+  value: number;
+  onCommit: (raw: string) => void;
+}) {
+  const display = formatMeasure(value, "in").replace(/[″]/g, "");
+  const [draft, setDraft] = useState(display);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (!focused) setDraft(display);
+  }, [display, focused]);
+
+  return (
+    <input
+      value={focused ? draft : display}
+      onFocus={() => {
+        setFocused(true);
+        setDraft(display);
+      }}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        setFocused(false);
+        onCommit(draft);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          (e.target as HTMLInputElement).blur();
+        }
+      }}
+      className="ms-auto w-20 border border-indigo-lift bg-indigo px-1.5 py-0.5 text-end font-data text-[12px] text-greige outline-none focus:border-zari"
+      aria-label="Ease in inches"
+    />
   );
 }

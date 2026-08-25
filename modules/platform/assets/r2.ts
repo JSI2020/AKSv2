@@ -50,10 +50,14 @@ export async function createPresignedUploadUrl(input: {
   key?: string;
   contentType: string;
   expiresInSeconds?: number;
+  /** Required for new keys — binds object to user or anon namespace. */
+  keyPrefix?: string;
 }): Promise<{ url: string; key: string }> {
   const client = createR2Client();
   await ensureBucket(client);
-  const key = input.key ?? `uploads/${uuidv7()}`;
+  const key =
+    input.key ??
+    `${input.keyPrefix ?? "uploads/unscoped"}/${uuidv7()}`;
   const command = new PutObjectCommand({
     Bucket: getBucket(),
     Key: key,
@@ -63,6 +67,19 @@ export async function createPresignedUploadUrl(input: {
     expiresIn: input.expiresInSeconds ?? 600,
   });
   return { url, key };
+}
+
+/** True when `key` is under an allowed ownership prefix. */
+export function uploadKeyOwnedByPrefix(
+  key: string,
+  allowedPrefixes: string[],
+): boolean {
+  const normalized = key.replace(/^\/+/, "");
+  return allowedPrefixes.some(
+    (prefix) =>
+      normalized === prefix.replace(/\/$/, "") ||
+      normalized.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
+  );
 }
 
 export async function createPresignedReadUrl(

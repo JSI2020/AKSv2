@@ -1,5 +1,6 @@
 import { requirePermission, userHasPermission } from "@/modules/auth";
 import { AdminNuqsProvider } from "@/modules/admin";
+import { resolveTimeRange } from "@/modules/admin/time-filter";
 import { Eyebrow } from "@/modules/ui";
 
 import { ProductionBoardClient } from "@/modules/production/admin/production-board-client";
@@ -20,6 +21,13 @@ export default async function ProductionPage({ searchParams }: PageProps) {
   const session = await requirePermission("production.view");
   const params = productionBoardSearchParamsCache.parse(await searchParams);
   const filters = searchParamsToProductionFilters(params);
+  const time = resolveTimeRange({
+    preset: params.range,
+    fromKey: params.from,
+    toKey: params.to,
+  });
+  filters.dateFrom = time.from;
+  filters.dateTo = time.to;
 
   const tailorOnly = await userHasPermission(session.user.id, "production.view");
   const hasOrders = await userHasPermission(session.user.id, "orders.view");

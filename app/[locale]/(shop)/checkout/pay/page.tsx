@@ -1,6 +1,7 @@
+import { getLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
-import { Link } from "@/i18n/routing";
+import { Link, redirect } from "@/i18n/routing";
 import { readBankTransferConfigOrNull } from "@/modules/payments/bank-transfer/config";
 import { getOrderForBankTransfer } from "@/modules/payments/bank-transfer/queries";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
@@ -13,10 +14,11 @@ type Props = {
 
 export default async function CheckoutPayPage({ searchParams }: Props) {
   const params = await searchParams;
-  const orderNumber = params.order?.trim();
+  const orderNumber = params.order?.trim() ?? "";
 
   if (!orderNumber) {
-    notFound();
+    const locale = await getLocale();
+    redirect({ href: "/", locale });
   }
 
   const order = await getOrderForBankTransfer(orderNumber);

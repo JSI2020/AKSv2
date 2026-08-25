@@ -33,6 +33,8 @@ export type EnqueueDesignGenerationInput = {
   inputAssetIds?: string[];
   sourceImageUrl: string;
   attemptN?: number;
+  /** Manual Studio — FRONT reference photo, no AI hero lock. */
+  skipHeroLock?: boolean;
 };
 
 async function resolveModelId(
@@ -79,7 +81,9 @@ export async function enqueueDesignGeneration(
     throw new Error(cap.message);
   }
 
-  await assertHeroLockedForDownstream(input.designId, input.stage);
+  if (!input.skipHeroLock) {
+    await assertHeroLockedForDownstream(input.designId, input.stage);
+  }
 
   const attemptN =
     input.attemptN ??

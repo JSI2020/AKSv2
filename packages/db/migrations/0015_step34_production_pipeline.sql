@@ -1,11 +1,11 @@
 -- Step 34: granular production pipeline, message templates, message log
+-- NOTE: enum ADD VALUE must commit before any UPDATE that uses the new labels.
+-- The IN_PRODUCTION → CUTTING backfill lives in 0035_order_status_cutting_backfill.sql.
 
 ALTER TYPE "public"."order_status" ADD VALUE IF NOT EXISTS 'CUTTING';--> statement-breakpoint
 ALTER TYPE "public"."order_status" ADD VALUE IF NOT EXISTS 'STITCHING';--> statement-breakpoint
 ALTER TYPE "public"."order_status" ADD VALUE IF NOT EXISTS 'EMBROIDERY';--> statement-breakpoint
 ALTER TYPE "public"."order_status" ADD VALUE IF NOT EXISTS 'FINISHING';--> statement-breakpoint
-
-UPDATE "orders" SET "status" = 'CUTTING' WHERE "status" = 'IN_PRODUCTION';--> statement-breakpoint
 
 ALTER TABLE "orders" ADD COLUMN IF NOT EXISTS "skip_embroidery" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 

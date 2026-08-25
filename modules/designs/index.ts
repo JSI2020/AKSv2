@@ -11,6 +11,8 @@ export {
   upsertCustomizationOption,
   addCustomizationValue,
   publishDesign,
+  unpublishDesign,
+  archiveDesign,
   getDesignFormOptions,
 } from "./actions";
 export type { DesignListItem, DesignDetail, DesignActionResult } from "./actions";
@@ -35,3 +37,15 @@ export type {
   StudioFormOptions,
   StudioManualResult,
 } from "./studio-manual-actions";
+export {
+  saveStudioAnglePicks,
+  syncStudioColourways,
+  generateStudioAngles,
+  attachReferencePhoto,
+} from "./studio-photo-actions";
+export {
+  allocateItemNumber,
+  houseDoorOptions,
+  isHouseDoorTag,
+  HOUSE_ITEM_CODES,
+} from "./item-number";

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import {
   db,
   designCosts,
+  designs,
   fabrics,
   insertAuditLog,
   rates,
@@ -50,7 +51,7 @@ export async function saveDesignCosting(
   try {
     const session = await requirePermission("money.edit_costs");
     const designId = String(formData.get("designId") ?? "");
-    const fabricId = String(formData.get("fabricId") ?? "");
+    let fabricId = String(formData.get("fabricId") ?? "");
     const fabricMeters = Number.parseInt(
       String(formData.get("fabricMeters") ?? ""),
       10,
@@ -69,42 +70,129 @@ export async function saveDesignCosting(
       String(formData.get("packagingMinor") ?? "0"),
       10,
     );
-    const sellingPriceMinor = Number.parseInt(
-      String(formData.get("sellingPriceMinor") ?? ""),
+    const shippingMinor = Number.parseInt(
+      String(formData.get("shippingMinor") ?? "0"),
       10,
     );
+    const overheadMinor = Number.parseInt(
+      String(formData.get("overheadMinor") ?? "0"),
+      10,
+    );
+    const costingMode =
+      String(formData.get("costingMode") ?? "DETAILED_PER_PIECE").trim() ||
+      "DETAILED_PER_PIECE";
+    const pieceCostsRaw = String(formData.get("pieceCostsJson") ?? "[]");
+    const totalLumpsumRaw = String(formData.get("totalLumpsumMinor") ?? "").trim();
+    const totalLumpsumMinor = totalLumpsumRaw
+      ? Number.parseInt(totalLumpsumRaw, 10)
+      : null;
+
+    // Selling price for margin comes from design retail (Price tab), not a draft here.
+    const [designPrice] = await db
+      .select({ basePriceMinor: designs.basePriceMinor })
+      .from(designs)
+      .where(eq(designs.id, designId))
+      .limit(1);
+    const sellingPriceMinor = designPrice?.basePriceMinor ?? 0;
+
+    let pieceCosts: Array<{
+      componentKey: string;
+      mode: "DETAILED" | "LUMPSUM";
+      fabricId?: string | null;
+      fabricMeters?: number;
+      stitchingRateId?: string | null;
+      stitchingFlatMinor?: number | null;
+      embroideryRateId?: string | null;
+      embroideryFlatMinor?: number | null;
+      lumpsumMinor?: number | null;
+    }> = [];
+    try {
+      pieceCosts = JSON.parse(pieceCostsRaw) as typeof pieceCosts;
+    } catch {
+      return { ok: false, error: "Invalid piece costs" };
+    }
 
     if (
       !designId ||
-      !fabricId ||
-      !Number.isInteger(fabricMeters) ||
-      fabricMeters < 0 ||
       !Number.isInteger(packagingMinor) ||
       packagingMinor < 0 ||
-      !Number.isInteger(sellingPriceMinor) ||
-      sellingPriceMinor < 0
+      !Number.isInteger(shippingMinor) ||
+      shippingMinor < 0 ||
+      !Number.isInteger(overheadMinor) ||
+      overheadMinor < 0
     ) {
       return { ok: false, error: "Invalid costing input" };
     }
 
-    const [fabric] = await db
+    if (!fabricId) {
+      const [anyFabric] = await db
+        .select({ id: fabrics.id })
+        .from(fabrics)
+        .where(eq(fabrics.active, true))
+        .limit(1);
+      if (!anyFabric) return { ok: false, error: "Add a fabric first" };
+      fabricId = anyFabric.id;
+    }
+
+    if (!Number.isInteger(fabricMeters) || fabricMeters < 0) {
+      return { ok: false, error: "Invalid fabric metres" };
+    }
+
+    let fabricMetersFinal = fabricMeters;
+    let embroideryRateIdFinal = embroideryRateId;
+    let embroideryFlatFinal = embroideryFlatMinor;
+    let stitchingRateIdFinal = stitchingRateId;
+    let stitchingFlatFinal = stitchingFlatMinor;
+
+    if (costingMode === "TOTAL_LUMPSUM" && totalLumpsumMinor != null) {
+      fabricMetersFinal = 0;
+      embroideryRateIdFinal = null;
+      embroideryFlatFinal = totalLumpsumMinor;
+      stitchingRateIdFinal = null;
+      stitchingFlatFinal = 0;
+    } else if (pieceCosts.length > 0) {
+      let metres = 0;
+      let stitchFlat = 0;
+      let embFlat = 0;
+      let firstFabric = fabricId;
+      for (const piece of pieceCosts) {
+        if (piece.mode === "LUMPSUM") {
+          embFlat += Math.max(0, piece.lumpsumMinor ?? 0);
+        } else {
+          metres += Math.max(0, piece.fabricMeters ?? 0);
+          stitchFlat += Math.max(0, piece.stitchingFlatMinor ?? 0);
+          embFlat += Math.max(0, piece.embroideryFlatMinor ?? 0);
+          if (piece.fabricId) firstFabric = piece.fabricId;
+        }
+      }
+      fabricMetersFinal = metres;
+      stitchingFlatFinal = stitchFlat;
+      embroideryFlatFinal = embFlat;
+      stitchingRateIdFinal = null;
+      embroideryRateIdFinal = null;
+      fabricId = firstFabric;
+    }
+
+    const [fabricFinal] = await db
       .select({ costPerMeterMinor: fabrics.costPerMeterMinor })
       .from(fabrics)
       .where(eq(fabrics.id, fabricId))
       .limit(1);
-    if (!fabric) return { ok: false, error: "Fabric not found" };
+    if (!fabricFinal) return { ok: false, error: "Fabric not found" };
 
     const ratesById = await loadRatesById();
     const aiCostMinor = await aiCostMinorForDesign(designId);
 
     const breakdown = computeDesignCost({
-      fabricCostPerMeterMinor: fabric.costPerMeterMinor,
-      fabricMeters,
-      embroideryRateId,
-      embroideryFlatMinor,
-      stitchingRateId,
-      stitchingFlatMinor,
+      fabricCostPerMeterMinor: fabricFinal.costPerMeterMinor,
+      fabricMeters: fabricMetersFinal,
+      embroideryRateId: embroideryRateIdFinal,
+      embroideryFlatMinor: embroideryFlatFinal,
+      stitchingRateId: stitchingRateIdFinal,
+      stitchingFlatMinor: stitchingFlatFinal,
       packagingMinor,
+      shippingMinor,
+      overheadMinor,
       aiCostMinor,
       sellingPriceMinor,
       ratesById,
@@ -121,12 +209,18 @@ export async function saveDesignCosting(
       .values({
         designId,
         fabricId,
-        fabricMeters,
-        embroideryRateId,
-        embroideryFlatMinor,
-        stitchingRateId,
-        stitchingFlatMinor,
+        fabricMeters: fabricMetersFinal,
+        embroideryRateId: embroideryRateIdFinal,
+        embroideryFlatMinor: embroideryFlatFinal,
+        stitchingRateId: stitchingRateIdFinal,
+        stitchingFlatMinor: stitchingFlatFinal,
         packagingMinor,
+        shippingMinor,
+        overheadMinor,
+        costingMode,
+        pieceCosts,
+        totalLumpsumMinor:
+          costingMode === "TOTAL_LUMPSUM" ? totalLumpsumMinor : null,
         aiCostMinor,
         totalCostMinor: breakdown.totalCostMinor,
         sellingPriceMinor,
@@ -137,12 +231,18 @@ export async function saveDesignCosting(
         target: designCosts.designId,
         set: {
           fabricId,
-          fabricMeters,
-          embroideryRateId,
-          embroideryFlatMinor,
-          stitchingRateId,
-          stitchingFlatMinor,
+          fabricMeters: fabricMetersFinal,
+          embroideryRateId: embroideryRateIdFinal,
+          embroideryFlatMinor: embroideryFlatFinal,
+          stitchingRateId: stitchingRateIdFinal,
+          stitchingFlatMinor: stitchingFlatFinal,
           packagingMinor,
+          shippingMinor,
+          overheadMinor,
+          costingMode,
+          pieceCosts,
+          totalLumpsumMinor:
+            costingMode === "TOTAL_LUMPSUM" ? totalLumpsumMinor : null,
           aiCostMinor,
           totalCostMinor: breakdown.totalCostMinor,
           sellingPriceMinor,

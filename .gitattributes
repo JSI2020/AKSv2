@@ -1,0 +1,4 @@
+# Force LF for shell scripts so Windows checkouts don't break Docker ENTRYPOINT
+# (CRLF → `exec /app/scripts/docker-entrypoint.sh: no such file or directory`).
+*.sh text eol=lf
+scripts/docker-entrypoint.sh text eol=lf

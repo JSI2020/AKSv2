@@ -96,11 +96,14 @@ async function insertStaffUser(role: StaffRole) {
   return id;
 }
 
+/** Test-only prefix — never wipe live catalogue/user swatches under uploads/user|anon. */
+const TEST_ASSET_PREFIX = "uploads/test/bank-transfer-cod/";
+
 async function insertAsset() {
   const id = uuidv7();
   await db.insert(assets).values({
     id,
-    r2Key: `uploads/${id}`,
+    r2Key: `${TEST_ASSET_PREFIX}${id}`,
     mime: "image/jpeg",
     width: 100,
     height: 100,
@@ -154,8 +157,10 @@ describe("bank transfer and COD", () => {
     await db.delete(customerProfiles);
     await db.delete(orderEvents);
     await db.delete(orders);
-    // Only wipe receipt uploads from this suite — catalogue assets stay.
-    await db.delete(assets).where(like(assets.r2Key, "uploads/%"));
+    // Only this suite's receipt fixtures — never uploads/user|anon (fabric swatches).
+    await db
+      .delete(assets)
+      .where(like(assets.r2Key, `${TEST_ASSET_PREFIX}%`));
   });
 
   afterAll(async () => {

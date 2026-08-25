@@ -4,7 +4,8 @@ import Link from "next/link";
 import { auth } from "@/auth";
 import { Eyebrow } from "@/modules/ui";
 import { getStaffDetail, StaffDetailPanel } from "@/modules/staff";
-import { getStaffRelated, StaffRelatedPanels } from "@/modules/insights";
+import { StaffRelatedPanels } from "@/modules/insights/related-panels";
+import { getStaffRelated } from "@/modules/insights/queries-related";
 import {
   PermissionDeniedError,
   UnauthenticatedError,

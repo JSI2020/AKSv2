@@ -3,17 +3,16 @@ import type { ReactNode } from "react";
 import { auth } from "@/auth";
 import { CartDrawer } from "@/modules/cart/cart-drawer";
 import { CartProvider } from "@/modules/cart/cart-context";
+import { AddToCartToast } from "@/modules/cart/add-toast";
 import { loadActiveCart } from "@/modules/cart/queries";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
-import {
-  ShopFloatActions,
-  ShopFooter,
-  ShopHeader,
-  ShopMarquee,
-  ShopUtilityBar,
-} from "@/modules/shop/shell/chrome";
-import { ShopMobileNav } from "@/modules/shop/shell/mobile-nav";
+import { ShopFooter, ShopHeader } from "@/modules/shop/shell/chrome";
 import { ShopNuqsProvider } from "@/modules/shop/shell/nuqs-provider";
+import {
+  fontShopDisplay,
+  fontShopSans,
+  fontShopUrdu,
+} from "@/lib/fonts";
 
 export default async function ShopLayout({
   children,
@@ -28,15 +27,14 @@ export default async function ShopLayout({
   return (
     <ShopNuqsProvider>
       <CartProvider initialCart={initialCart}>
-        <div className="flex min-h-dvh flex-col bg-greige text-ink">
-          <ShopUtilityBar />
-          <ShopMarquee />
+        <div
+          className={`shop-proto flex min-h-dvh flex-col ${fontShopSans.variable} ${fontShopDisplay.variable} ${fontShopUrdu.variable}`}
+        >
           <ShopHeader />
-          <ShopMobileNav />
           <div className="flex-1">{children}</div>
           <ShopFooter />
-          <ShopFloatActions />
           <CartDrawer />
+          <AddToCartToast />
         </div>
       </CartProvider>
     </ShopNuqsProvider>

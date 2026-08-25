@@ -15,6 +15,7 @@ export const PERMISSION_MODULES = {
   ],
   designs: ["view", "create", "edit", "publish", "delete"],
   fabric: ["view", "create", "edit", "adjust_stock", "delete"],
+  inventory: ["view", "adjust"],
   customers: ["view", "edit", "export", "delete"],
   money: [
     "view",
@@ -29,6 +30,8 @@ export const PERMISSION_MODULES = {
   production: ["view", "advance_stage", "assign"],
   discounts: ["view", "create", "edit", "delete"],
   tryon: ["view", "edit", "purge"],
+  photoreal: ["view", "generate", "edit"],
+  content: ["view", "create", "edit", "publish", "delete"],
 } as const;
 
 type ModuleName = keyof typeof PERMISSION_MODULES;
@@ -85,6 +88,8 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRole, readonly PermissionKey[
       "fabric.create",
       "fabric.edit",
       "fabric.adjust_stock",
+      "inventory.view",
+      "inventory.adjust",
       "customers.view",
       "customers.edit",
       "customers.export",
@@ -95,6 +100,13 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<StaffRole, readonly PermissionKey[
       "discounts.create",
       "discounts.edit",
       "tryon.view",
+      "photoreal.view",
+      "photoreal.generate",
+      "photoreal.edit",
+      "content.view",
+      "content.create",
+      "content.edit",
+      "content.publish",
     ],
 
     /** Orders + production: view, edit, advance. No delete, money, settings. */

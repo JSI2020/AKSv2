@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 
 import { Money } from "@/modules/ui";
 import { RENDER_ANGLES, type RenderAngle } from "@aks/shared";
@@ -427,24 +428,34 @@ export function StudioManualForm({ options }: { options: StudioFormOptions }) {
                         className={`${fieldClass()} min-w-0 flex-1`}
                       />
                     </div>
-                    <select
-                      value={c.fabricId}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setColours((prev) =>
-                          prev.map((row) =>
-                            row.key === c.key ? { ...row, fabricId: v } : row,
-                          ),
-                        );
-                      }}
-                      className={fieldClass()}
-                    >
-                      {options.fabrics.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="flex flex-col gap-1">
+                      <select
+                        value={c.fabricId}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setColours((prev) =>
+                            prev.map((row) =>
+                              row.key === c.key ? { ...row, fabricId: v } : row,
+                            ),
+                          );
+                        }}
+                        className={fieldClass()}
+                      >
+                        {options.fabrics.map((f) => (
+                          <option key={f.id} value={f.id}>
+                            {f.name}
+                          </option>
+                        ))}
+                      </select>
+                      {c.fabricId ? (
+                        <Link
+                          href={`/admin/fabrics/${c.fabricId}`}
+                          className="text-[11px] text-ink hover:text-zari"
+                        >
+                          Open fabric
+                        </Link>
+                      ) : null}
+                    </div>
                     <button
                       type="button"
                       disabled={colours.length <= 1}

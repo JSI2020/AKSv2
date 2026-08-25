@@ -52,7 +52,7 @@ export function cartLineFingerprint(input: {
   measurementProfileId: string | null;
   customizationSelections: CartCustomizationSelections;
 }): string {
-  const selections = Object.keys(input.customizationSelections)
+  const selections = Object.keys(input.customizationSelections ?? {})
     .sort()
     .reduce<CartCustomizationSelections>((acc, key) => {
       acc[key] = input.customizationSelections[key]!;
@@ -63,8 +63,10 @@ export function cartLineFingerprint(input: {
     designId: input.designId,
     colourwayId: input.colourwayId,
     sizeMode: input.sizeMode,
-    sizeLabel: input.sizeLabel,
-    measurementProfileId: input.measurementProfileId,
+    sizeLabel: input.sizeLabel?.trim() || null,
+    // Standard sizes never key off a measurement profile.
+    measurementProfileId:
+      input.sizeMode === "STANDARD" ? null : input.measurementProfileId,
     customizationSelections: selections,
   });
 }

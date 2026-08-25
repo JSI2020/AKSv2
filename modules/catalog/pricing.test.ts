@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveDisplayPrice } from "./pricing";
+import { resolveDisplayPrice, resolvePercentOffBadge } from "./pricing";
 
 describe("resolveDisplayPrice", () => {
   it("shows compare-at only inside the schedule window", () => {
@@ -13,5 +13,19 @@ describe("resolveDisplayPrice", () => {
     expect(resolveDisplayPrice(base, new Date("2026-06-01")).onSale).toBe(true);
     expect(resolveDisplayPrice(base, new Date("2025-06-01")).onSale).toBe(false);
     expect(resolveDisplayPrice(base, new Date("2027-01-01")).compareAtMinor).toBeNull();
+  });
+});
+
+describe("resolvePercentOffBadge", () => {
+  it("gives design compare-at priority over automatic category discount", () => {
+    expect(
+      resolvePercentOffBadge({ compareAtPercent: 15, automaticPercent: 30 }),
+    ).toBe(15);
+    expect(
+      resolvePercentOffBadge({ compareAtPercent: null, automaticPercent: 20 }),
+    ).toBe(20);
+    expect(
+      resolvePercentOffBadge({ compareAtPercent: null, automaticPercent: null }),
+    ).toBeNull();
   });
 });

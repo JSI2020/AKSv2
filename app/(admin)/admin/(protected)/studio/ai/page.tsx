@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { Eyebrow } from "@/modules/ui";
@@ -38,9 +39,9 @@ export default async function StudioAiBriefPage({ searchParams }: Props) {
         <p className="mt-1 max-w-2xl text-[13.5px] text-ink/55">
           Photoreal path — fabric and colour feed generation. For manual
           catalogue entry with your own photos, use{" "}
-          <a href="/admin/studio/new" className="text-zari hover:underline">
+          <Link href="/admin/studio/new" className="text-zari hover:underline">
             New design
-          </a>
+          </Link>
           .
           {data.collection ? ` Collection: ${data.collection.label}.` : ""}
         </p>

@@ -13,6 +13,7 @@ import {
 
 import { authConfig } from "./auth.config";
 import {
+  checkOtpVerifyRateLimit,
   clientIpFromHeaders,
   consumeEmailOtp,
   consumeRecoveryCode,
@@ -85,6 +86,21 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             userAgent,
             success: false,
             reason: "missing_credentials",
+          });
+          throw new OtpInvalid();
+        }
+
+        const verifyLimit = await checkOtpVerifyRateLimit({
+          email,
+          reasons: ["otp_invalid", "2fa_invalid"],
+        });
+        if (!verifyLimit.ok) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "otp_verify_locked",
           });
           throw new OtpInvalid();
         }

@@ -12,10 +12,10 @@ export {
 export { createProductionJobsForOrder } from "./create-jobs";
 export { listProductionBoard, listActiveStaff } from "./queries";
 export { computeStaffWorkload } from "./workload";
+export { formatMetres } from "./format-metres";
 export {
   getTailorSpecSheet,
   getTailorSpecSheetForPrint,
   buildCutSpecRows,
-  formatMetres,
 } from "./spec-sheet";
 export type { TailorSpecSheet, TailorSpecCutRow } from "./spec-sheet";

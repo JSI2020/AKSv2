@@ -416,8 +416,10 @@ async function seed() {
     );
   }
 
-  const { seedMessageTemplates } = await import("../../modules/messaging/actions");
-  await seedMessageTemplates();
+  const { seedMessageTemplatesIntoDb } = await import(
+    "../../modules/messaging/seed-templates"
+  );
+  await seedMessageTemplatesIntoDb();
   console.log("seeded message_templates");
 
   console.log(`uuidv7 sample: ${uuidv7()}`);

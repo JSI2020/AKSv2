@@ -13,6 +13,8 @@ export type DisplayPrice = {
   /** Struck-through compare-at when the schedule is active and higher than price. */
   compareAtMinor: number | null;
   onSale: boolean;
+  /** Computed % off when on sale — never typed by admin. */
+  percentOff: number | null;
 };
 
 export function resolveDisplayPrice(
@@ -25,6 +27,7 @@ export function resolveDisplayPrice(
       priceMinor: input.basePriceMinor,
       compareAtMinor: null,
       onSale: false,
+      percentOff: null,
     };
   }
 
@@ -34,9 +37,29 @@ export function resolveDisplayPrice(
   const beforeEnd = !ends || ends.getTime() >= now.getTime();
   const onSale = afterStart && beforeEnd;
 
+  const percentOff =
+    onSale && compare > 0
+      ? Math.round(((compare - input.basePriceMinor) / compare) * 100)
+      : null;
+
   return {
     priceMinor: input.basePriceMinor,
     compareAtMinor: onSale ? compare : null,
     onSale,
+    percentOff: percentOff != null && percentOff > 0 ? percentOff : null,
   };
+}
+
+/**
+ * Merge compare-at % off with an automatic percentage discount (collection/category).
+ * Design-level compare-at discount always wins when present.
+ */
+export function resolvePercentOffBadge(input: {
+  compareAtPercent: number | null;
+  automaticPercent: number | null;
+}): number | null {
+  const design = input.compareAtPercent ?? 0;
+  if (design > 0) return design;
+  const auto = input.automaticPercent ?? 0;
+  return auto > 0 ? auto : null;
 }

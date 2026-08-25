@@ -1,8 +1,17 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTransition } from "react";
 
-import { Money } from "@/modules/ui";
+import { ConfirmDialog, Money } from "@/modules/ui";
 
+import {
+  archiveDesign,
+  publishDesign,
+  unpublishDesign,
+} from "./actions";
 import type { StudioCatalogCard, StudioCatalogGroup } from "./studio-catalog";
 
 function StatusPill({ active, status }: { active: boolean; status: string }) {
@@ -15,28 +24,58 @@ function StatusPill({ active, status }: { active: boolean; status: string }) {
       }
     >
       {active ? "Active" : "Inactive"}
-      <span className="ms-1 opacity-60">· {status}</span>
+      <span className="ms-1 opacity-60">· {status.replaceAll("_", " ")}</span>
     </span>
   );
 }
 
+function editHref(design: StudioCatalogCard) {
+  return `/admin/designs/${design.id}?tab=Preview`;
+}
+
 function StudioDesignCard({ design }: { design: StudioCatalogCard }) {
-  const href =
-    design.status === "DRAFT" || design.status === "PUBLISHED"
-      ? `/admin/designs/${design.id}`
-      : `/admin/studio/${design.id}`;
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const href = editHref(design);
+  const canPublish =
+    design.status === "DRAFT" || design.status === "READY_TO_PUBLISH";
+  const isPublished = design.status === "PUBLISHED";
 
   const sizes =
     design.availableSizeLabels.length > 0
       ? design.availableSizeLabels.join(" · ")
       : null;
 
+  function onDelete() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", design.id);
+      const res = await archiveDesign(fd);
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function onPublish() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", design.id);
+      const res = await publishDesign(fd);
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function onUnpublish() {
+    startTransition(async () => {
+      const fd = new FormData();
+      fd.set("id", design.id);
+      const res = await unpublishDesign(fd);
+      if (res.ok) router.refresh();
+    });
+  }
+
   return (
-    <Link
-      href={href}
-      className="group flex flex-col border border-ink/10 bg-milk transition-colors hover:border-ink/30"
-    >
-      <div className="relative aspect-[3/4] bg-ivory">
+    <article className="flex flex-col border border-ink/10 bg-milk">
+      <Link href={href} className="relative aspect-[3/4] bg-ivory">
         {design.thumbnailUrl ? (
           <Image
             src={design.thumbnailUrl}
@@ -53,27 +92,35 @@ function StudioDesignCard({ design }: { design: StudioCatalogCard }) {
             </p>
           </div>
         )}
-        <div className="absolute inset-inline-start-2 top-2 flex flex-col gap-1">
+        <div className="absolute inset-inline-start-2 top-2">
           <StatusPill active={design.active} status={design.status} />
-          {design.featured ? (
-            <span className="bg-indigo px-2 py-0.5 font-sans text-[10px] uppercase tracking-[0.12em] text-greige">
-              Featured
-            </span>
-          ) : null}
         </div>
-      </div>
+        {design.compareAtPriceMinor != null &&
+        design.compareAtPriceMinor > design.basePriceMinor ? (
+          <span className="absolute inset-inline-end-2 top-2 bg-ink px-1.5 py-0.5 font-sans text-[10px] uppercase tracking-[0.1em] text-milk">
+            −
+            {Math.round(
+              (1 - design.basePriceMinor / design.compareAtPriceMinor) * 100,
+            )}
+            %
+          </span>
+        ) : null}
+      </Link>
 
       <div className="flex flex-1 flex-col gap-2 px-3 py-3">
-        <div>
+        <Link href={href} className="block">
           <p className="font-display text-[1.15rem] leading-tight text-ink">
             {design.name}
           </p>
           {design.subtitle ? (
             <p className="mt-0.5 text-[12.5px] text-ink/55">{design.subtitle}</p>
           ) : null}
-        </div>
+          <p className="mt-1 font-sans text-[10px] uppercase tracking-[0.1em] text-ink/40">
+            {design.categoryName}
+          </p>
+        </Link>
 
-        <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-1">
+        <div className="flex flex-wrap items-end justify-between gap-2 pt-1">
           <div>
             {design.basePriceMinor > 0 ? (
               <p className="font-data text-[13px] text-ink">
@@ -94,7 +141,6 @@ function StudioDesignCard({ design }: { design: StudioCatalogCard }) {
               {design.colourwayCount} colour
               {design.colourwayCount === 1 ? "" : "s"}
               {sizes ? ` · ${sizes}` : ""}
-              {design.madeToMeasureOffered ? " · Custom" : ""}
             </p>
           </div>
           {design.colourwayHexes.length > 0 ? (
@@ -109,8 +155,52 @@ function StudioDesignCard({ design }: { design: StudioCatalogCard }) {
             </div>
           ) : null}
         </div>
+
+        <div className="mt-auto flex flex-wrap gap-2 border-t border-ink/10 pt-3">
+          {isPublished ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={onUnpublish}
+              className="flex-1 border border-ink/20 px-2 py-1.5 text-[12px] text-ink/55 disabled:opacity-50"
+            >
+              Unpublish
+            </button>
+          ) : canPublish ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={onPublish}
+              className="flex-1 border border-zari bg-zari px-2 py-1.5 text-[12px] text-indigo disabled:opacity-50"
+            >
+              Publish
+            </button>
+          ) : (
+            <Link
+              href={href}
+              className="flex-1 border border-ink/15 px-2 py-1.5 text-center text-[12px] text-ink/55"
+            >
+              Open
+            </Link>
+          )}
+          <ConfirmDialog
+            title="Delete this design?"
+            description={`“${design.name}” will be archived.`}
+            confirmLabel="Delete"
+            trigger={
+              <button
+                type="button"
+                disabled={pending}
+                className="flex-1 border border-madder/35 px-2 py-1.5 text-[12px] text-madder disabled:opacity-50"
+              >
+                Delete
+              </button>
+            }
+            onConfirm={onDelete}
+          />
+        </div>
       </div>
-    </Link>
+    </article>
   );
 }
 
@@ -130,7 +220,7 @@ export function StudioCatalogGrid({
           ready.
         </p>
         <Link
-          href="/admin/studio/new"
+          href="/admin/designs/new"
           className="mt-5 inline-block border border-zari bg-zari px-4 py-2 text-[13px] text-indigo"
         >
           New design

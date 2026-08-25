@@ -7,6 +7,7 @@ import {
   db,
   designGenerations,
   designLocks,
+  designRenders,
   fabrics,
 } from "@aks/db";
 import type { RenderAngle } from "@aks/shared";
@@ -30,11 +31,51 @@ export type ColourwayPromptContext = {
   templateVersion: number;
   sourceImageUrl: string;
   inputAssetIds: string[];
-  parentGenerationId: string;
+  parentGenerationId: string | null;
   colourwayId: string;
   batchSeed: number;
   batchGroupId: string;
 };
+
+/**
+ * Manual Studio: use uploaded FRONT reference as the source for every slot.
+ * Pose/camera change is driven by the prompt — same model & design.
+ */
+export async function resolveManualReferenceSources(
+  designId: string,
+): Promise<LockedAngleSource[]> {
+  const [front] = await db
+    .select({
+      id: designRenders.id,
+      assetId: designRenders.assetId,
+    })
+    .from(designRenders)
+    .where(
+      and(
+        eq(designRenders.designId, designId),
+        eq(designRenders.angle, "FRONT"),
+      ),
+    )
+    .orderBy(desc(designRenders.createdAt))
+    .limit(1);
+
+  if (!front) {
+    throw new Error("Upload a FRONT reference photo before generating angles.");
+  }
+
+  const imageUrl = await resolveAssetReadUrl(front.assetId);
+  if (!imageUrl) {
+    throw new Error("Reference photo is not readable — re-upload and try again.");
+  }
+
+  return GALLERY_ANGLES.map((angle) => ({
+    angle,
+    generationId: front.id,
+    assetId: front.assetId,
+    imageUrl,
+    archetypeId: null,
+  }));
+}
 
 function batchSeedFor(colourwayId: string, attemptN: number): number {
   const hex = createHash("sha256")
@@ -151,9 +192,15 @@ export async function buildColourwayPromptContext(
   colourwayId: string,
   angle: RenderAngle,
   attemptN: number,
+  options?: { manualStudio?: boolean },
 ): Promise<ColourwayPromptContext> {
-  const locked = await resolveLockedGalleryAngles(designId);
-  const source = locked.find((s) => s.angle === angle);
+  const locked = options?.manualStudio
+    ? await resolveManualReferenceSources(designId)
+    : await resolveLockedGalleryAngles(designId);
+  const source =
+    locked.find((s) => s.angle === angle) ??
+    locked.find((s) => s.angle === "FRONT") ??
+    locked[0];
   if (!source) {
     throw new Error(`No locked source for angle ${angle}.`);
   }
@@ -188,7 +235,7 @@ export async function buildColourwayPromptContext(
     templateVersion: 1,
     sourceImageUrl: source.imageUrl,
     inputAssetIds: [source.assetId],
-    parentGenerationId: source.generationId,
+    parentGenerationId: options?.manualStudio ? null : source.generationId,
     colourwayId,
     batchSeed,
     batchGroupId,
@@ -199,12 +246,28 @@ export async function buildColourwayBatchContexts(
   designId: string,
   colourwayId: string,
   attemptN: number,
+  options?: {
+    angles?: readonly RenderAngle[];
+    posePrompt?: string | null;
+    manualStudio?: boolean;
+  },
 ): Promise<ColourwayPromptContext[]> {
-  return Promise.all(
-    GALLERY_ANGLES.map((angle) =>
-      buildColourwayPromptContext(designId, colourwayId, angle, attemptN),
+  const angles = options?.angles?.length
+    ? options.angles
+    : GALLERY_ANGLES;
+  const contexts = await Promise.all(
+    angles.map((angle) =>
+      buildColourwayPromptContext(designId, colourwayId, angle, attemptN, {
+        manualStudio: options?.manualStudio,
+      }),
     ),
   );
+  const poseLine = options?.posePrompt?.trim();
+  if (!poseLine) return contexts;
+  return contexts.map((ctx) => ({
+    ...ctx,
+    prompt: `${ctx.prompt} ${poseLine} Keep the exact same garment design and the same model identity — only fabric colour and camera pose/angle may change.`,
+  }));
 }
 
 export { GALLERY_ANGLES };

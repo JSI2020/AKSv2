@@ -42,6 +42,7 @@ export function applicableSubtotalMinor(
         .filter((line) => discount.targetIds.includes(line.garmentTypeId))
         .reduce((sum, line) => sum + line.lineTotalMinor, 0);
     case "COLLECTION":
+    case "CATEGORY":
       return lines
         .filter((line) => collectionDesignIds.has(line.designId))
         .reduce((sum, line) => sum + line.lineTotalMinor, 0);

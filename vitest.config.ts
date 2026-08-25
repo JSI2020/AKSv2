@@ -15,6 +15,12 @@ export default defineConfig({
       ["modules/orders/**/*.test.ts", "node"],
       ["modules/payments/**/*.test.ts", "node"],
       ["modules/ai/**/*.test.ts", "node"],
+      ["modules/customers/**/*.test.ts", "node"],
+      ["modules/content/**/*.test.ts", "node"],
+      ["modules/discounts/**/*.test.ts", "node"],
+      ["modules/finance/**/*.test.ts", "node"],
+      ["modules/admin/**/*.test.ts", "node"],
+      ["modules/money/**/*.test.ts", "node"],
     ],
     coverage: {
       include: [

@@ -188,7 +188,7 @@ export function ReviewStep({
           type="button"
           onClick={onBack}
           disabled={pending}
-          className="w-full border border-greige-deep px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-ink disabled:opacity-40"
+          className="btn-secondary"
         >
           Back
         </button>
@@ -196,7 +196,7 @@ export function ReviewStep({
           type="button"
           onClick={onPlaceOrder}
           disabled={pending || checking || validationIssues.length > 0}
-          className="w-full border border-ink bg-ink px-4 py-3 text-[12px] uppercase tracking-[0.08em] text-greige disabled:opacity-40"
+          className="btn-primary"
         >
           {pending ? "Placing order…" : "Place order"}
         </button>

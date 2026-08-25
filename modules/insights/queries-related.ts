@@ -38,6 +38,11 @@ import {
 } from "@aks/db";
 
 import { requirePermission } from "@/modules/auth";
+import {
+  deriveProductionStatus,
+  PRODUCTION_STATUS_LABELS,
+} from "@/modules/orders/status";
+import type { OrderStatus } from "@/modules/orders/constants";
 import { lotAvailableMeters } from "@/modules/inventory/lot-status";
 
 const PLACED_STATUSES = sql`${orders.status} not in ('DRAFT', 'CANCELLED')`;
@@ -98,6 +103,7 @@ export type CustomerOrderRow = {
   placedAt: Date | null;
   totalMinor: number;
   status: string;
+  productionLabel: string;
 };
 
 export type CustomerMeasurementProfileRow = {
@@ -124,7 +130,7 @@ export type CustomerMessageRow = {
 };
 
 export type CustomerRelatedData = {
-  userId: string;
+  userId: string | null;
   name: string | null;
   email: string | null;
   phone: string | null;
@@ -135,6 +141,7 @@ export type CustomerRelatedData = {
   measurementProfiles: CustomerMeasurementProfileRow[];
   fabricsPurchased: CustomerFabricRow[];
   messages: CustomerMessageRow[];
+  isGuest?: boolean;
 };
 
 export async function getCustomerRelated(
@@ -262,7 +269,10 @@ export async function getCustomerRelated(
     whatsappNumber: profile?.whatsappNumber ?? null,
     lifetimeValueMinor: profile?.lifetimeValueMinor ?? 0,
     totalOrdersCount: profile?.totalOrdersCount ?? orderRows.length,
-    orders: orderRows,
+    orders: orderRows.map((row) => ({
+      ...row,
+      productionLabel: productionStatusLabel(row.status),
+    })),
     measurementProfiles: profileRows,
     fabricsPurchased: fabricRows.map((r) => ({
       fabricId: r.fabricId,
@@ -270,6 +280,71 @@ export async function getCustomerRelated(
       totalMetersConsumed: r.totalMetersConsumed,
     })),
     messages: messageRows,
+  };
+}
+
+function productionStatusLabel(status: string): string {
+  return (
+    PRODUCTION_STATUS_LABELS[deriveProductionStatus(status as OrderStatus)] ??
+    status
+  );
+}
+
+/** Guest customers keyed by WhatsApp — no registered user account. */
+export async function getGuestCustomerRelated(
+  whatsappRaw: string,
+): Promise<CustomerRelatedData | null> {
+  await requirePermission("customers.view");
+  const whatsapp = whatsappRaw.replace(/\D/g, "");
+  if (whatsapp.length < 10) return null;
+
+  const orderRows = await db
+    .select({
+      id: orders.id,
+      orderNumber: orders.orderNumber,
+      placedAt: orders.placedAt,
+      totalMinor: orders.totalMinor,
+      status: orders.status,
+      guestEmail: orders.guestEmail,
+      shippingAddressSnapshot: orders.shippingAddressSnapshot,
+    })
+    .from(orders)
+    .where(
+      and(
+        or(
+          eq(orders.whatsappNumber, whatsapp),
+          eq(orders.whatsappNumber, whatsappRaw),
+        ),
+        PLACED_STATUSES,
+      ),
+    )
+    .orderBy(desc(orders.placedAt));
+
+  if (orderRows.length === 0) return null;
+
+  const latest = orderRows[0]!;
+  const lifetimeValueMinor = orderRows.reduce((s, o) => s + o.totalMinor, 0);
+
+  return {
+    userId: null,
+    name: latest.shippingAddressSnapshot.recipientName,
+    email: latest.guestEmail,
+    phone: latest.shippingAddressSnapshot.phone,
+    whatsappNumber: whatsappRaw,
+    lifetimeValueMinor,
+    totalOrdersCount: orderRows.length,
+    orders: orderRows.map((row) => ({
+      id: row.id,
+      orderNumber: row.orderNumber,
+      placedAt: row.placedAt,
+      totalMinor: row.totalMinor,
+      status: row.status,
+      productionLabel: productionStatusLabel(row.status),
+    })),
+    measurementProfiles: [],
+    fabricsPurchased: [],
+    messages: [],
+    isGuest: true,
   };
 }
 

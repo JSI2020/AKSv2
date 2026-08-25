@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AdminNuqsProvider } from "@/modules/admin";
+import { resolveTimeRange } from "@/modules/admin/time-filter";
 import { EmptyState, Eyebrow } from "@/modules/ui";
 import {
   PermissionDeniedError,
@@ -9,11 +10,14 @@ import {
   requirePermission,
 } from "@/modules/auth";
 import {
+  getOrdersListOverview,
   listOrders,
   OrdersTable,
   orderListSearchParamsCache,
   searchParamsToOrderFilters,
+  OPEN_PRODUCTION_STATUSES,
 } from "@/modules/orders";
+import { OrdersOverview } from "@/modules/orders/admin/orders-overview";
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -22,11 +26,34 @@ export default async function AdminOrdersPage({
 }) {
   const params = orderListSearchParamsCache.parse(await searchParams);
   const filters = searchParamsToOrderFilters(params);
+  const time = resolveTimeRange({
+    preset: params.range,
+    fromKey: params.from,
+    toKey: params.to,
+  });
+  filters.dateFrom = time.from;
+  filters.dateTo = time.to;
+
+  // Default chip: All open (non-terminal pipeline)
+  if (
+    !params.view &&
+    params.production.length === 0 &&
+    params.payment.length === 0 &&
+    !params.due &&
+    !params.completedThisMonth &&
+    !params.q
+  ) {
+    filters.productionStatus = [...OPEN_PRODUCTION_STATUSES];
+  }
 
   let result;
+  let overview;
   let canCreate = false;
   try {
-    result = await listOrders(filters);
+    [result, overview] = await Promise.all([
+      listOrders(filters),
+      getOrdersListOverview(),
+    ]);
     try {
       await requirePermission("orders.create");
       canCreate = true;
@@ -43,34 +70,47 @@ export default async function AdminOrdersPage({
     throw e;
   }
 
+  const hasFilters =
+    Boolean(params.q) ||
+    params.production.length > 0 ||
+    params.payment.length > 0 ||
+    Boolean(params.due) ||
+    Boolean(params.completedThisMonth) ||
+    Boolean(params.view);
+
   return (
     <AdminNuqsProvider>
       <div className="flex flex-col gap-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <Eyebrow>Orders</Eyebrow>
-            <h1 className="mt-1 font-display text-3xl text-greige">Orders</h1>
-            <p className="mt-1 max-w-xl text-[13px] text-chalk">
-              Production and payment status are tracked separately on every order.
+            <Eyebrow className="text-ink/55">Sell</Eyebrow>
+            <h1 className="mt-2 font-display text-[2.4rem] font-light leading-none text-ink">
+              Orders
+            </h1>
+            <p className="mt-2 max-w-xl text-[13.5px] text-ink/55">
+              Standard sizes XS–XXL · production and payment tracked separately.
             </p>
           </div>
           {canCreate ? (
             <Link
               href="/admin/orders/new"
-              className="border border-zari bg-zari px-3 py-1.5 text-[13px] text-indigo"
+              className="bg-ink px-5 py-2.5 text-[12px] uppercase tracking-[0.1em] text-milk transition-colors hover:bg-madder"
             >
-              New manual order
+              + New manual order
             </Link>
           ) : null}
         </div>
 
-        {result.total === 0 && !params.q && params.production.length === 0 ? (
+        <OrdersOverview overview={overview} />
+
+        {result.total === 0 && !hasFilters && overview.open === 0 ? (
           <EmptyState
+            tone="on-greige"
             title="No orders yet"
             description="When a guest completes checkout, the order will appear here with its measurement snapshot frozen."
           />
         ) : (
-          <OrdersTable result={result} />
+          <OrdersTable result={result} overview={overview} />
         )}
       </div>
     </AdminNuqsProvider>

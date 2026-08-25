@@ -1,13 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 
-import { Eyebrow } from "@/modules/ui";
-import {
-  PermissionDeniedError,
-  UnauthenticatedError,
-} from "@/modules/auth";
-import { getFabric } from "@/modules/sizing/fabric-archetype-actions";
-import { FabricForm } from "@/modules/sizing/fabric-archetype-ui";
-import { FabricRelatedPanels, getFabricRelated } from "@/modules/insights";
+import { PermissionDeniedError, UnauthenticatedError } from "@/modules/auth";
+import { FabricEditor } from "@/modules/fabrics/admin/fabric-editor";
+import { getFabric } from "@/modules/sizing/fabric-admin-actions";
+import { getFabricStockDetail } from "@/modules/inventory";
+import { getFabricRelated } from "@/modules/insights/queries-related";
 
 export default async function EditFabricPage({
   params,
@@ -16,9 +13,14 @@ export default async function EditFabricPage({
 }) {
   const { id } = await params;
   let fabric;
+  let stock;
   let related = null;
   try {
-    [fabric, related] = await Promise.all([getFabric(id), getFabricRelated(id)]);
+    [fabric, stock, related] = await Promise.all([
+      getFabric(id),
+      getFabricStockDetail(id),
+      getFabricRelated(id),
+    ]);
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -28,16 +30,14 @@ export default async function EditFabricPage({
     }
     throw e;
   }
-  if (!fabric) notFound();
+  if (!fabric || !stock) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Eyebrow>Fabric</Eyebrow>
-        <h1 className="mt-1 font-display text-3xl text-greige">{fabric.name}</h1>
-      </div>
-      <FabricForm fabric={fabric} />
-      {related ? <FabricRelatedPanels data={related} /> : null}
-    </div>
+    <FabricEditor
+      mode="edit"
+      fabric={fabric}
+      stock={stock}
+      designs={related?.designs ?? []}
+    />
   );
 }

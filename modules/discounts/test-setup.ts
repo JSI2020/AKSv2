@@ -11,35 +11,46 @@ export async function ensureDiscountsSchema(): Promise<void> {
     drizzleSql`SELECT to_regclass('public.discounts') IS NOT NULL AS ready`,
   );
   const ready = Boolean((result as unknown as { ready: boolean }[])[0]?.ready);
-  if (ready) return;
+  if (!ready) {
+    const migrationPath = path.join(
+      process.cwd(),
+      "packages/db/migrations/0024_step49_discounts.sql",
+    );
+    const raw = fs.readFileSync(migrationPath, "utf8");
+    const statements = raw
+      .split("--> statement-breakpoint")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
-  const migrationPath = path.join(
-    process.cwd(),
-    "packages/db/migrations/0024_step49_discounts.sql",
-  );
-  const raw = fs.readFileSync(migrationPath, "utf8");
-  const statements = raw
-    .split("--> statement-breakpoint")
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  for (const statement of statements) {
-    try {
-      await db.execute(drizzleSql.raw(statement));
-    } catch (error) {
-      const message = [
-        error instanceof Error ? error.message : String(error),
-        error instanceof Error && "cause" in error && error.cause instanceof Error
-          ? error.cause.message
-          : "",
-      ].join(" ");
-      if (
-        message.includes("already exists") ||
-        message.includes("duplicate key")
-      ) {
-        continue;
+    for (const statement of statements) {
+      try {
+        await db.execute(drizzleSql.raw(statement));
+      } catch (error) {
+        const message = [
+          error instanceof Error ? error.message : String(error),
+          error instanceof Error && "cause" in error && error.cause instanceof Error
+            ? error.cause.message
+            : "",
+        ].join(" ");
+        if (
+          message.includes("already exists") ||
+          message.includes("duplicate key")
+        ) {
+          continue;
+        }
+        throw error;
       }
-      throw error;
     }
+  }
+
+  // Keep test DB aligned with production unique index (prevents duplicate codes).
+  try {
+    await db.execute(
+      drizzleSql.raw(
+        `CREATE UNIQUE INDEX IF NOT EXISTS "discounts_code_uidx" ON "discounts" ("code")`,
+      ),
+    );
+  } catch {
+    // index may already exist under another name
   }
 }

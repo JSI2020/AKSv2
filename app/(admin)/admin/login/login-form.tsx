@@ -104,7 +104,7 @@ export function LoginForm() {
           disabled={step !== "email" || pending}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="border border-indigo-lift bg-indigo px-3 py-2 text-[13px] text-greige outline-none focus-visible:border-chalk"
+          className="border border-chalk/50 bg-indigo-lift px-3 py-2 text-[13px] text-greige outline-none placeholder:text-chalk/60 focus-visible:border-chalk"
         />
       </label>
 
@@ -124,7 +124,7 @@ export function LoginForm() {
             disabled={step === "2fa" || pending}
             value={otp}
             onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-            className="border border-indigo-lift bg-indigo px-3 py-2 font-data text-[13px] tracking-[0.2em] text-greige outline-none focus-visible:border-chalk"
+            className="border border-chalk/50 bg-indigo-lift px-3 py-2 font-data text-[13px] tracking-[0.2em] text-greige outline-none focus-visible:border-chalk"
           />
         </label>
       ) : null}
@@ -143,7 +143,7 @@ export function LoginForm() {
               disabled={pending}
               value={recoveryCode}
               onChange={(e) => setRecoveryCode(e.target.value)}
-              className="border border-indigo-lift bg-indigo px-3 py-2 font-data text-[13px] text-greige outline-none focus-visible:border-chalk"
+              className="border border-chalk/50 bg-indigo-lift px-3 py-2 font-data text-[13px] text-greige outline-none focus-visible:border-chalk"
             />
           </label>
         ) : (
@@ -164,7 +164,7 @@ export function LoginForm() {
               onChange={(e) =>
                 setTotp(e.target.value.replace(/\D/g, "").slice(0, 6))
               }
-              className="border border-indigo-lift bg-indigo px-3 py-2 font-data text-[13px] tracking-[0.2em] text-greige outline-none focus-visible:border-chalk"
+              className="border border-chalk/50 bg-indigo-lift px-3 py-2 font-data text-[13px] tracking-[0.2em] text-greige outline-none focus-visible:border-chalk"
             />
           </label>
         )

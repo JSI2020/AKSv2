@@ -1,9 +1,10 @@
 "use server";
 
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
+  assets,
   colourways,
   db,
   designRenders,
@@ -21,10 +22,12 @@ import {
 import {
   isValidDesignTag,
   RENDER_ANGLES,
+  STANDARD_SIZE_LABELS,
   uuidv7,
   type RenderAngle,
 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
+import { createPresignedReadUrl } from "@/modules/platform/assets";
 import { transition } from "@/modules/platform/transition";
 
 import { evaluatePublishChecklist } from "./publish-checklist";
@@ -78,7 +81,9 @@ export type DesignDetail = {
   categoryKey: string;
   tags: { kind: string; value: string }[];
   colourways: (typeof colourways.$inferSelect)[];
-  renders: (typeof designRenders.$inferSelect)[];
+  renders: Array<
+    typeof designRenders.$inferSelect & { previewUrl: string | null }
+  >;
   options: {
     option: typeof customizationOptions.$inferSelect;
     values: (typeof customizationOptionValues.$inferSelect)[];
@@ -131,12 +136,35 @@ export async function getDesign(id: string): Promise<DesignDetail | null> {
     options.push({ option, values });
   }
 
+  const assetIds = [...new Set(renders.map((r) => r.assetId))];
+  const allAssets =
+    assetIds.length > 0
+      ? await db
+          .select({ id: assets.id, r2Key: assets.r2Key })
+          .from(assets)
+          .where(inArray(assets.id, assetIds))
+      : [];
+
+  const urlByAsset = new Map<string, string>();
+  await Promise.all(
+    allAssets.map(async (a) => {
+      try {
+        urlByAsset.set(a.id, await createPresignedReadUrl(a.r2Key, 3600));
+      } catch {
+        /* missing R2 in local */
+      }
+    }),
+  );
+
   return {
     design: row.design,
     categoryKey: row.categoryKey,
     tags,
     colourways: cws,
-    renders,
+    renders: renders.map((r) => ({
+      ...r,
+      previewUrl: urlByAsset.get(r.assetId) ?? null,
+    })),
     options,
   };
 }
@@ -205,15 +233,54 @@ export async function updateDesignDetails(
     const nameUr = String(formData.get("nameUr") ?? "").trim();
     const description = String(formData.get("description") ?? "").trim() || null;
     const storyCopy = String(formData.get("storyCopy") ?? "").trim() || null;
-    const garmentTypeId = String(formData.get("garmentTypeId") ?? "");
-    const featured = String(formData.get("featured") ?? "") === "true";
+    const subtitle = String(formData.get("subtitle") ?? "").trim();
+    const silhouetteLabel = String(
+      formData.get("silhouetteLabel") ?? "",
+    ).trim();
+    const modelInfo = String(formData.get("modelInfo") ?? "").trim();
     const seoTitle = String(formData.get("seoTitle") ?? "").trim() || null;
     const seoDescription =
       String(formData.get("seoDescription") ?? "").trim() || null;
+    const houseDoorTag = String(formData.get("houseDoorTag") ?? "").trim();
+    const componentsRaw = String(formData.get("componentsJson") ?? "[]");
 
-    if (!id || !name || !garmentTypeId) {
+    let componentKeys: string[] = [];
+    try {
+      const parsed = JSON.parse(componentsRaw) as unknown;
+      if (!Array.isArray(parsed) || parsed.length < 1) {
+        return { ok: false, error: "Select at least one article type" };
+      }
+      componentKeys = parsed.map((k) => String(k).trim()).filter(Boolean);
+    } catch {
+      return { ok: false, error: "Invalid article types" };
+    }
+
+    if (!id || !name || componentKeys.length < 1) {
       return { ok: false, error: "Invalid input" };
     }
+
+    const { allocateItemNumber, isHouseDoorTag, rebuildItemNumberKeepingQuartet } =
+      await import("./item-number");
+
+    if (houseDoorTag && !isHouseDoorTag(houseDoorTag)) {
+      return { ok: false, error: "Invalid house door" };
+    }
+
+    const cats = await db
+      .select({
+        id: garmentCategories.id,
+        key: garmentCategories.key,
+      })
+      .from(garmentCategories)
+      .where(eq(garmentCategories.active, true));
+    const byKey = new Map(cats.map((c) => [c.key, c]));
+    for (const key of componentKeys) {
+      if (!byKey.has(key)) {
+        return { ok: false, error: `Unknown article type: ${key}` };
+      }
+    }
+    const primary = byKey.get(componentKeys[0]!)!;
+    const garmentTypeId = primary.id;
 
     const before = await db
       .select()
@@ -222,6 +289,42 @@ export async function updateDesignDetails(
       .limit(1);
     if (!before[0]) return { ok: false, error: "Not found" };
 
+    let itemNumber = before[0].itemNumber;
+    if (houseDoorTag) {
+      const rebuilt = rebuildItemNumberKeepingQuartet(
+        before[0].itemNumber,
+        houseDoorTag,
+      );
+      if (rebuilt) {
+        const clash = await db
+          .select({ id: designs.id })
+          .from(designs)
+          .where(eq(designs.itemNumber, rebuilt))
+          .limit(1);
+        if (clash[0] && clash[0].id !== id) {
+          itemNumber = await allocateItemNumber(houseDoorTag, async (c) => {
+            const rows = await db
+              .select({ id: designs.id })
+              .from(designs)
+              .where(eq(designs.itemNumber, c))
+              .limit(1);
+            return Boolean(rows[0] && rows[0].id !== id);
+          });
+        } else {
+          itemNumber = rebuilt;
+        }
+      } else if (!itemNumber) {
+        itemNumber = await allocateItemNumber(houseDoorTag, async (c) => {
+          const rows = await db
+            .select({ id: designs.id })
+            .from(designs)
+            .where(eq(designs.itemNumber, c))
+            .limit(1);
+          return Boolean(rows[0]);
+        });
+      }
+    }
+
     await db
       .update(designs)
       .set({
@@ -229,13 +332,44 @@ export async function updateDesignDetails(
         nameUr,
         description,
         storyCopy,
+        subtitle,
+        silhouetteLabel,
+        modelInfo,
         garmentTypeId,
-        featured,
+        components: componentKeys,
+        itemNumber,
         seoTitle,
         seoDescription,
         updatedAt: new Date(),
       })
       .where(eq(designs.id, id));
+
+    if (houseDoorTag) {
+      const existingTags = await db
+        .select()
+        .from(designTags)
+        .where(eq(designTags.designId, id));
+      const keep = existingTags.filter(
+        (t) =>
+          !(
+            t.kind === "FREE" &&
+            isHouseDoorTag(t.value)
+          ),
+      );
+      await db.delete(designTags).where(eq(designTags.designId, id));
+      for (const t of keep) {
+        await db.insert(designTags).values({
+          designId: id,
+          kind: t.kind as "OCCASION" | "SEASON" | "WORK" | "FREE",
+          value: t.value,
+        });
+      }
+      await db.insert(designTags).values({
+        designId: id,
+        kind: "FREE",
+        value: houseDoorTag,
+      });
+    }
 
     await insertAuditLog(db, {
       id: uuidv7(),
@@ -245,11 +379,12 @@ export async function updateDesignDetails(
       entityType: "design",
       entityId: id,
       before: { name: before[0].name },
-      after: { name, garmentTypeId, featured },
+      after: { name, garmentTypeId, components: componentKeys, itemNumber },
     });
 
     revalidatePath(`/admin/designs/${id}`);
     revalidatePath("/admin/designs");
+    revalidatePath("/admin/studio");
     return { ok: true, id };
   } catch (e) {
     return {
@@ -281,6 +416,11 @@ export async function updateDesignPricing(
     const leadTimeDaysOverride = leadRaw
       ? Number.parseInt(leadRaw, 10)
       : null;
+    const compareRaw = String(formData.get("compareAtPriceMinor") ?? "").trim();
+    const compareAtPriceMinor =
+      compareRaw === ""
+        ? null
+        : Number.parseInt(compareRaw, 10);
 
     if (
       !id ||
@@ -290,11 +430,18 @@ export async function updateDesignPricing(
     ) {
       return { ok: false, error: "Invalid pricing" };
     }
+    if (
+      compareAtPriceMinor != null &&
+      (!Number.isInteger(compareAtPriceMinor) || compareAtPriceMinor < 0)
+    ) {
+      return { ok: false, error: "Invalid compare-at price" };
+    }
 
     await db
       .update(designs)
       .set({
         basePriceMinor,
+        compareAtPriceMinor,
         madeToMeasureSurchargeMinor,
         fabricConsumptionMeters,
         leadTimeDaysOverride,
@@ -310,10 +457,11 @@ export async function updateDesignPricing(
       entityType: "design",
       entityId: id,
       before: null,
-      after: { basePriceMinor, fabricConsumptionMeters },
+      after: { basePriceMinor, compareAtPriceMinor, fabricConsumptionMeters },
     });
 
     revalidatePath(`/admin/designs/${id}`);
+    revalidatePath("/admin/studio");
     return { ok: true, id };
   } catch (e) {
     return {
@@ -330,7 +478,12 @@ export async function updateDesignSizing(
     const session = await requirePermission("designs.edit");
     const id = String(formData.get("id") ?? "");
     const sizeBlockId = String(formData.get("sizeBlockId") ?? "") || null;
+    const fitProfilesRaw = String(formData.get("fitProfilesJson") ?? "").trim();
     const fitProfileId = String(formData.get("fitProfileId") ?? "") || null;
+    const sizesRaw = String(formData.get("availableSizeLabelsJson") ?? "").trim();
+    const pieceBlocksRaw = String(
+      formData.get("pieceSizeBlocksJson") ?? "",
+    ).trim();
 
     if (!id) return { ok: false, error: "Invalid input" };
 
@@ -341,22 +494,68 @@ export async function updateDesignSizing(
       .limit(1);
     if (!design[0]) return { ok: false, error: "Not found" };
 
-    const cat = await db
-      .select({ key: garmentCategories.key })
-      .from(garmentCategories)
-      .where(eq(garmentCategories.id, design[0].garmentTypeId))
-      .limit(1);
+    let fitProfileIds = design[0].fitProfileIds ?? {};
+    if (fitProfilesRaw) {
+      try {
+        const parsed = JSON.parse(fitProfilesRaw) as Record<string, string>;
+        fitProfileIds = Object.fromEntries(
+          Object.entries(parsed).filter(([, v]) => Boolean(v)),
+        );
+      } catch {
+        return { ok: false, error: "Invalid fit profiles" };
+      }
+    } else if (fitProfileId) {
+      const cat = await db
+        .select({ key: garmentCategories.key })
+        .from(garmentCategories)
+        .where(eq(garmentCategories.id, design[0].garmentTypeId))
+        .limit(1);
+      if (cat[0]) fitProfileIds = { [cat[0].key]: fitProfileId };
+    }
 
-    const fitProfileIds =
-      fitProfileId && cat[0]
-        ? { [cat[0].key]: fitProfileId }
-        : design[0].fitProfileIds;
+    let availableSizeLabels = design[0].availableSizeLabels ?? [];
+    if (sizesRaw) {
+      try {
+        const parsed = JSON.parse(sizesRaw) as string[];
+        availableSizeLabels = parsed.filter((v) =>
+          (STANDARD_SIZE_LABELS as readonly string[]).includes(v),
+        );
+      } catch {
+        return { ok: false, error: "Invalid sizes" };
+      }
+    }
+
+    let pieceSizeBlocks = design[0].pieceSizeBlocks ?? {};
+    if (pieceBlocksRaw) {
+      try {
+        const parsed = JSON.parse(pieceBlocksRaw) as Record<string, string>;
+        pieceSizeBlocks = Object.fromEntries(
+          Object.entries(parsed).filter(([, v]) => Boolean(v)),
+        );
+      } catch {
+        return { ok: false, error: "Invalid piece size blocks" };
+      }
+    }
+
+    const madeToMeasureOffered =
+      String(formData.get("madeToMeasureOffered") ?? "") === "true";
+
+    /** Primary sizeBlockId: first piece fork, else explicit, else existing. */
+    const components = design[0].components ?? [];
+    const primaryKey = components[0];
+    const resolvedPrimary =
+      (primaryKey ? pieceSizeBlocks[primaryKey] : undefined) ??
+      sizeBlockId ??
+      design[0].sizeBlockId;
 
     await db
       .update(designs)
       .set({
-        sizeBlockId,
+        sizeBlockId: resolvedPrimary,
+        pieceSizeBlocks,
         fitProfileIds,
+        availableSizeLabels,
+        madeToMeasureOffered,
         updatedAt: new Date(),
       })
       .where(eq(designs.id, id));
@@ -369,7 +568,13 @@ export async function updateDesignSizing(
       entityType: "design",
       entityId: id,
       before: null,
-      after: { sizeBlockId, fitProfileIds },
+      after: {
+        sizeBlockId: resolvedPrimary,
+        pieceSizeBlocks,
+        fitProfileIds,
+        availableSizeLabels,
+        madeToMeasureOffered,
+      },
     });
 
     revalidatePath(`/admin/designs/${id}`);
@@ -459,6 +664,15 @@ export async function upsertColourway(
     const slug = slugify(
       String(formData.get("slug") ?? "").trim() || name,
     );
+    let pieceFabrics: Record<string, string> = {};
+    const pieceRaw = String(formData.get("pieceFabricsJson") ?? "").trim();
+    if (pieceRaw) {
+      try {
+        pieceFabrics = JSON.parse(pieceRaw) as Record<string, string>;
+      } catch {
+        return { ok: false, error: "Invalid piece fabrics" };
+      }
+    }
 
     if (!designId || !name || !fabricId || !Number.isInteger(priceDeltaMinor)) {
       return { ok: false, error: "Invalid colourway" };
@@ -481,6 +695,7 @@ export async function upsertColourway(
           slug,
           fabricId,
           hexApproximation,
+          pieceFabrics,
           priceDeltaMinor,
           isDefault,
           sortOrder,
@@ -496,6 +711,7 @@ export async function upsertColourway(
         slug,
         fabricId,
         hexApproximation,
+        pieceFabrics,
         priceDeltaMinor,
         isDefault,
         sortOrder,
@@ -774,11 +990,116 @@ export async function publishDesign(
 
     revalidatePath(`/admin/designs/${id}`);
     revalidatePath("/admin/designs");
+    revalidatePath("/admin/studio");
     return { ok: true, id };
   } catch (e) {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Publish failed",
+    };
+  }
+}
+
+/** Take a published design off the storefront (PUBLISHED → DRAFT). */
+export async function unpublishDesign(
+  formData: FormData,
+): Promise<DesignActionResult> {
+  try {
+    const session = await requirePermission("designs.publish");
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { ok: false, error: "Invalid id" };
+
+    const [row] = await db
+      .select({ status: designs.status })
+      .from(designs)
+      .where(eq(designs.id, id))
+      .limit(1);
+    if (!row) return { ok: false, error: "Not found" };
+    if (row.status !== "PUBLISHED") {
+      return { ok: false, error: "Only published designs can be unpublished" };
+    }
+
+    await db.transaction(async (tx) => {
+      await transition({
+        entity: "design",
+        id,
+        from: "PUBLISHED",
+        to: "DRAFT",
+        actor: { id: session.user.id, role: session.user.role },
+        allowList: DESIGN_TRANSITION_ALLOW,
+        tx: tx as never,
+      });
+    });
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "design.unpublish",
+      entityType: "design",
+      entityId: id,
+      before: { status: "PUBLISHED" },
+      after: { status: "DRAFT" },
+    });
+
+    revalidatePath(`/admin/designs/${id}`);
+    revalidatePath("/admin/designs");
+    return { ok: true, id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Unpublish failed",
+    };
+  }
+}
+
+/** Soft-delete: archive via transition (never hard-delete catalogue rows). */
+export async function archiveDesign(
+  formData: FormData,
+): Promise<DesignActionResult> {
+  try {
+    const session = await requirePermission("designs.edit");
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { ok: false, error: "Invalid id" };
+
+    const detail = await getDesign(id);
+    if (!detail) return { ok: false, error: "Not found" };
+    if (detail.design.status === "ARCHIVED") {
+      return { ok: true, id };
+    }
+
+    const from = detail.design.status;
+    await db.transaction(async (tx) => {
+      await transition({
+        entity: "design",
+        id,
+        from,
+        to: "ARCHIVED",
+        actor: { id: session.user.id, role: session.user.role },
+        allowList: DESIGN_TRANSITION_ALLOW,
+        tx: tx as never,
+      });
+    });
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "design.archive",
+      entityType: "design",
+      entityId: id,
+      before: { status: from },
+      after: { status: "ARCHIVED" },
+    });
+
+    revalidatePath(`/admin/designs/${id}`);
+    revalidatePath("/admin/designs");
+    revalidatePath("/admin/studio");
+    return { ok: true, id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Delete failed",
     };
   }
 }
@@ -798,7 +1119,11 @@ export async function getDesignFormOptions() {
         .where(eq(garmentCategories.active, true))
         .orderBy(asc(garmentCategories.sortOrder)),
       db
-        .select({ id: fabrics.id, name: fabrics.name })
+        .select({
+          id: fabrics.id,
+          name: fabrics.name,
+          swatchAssetId: fabrics.swatchAssetId,
+        })
         .from(fabrics)
         .where(eq(fabrics.active, true))
         .orderBy(asc(fabrics.name)),

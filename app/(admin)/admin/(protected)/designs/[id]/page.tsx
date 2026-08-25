@@ -1,26 +1,36 @@
 import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
-import { Eyebrow } from "@/modules/ui";
 import {
   getPermissionsForUser,
   PermissionDeniedError,
   UnauthenticatedError,
 } from "@/modules/auth";
-import {
-  DesignCostingPanel,
-  getDesignCostingData,
-} from "@/modules/money";
+import { getDesignCostingData } from "@/modules/money/queries";
 import { getDesign, getDesignFormOptions } from "@/modules/designs";
 import { DesignEditor } from "@/modules/designs/design-editor";
-import { DesignRelatedPanels, getDesignRelated } from "@/modules/insights";
+
+const TABS = [
+  "Details",
+  "Photos",
+  "Sizing",
+  "Costing",
+  "Price",
+  "Preview",
+] as const;
 
 export default async function DesignDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const initialTab = TABS.includes(sp.tab as (typeof TABS)[number])
+    ? (sp.tab as (typeof TABS)[number])
+    : "Details";
 
   let detail;
   let options;
@@ -51,20 +61,6 @@ export default async function DesignDetailPage({
   const canEditCosts = permissions.has("money.edit_costs");
 
   let costingData = null;
-  let related = null;
-  try {
-    [related] = await Promise.all([getDesignRelated(id)]);
-  } catch (e) {
-    if (
-      e instanceof PermissionDeniedError ||
-      e instanceof UnauthenticatedError
-    ) {
-      related = null;
-    } else {
-      throw e;
-    }
-  }
-
   if (canViewMoney) {
     try {
       costingData = await getDesignCostingData(id);
@@ -81,25 +77,13 @@ export default async function DesignDetailPage({
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <Eyebrow>Designs</Eyebrow>
-        <h1 className="mt-1 font-display text-3xl text-greige">
-          {detail.design.name}
-        </h1>
-        <p className="mt-1 font-data text-[12px] text-chalk">
-          {detail.categoryKey}
-        </p>
-      </div>
-      <DesignEditor detail={detail} options={options} />
-      {canViewMoney && costingData ? (
-        <DesignCostingPanel
-          data={costingData}
-          canViewMargin={canViewMargin}
-          canEdit={canEditCosts}
-        />
-      ) : null}
-      {related ? <DesignRelatedPanels data={related} /> : null}
-    </div>
+    <DesignEditor
+      detail={detail}
+      options={options}
+      costing={costingData}
+      canViewMargin={canViewMargin}
+      canEditCosts={canEditCosts}
+      initialTab={initialTab}
+    />
   );
 }

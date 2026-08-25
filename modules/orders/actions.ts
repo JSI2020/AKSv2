@@ -257,6 +257,23 @@ export async function recordPaymentAction(input: {
         recordedById: session.user.id,
       });
 
+      const paidRows = await tx
+        .select({
+          amountMinor: orderPayments.amountMinor,
+          status: orderPayments.status,
+          kind: orderPayments.kind,
+        })
+        .from(orderPayments)
+        .where(eq(orderPayments.orderId, input.orderId));
+      const paidTotal = paidRows
+        .filter((p) => p.status === "SUCCEEDED" && p.kind !== "REFUND")
+        .reduce((s, p) => s + p.amountMinor, 0);
+      const balanceAmountMinor = Math.max(0, order.totalMinor - paidTotal);
+      await tx
+        .update(orders)
+        .set({ balanceAmountMinor, updatedAt: new Date() })
+        .where(eq(orders.id, input.orderId));
+
       const from = order.status as OrderStatus;
       if (from === "AWAITING_DEPOSIT" && input.kind !== "BALANCE") {
         await transitionOrder({
@@ -284,6 +301,126 @@ export async function recordPaymentAction(input: {
             amountMinor: input.amountMinor,
             provider,
           },
+        },
+        ip: ctx.ip,
+        userAgent: ctx.userAgent,
+      });
+    });
+
+    revalidatePath("/admin/orders");
+    revalidatePath(`/admin/orders/${input.orderId}`);
+    return { ok: true };
+  } catch (error) {
+    return actionError(error);
+  }
+}
+
+/**
+ * Edit planned deposit amount; optionally mark deposit as paid
+ * (records payment + advances AWAITING_DEPOSIT → DEPOSIT_PAID).
+ */
+export async function updateDepositAction(input: {
+  orderId: string;
+  depositAmountMinor: number;
+  markDepositPaid?: boolean;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const session = input.markDepositPaid
+      ? await requirePermission("orders.advance_status").catch(async () =>
+          requirePermission("orders.edit"),
+        )
+      : await requirePermission("orders.edit");
+    if (
+      !Number.isInteger(input.depositAmountMinor) ||
+      input.depositAmountMinor < 0
+    ) {
+      return { ok: false, error: "Enter a valid deposit amount." };
+    }
+
+    await db.transaction(async (tx) => {
+      const [order] = await tx
+        .select()
+        .from(orders)
+        .where(eq(orders.id, input.orderId))
+        .limit(1);
+      if (!order) throw new Error("Order not found.");
+      if (input.depositAmountMinor > order.totalMinor) {
+        throw new Error("Deposit cannot exceed order total.");
+      }
+
+      const paidRows = await tx
+        .select({
+          amountMinor: orderPayments.amountMinor,
+          status: orderPayments.status,
+          kind: orderPayments.kind,
+        })
+        .from(orderPayments)
+        .where(eq(orderPayments.orderId, input.orderId));
+      let paidTotal = paidRows
+        .filter((p) => p.status === "SUCCEEDED" && p.kind !== "REFUND")
+        .reduce((s, p) => s + p.amountMinor, 0);
+
+      const from = order.status as OrderStatus;
+      if (input.markDepositPaid) {
+        const alreadyDeposited = paidTotal >= input.depositAmountMinor;
+        if (!alreadyDeposited && input.depositAmountMinor > 0) {
+          const remaining = input.depositAmountMinor - paidTotal;
+          if (remaining > 0) {
+            await tx.insert(orderPayments).values({
+              id: uuidv7(),
+              orderId: input.orderId,
+              kind: "DEPOSIT",
+              amountMinor: remaining,
+              provider: "BANK_TRANSFER",
+              status: "SUCCEEDED",
+              note: "Deposit marked paid",
+              recordedById: session.user.id,
+            });
+            paidTotal += remaining;
+          }
+        }
+        if (from === "AWAITING_DEPOSIT") {
+          await transitionOrder({
+            orderId: input.orderId,
+            from,
+            to: "DEPOSIT_PAID",
+            actor: { id: session.user.id, role: session.user.role },
+            note: "Deposit marked paid",
+            tx,
+          });
+        }
+      }
+
+      // Balance due = total − amount actually paid (never treat unpaid deposit as settled).
+      const balanceAmountMinor = Math.max(0, order.totalMinor - paidTotal);
+
+      await tx
+        .update(orders)
+        .set({
+          depositAmountMinor: input.depositAmountMinor,
+          balanceAmountMinor,
+          updatedAt: new Date(),
+        })
+        .where(eq(orders.id, input.orderId));
+
+      const ctx = await auditContext();
+      await insertAuditLog(tx as unknown as Database, {
+        id: uuidv7(),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        action: "orders.update_deposit",
+        entityType: "order",
+        entityId: input.orderId,
+        before: {
+          depositAmountMinor: order.depositAmountMinor,
+          balanceAmountMinor: order.balanceAmountMinor,
+          status: from,
+        },
+        after: {
+          depositAmountMinor: input.depositAmountMinor,
+          balanceAmountMinor,
+          paidTotal,
+          markDepositPaid: Boolean(input.markDepositPaid),
         },
         ip: ctx.ip,
         userAgent: ctx.userAgent,

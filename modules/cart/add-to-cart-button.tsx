@@ -82,24 +82,37 @@ export function AddToCartButton({
   }
 
   return (
-    <div className="mt-8">
+    <div>
       <button
         type="button"
+        className="addcart"
         disabled={pending || !canAdd}
         onClick={() => void handleClick()}
-        className="w-full border border-ink bg-ink px-5 py-3.5 text-[12px] uppercase tracking-[0.1em] text-greige disabled:opacity-40"
       >
-        Add to cart
+        Add to bag
       </button>
       {!canAdd ? (
-        <p className="mt-2 text-[13px] text-ink/60">
+        <p
+          style={{
+            marginTop: "0.6rem",
+            fontSize: "13px",
+            color: "var(--taupe)",
+          }}
+        >
           {sizeMode === "STANDARD"
             ? "Choose a size to continue."
             : "Complete your measurements to add this piece."}
         </p>
       ) : null}
       {error ? (
-        <p className="mt-2 text-[13px] text-madder" role="alert">
+        <p
+          style={{
+            marginTop: "0.6rem",
+            fontSize: "13px",
+            color: "var(--oxblood)",
+          }}
+          role="alert"
+        >
           {error}
         </p>
       ) : null}

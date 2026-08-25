@@ -11,8 +11,9 @@ import {
 
 import { users } from "./identity";
 import { assets } from "./platform";
-import { orderItems } from "./orders";
+import { orderItems, orders } from "./orders";
 import { fabrics } from "./fabrics-archetypes";
+import { colourways, designs } from "./catalog";
 
 export const fabricLotStatusEnum = pgEnum("fabric_lot_status", [
   "AVAILABLE",
@@ -45,6 +46,23 @@ export const stockAdjustmentReasonEnum = pgEnum("stock_adjustment_reason", [
 ]);
 
 export const trimUnitEnum = pgEnum("trim_unit", ["PIECE", "METRE", "SPOOL"]);
+
+export const trimKindEnum = pgEnum("trim_kind", [
+  "BUTTON",
+  "ZIP",
+  "LINING",
+  "HOOK",
+  "THREAD",
+  "OTHER",
+]);
+
+export const inventoryMovementReasonEnum = pgEnum("inventory_movement_reason", [
+  "RECEIVED",
+  "SOLD_OFFLINE",
+  "DAMAGE",
+  "COUNT_CORRECTION",
+  "ORDER_DISPATCH",
+]);
 
 export const suppliers = pgTable("suppliers", {
   id: uuid("id").primaryKey(),
@@ -103,6 +121,33 @@ export const purchaseOrderLines = pgTable("purchase_order_lines", {
     .defaultNow(),
 });
 
+/** Explicit colour entity for a fabric — lots sit under a colourway. */
+export const fabricColourways = pgTable(
+  "fabric_colourways",
+  {
+    id: uuid("id").primaryKey(),
+    fabricId: uuid("fabric_id")
+      .notNull()
+      .references(() => fabrics.id, { onDelete: "cascade" }),
+    colourName: text("colour_name").notNull(),
+    hexApproximation: text("hex_approximation"),
+    swatchAssetId: uuid("swatch_asset_id").references(() => assets.id),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("fabric_colourways_fabric_name_uidx").on(
+      t.fabricId,
+      t.colourName,
+    ),
+  ],
+);
+
 export const fabricLots = pgTable(
   "fabric_lots",
   {
@@ -110,6 +155,7 @@ export const fabricLots = pgTable(
     fabricId: uuid("fabric_id")
       .notNull()
       .references(() => fabrics.id),
+    colourwayId: uuid("colourway_id").references(() => fabricColourways.id),
     lotCode: text("lot_code").notNull(),
     dyeLotRef: text("dye_lot_ref"),
     /** Hundredths of a metre. */
@@ -125,6 +171,7 @@ export const fabricLots = pgTable(
     ),
     receivedAt: timestamp("received_at", { withTimezone: true }).notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** @deprecated prefer colourwayId — kept for back-compat. */
     colourNotes: text("colour_notes"),
     swatchAssetId: uuid("swatch_asset_id").references(() => assets.id),
     status: fabricLotStatusEnum("status").notNull().default("AVAILABLE"),
@@ -180,11 +227,93 @@ export const stockAdjustments = pgTable("stock_adjustments", {
     .defaultNow(),
 });
 
+/** Ready-to-wear: design × colourway × size. */
+export const rtwStock = pgTable(
+  "rtw_stock",
+  {
+    id: uuid("id").primaryKey(),
+    designId: uuid("design_id")
+      .notNull()
+      .references(() => designs.id, { onDelete: "cascade" }),
+    colourwayId: uuid("colourway_id")
+      .notNull()
+      .references(() => colourways.id, { onDelete: "cascade" }),
+    sizeLabel: text("size_label").notNull(),
+    quantityOnHand: integer("quantity_on_hand").notNull().default(0),
+    quantityReserved: integer("quantity_reserved").notNull().default(0),
+    reorderPoint: integer("reorder_point").notNull().default(2),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("rtw_stock_design_cw_size_uidx").on(
+      t.designId,
+      t.colourwayId,
+      t.sizeLabel,
+    ),
+  ],
+);
+
+export const rtwMovements = pgTable("rtw_movements", {
+  id: uuid("id").primaryKey(),
+  rtwStockId: uuid("rtw_stock_id")
+    .notNull()
+    .references(() => rtwStock.id, { onDelete: "cascade" }),
+  delta: integer("delta").notNull(),
+  reason: inventoryMovementReasonEnum("reason").notNull(),
+  orderId: uuid("order_id").references(() => orders.id),
+  note: text("note"),
+  actorId: uuid("actor_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const packingMaterials = pgTable("packing_materials", {
+  id: uuid("id").primaryKey(),
+  name: text("name").notNull(),
+  photoAssetId: uuid("photo_asset_id").references(() => assets.id),
+  quantityOnHand: integer("quantity_on_hand").notNull().default(0),
+  quantityReserved: integer("quantity_reserved").notNull().default(0),
+  reorderPoint: integer("reorder_point").notNull().default(0),
+  costPerUnitMinor: integer("cost_per_unit_minor").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const packingMovements = pgTable("packing_movements", {
+  id: uuid("id").primaryKey(),
+  packingMaterialId: uuid("packing_material_id")
+    .notNull()
+    .references(() => packingMaterials.id, { onDelete: "cascade" }),
+  delta: integer("delta").notNull(),
+  reason: inventoryMovementReasonEnum("reason").notNull(),
+  orderId: uuid("order_id").references(() => orders.id),
+  note: text("note"),
+  actorId: uuid("actor_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
 export const trims = pgTable("trims", {
   id: uuid("id").primaryKey(),
   name: text("name").notNull(),
-  type: text("type").notNull(),
-  unit: trimUnitEnum("unit").notNull(),
+  /** Legacy free-text type — prefer `kind`. */
+  type: text("type").notNull().default("OTHER"),
+  kind: trimKindEnum("kind").notNull().default("OTHER"),
+  hasColourVariants: boolean("has_colour_variants").notNull().default(false),
+  photoAssetId: uuid("photo_asset_id").references(() => assets.id),
+  unit: trimUnitEnum("unit").notNull().default("PIECE"),
   quantityOnHand: integer("quantity_on_hand").notNull().default(0),
   quantityReserved: integer("quantity_reserved").notNull().default(0),
   reorderPoint: integer("reorder_point").notNull().default(0),
@@ -195,6 +324,70 @@ export const trims = pgTable("trims", {
     .notNull()
     .defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const trimColourways = pgTable(
+  "trim_colourways",
+  {
+    id: uuid("id").primaryKey(),
+    trimId: uuid("trim_id")
+      .notNull()
+      .references(() => trims.id, { onDelete: "cascade" }),
+    colourName: text("colour_name").notNull(),
+    hexApproximation: text("hex_approximation"),
+    swatchAssetId: uuid("swatch_asset_id").references(() => assets.id),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("trim_colourways_trim_name_uidx").on(t.trimId, t.colourName),
+  ],
+);
+
+export const trimStock = pgTable(
+  "trim_stock",
+  {
+    id: uuid("id").primaryKey(),
+    trimId: uuid("trim_id")
+      .notNull()
+      .references(() => trims.id, { onDelete: "cascade" }),
+    trimColourwayId: uuid("trim_colourway_id").references(
+      () => trimColourways.id,
+      { onDelete: "cascade" },
+    ),
+    quantityOnHand: integer("quantity_on_hand").notNull().default(0),
+    quantityReserved: integer("quantity_reserved").notNull().default(0),
+    reorderPoint: integer("reorder_point").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("trim_stock_trim_cw_uidx").on(t.trimId, t.trimColourwayId),
+  ],
+);
+
+export const trimMovements = pgTable("trim_movements", {
+  id: uuid("id").primaryKey(),
+  trimStockId: uuid("trim_stock_id")
+    .notNull()
+    .references(() => trimStock.id, { onDelete: "cascade" }),
+  delta: integer("delta").notNull(),
+  reason: inventoryMovementReasonEnum("reason").notNull(),
+  orderId: uuid("order_id").references(() => orders.id),
+  note: text("note"),
+  actorId: uuid("actor_id").references(() => users.id),
+  createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
 });

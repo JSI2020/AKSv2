@@ -3,6 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 
 import { Money } from "@/modules/ui";
+import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
 
 import { saveDiscount } from "../actions";
 import {
@@ -12,6 +13,8 @@ import {
 import type { DiscountListRow } from "../queries";
 
 const SAMPLE_SUBTOTAL_MINOR = 30_000_00;
+
+type PublishedDesignOpt = { id: string; name: string };
 
 type FormState = {
   id: string;
@@ -95,7 +98,42 @@ function StatusBadge({ status }: { status: DiscountListRow["status"] }) {
   );
 }
 
-export function DiscountsDashboard({ rows }: { rows: DiscountListRow[] }) {
+function scopePreviewLine(
+  form: FormState,
+  designs: PublishedDesignOpt[],
+): string {
+  const value = form.value.trim() || "0";
+  const kind =
+    form.type === "PERCENTAGE"
+      ? `${value}% off`
+      : form.type === "FIXED_AMOUNT"
+        ? `PKR ${Number(value).toLocaleString("en-PK")} off`
+        : "Free shipping";
+  const auto = form.code.trim() ? `Code ${form.code.trim().toUpperCase()}` : "Automatic";
+  const target = form.targetIds.split(/[\n,]/)[0]?.trim() ?? "";
+  if (form.appliesTo === "ORDER") {
+    return `${auto} · ${kind} on the whole order`;
+  }
+  if (form.appliesTo === "CATEGORY" || form.appliesTo === "COLLECTION") {
+    const house = HOUSE_COLLECTIONS.find(
+      (c) => c.tag === target.toUpperCase() || c.slug === target.toLowerCase(),
+    );
+    return `${auto} · ${kind} on category: ${house?.navLabel ?? (target || "…")}`;
+  }
+  if (form.appliesTo === "DESIGN") {
+    const d = designs.find((x) => x.id === target);
+    return `${auto} · ${kind} on style: ${d?.name ?? (target || "…")}`;
+  }
+  return `${auto} · ${kind}`;
+}
+
+export function DiscountsDashboard({
+  rows,
+  publishedDesigns = [],
+}: {
+  rows: DiscountListRow[];
+  publishedDesigns?: PublishedDesignOpt[];
+}) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -294,37 +332,71 @@ export function DiscountsDashboard({ rows }: { rows: DiscountListRow[] }) {
           <Field label="Applies to">
             <select
               name="appliesTo"
-              value={form.appliesTo}
+              value={
+                form.appliesTo === "COLLECTION" ? "CATEGORY" : form.appliesTo
+              }
               onChange={(e) =>
                 setForm({
                   ...form,
                   appliesTo: e.target.value as FormState["appliesTo"],
+                  targetIds: "",
                 })
               }
-              className="w-full border border-indigo-lift bg-indigo px-3 py-2 text-[13px] text-greige"
+              className="w-full border border-ink/12 bg-greige px-3 py-2 text-[13px] text-ink"
             >
               <option value="ORDER">Whole order</option>
-              <option value="COLLECTION">Collection slugs</option>
-              <option value="DESIGN">Design ids</option>
-              <option value="GARMENT_TYPE">Garment type ids</option>
+              <option value="CATEGORY">A category</option>
+              <option value="DESIGN">One specific style</option>
             </select>
           </Field>
 
-          {form.appliesTo !== "ORDER" ? (
-            <Field label="Target ids / slugs (comma or newline)">
-              <textarea
+          {form.appliesTo === "CATEGORY" || form.appliesTo === "COLLECTION" ? (
+            <Field label="Which category">
+              <select
                 name="targetIds"
-                value={form.targetIds}
+                value={form.targetIds.split(/[\n,]/)[0]?.trim() ?? ""}
                 onChange={(e) =>
                   setForm({ ...form, targetIds: e.target.value })
                 }
-                rows={3}
-                className="w-full border border-indigo-lift bg-indigo px-3 py-2 text-[13px] text-greige"
-              />
+                className="w-full border border-ink/12 bg-greige px-3 py-2 text-[13px] text-ink"
+              >
+                <option value="">Select…</option>
+                {HOUSE_COLLECTIONS.map((c) => (
+                  <option key={c.tag} value={c.tag}>
+                    {c.navLabel}
+                  </option>
+                ))}
+              </select>
             </Field>
-          ) : (
+          ) : null}
+
+          {form.appliesTo === "DESIGN" ? (
+            <Field label="Which style">
+              <select
+                name="targetIds"
+                value={form.targetIds.split(/[\n,]/)[0]?.trim() ?? ""}
+                onChange={(e) =>
+                  setForm({ ...form, targetIds: e.target.value })
+                }
+                className="w-full border border-ink/12 bg-greige px-3 py-2 text-[13px] text-ink"
+              >
+                <option value="">Select…</option>
+                {publishedDesigns.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : null}
+
+          {form.appliesTo === "ORDER" ? (
             <input type="hidden" name="targetIds" value="" />
-          )}
+          ) : null}
+
+          <div className="border border-ink/12 bg-greige px-4 py-3 text-[12.5px] text-ink/70">
+            {scopePreviewLine(form, publishedDesigns)}
+          </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Minimum spend (paisa)">

@@ -1,6 +1,7 @@
 export {
   listCustomers,
   getCustomerRelated,
+  getGuestCustomerRelated,
   getDesignRelated,
   getFabricRelated,
   getOrderFabricLots,
@@ -16,7 +17,10 @@ export type {
 } from "./queries-related";
 
 export { getInsightsReportData } from "./queries-reports";
-export type { InsightsReportData } from "./queries-reports";
+export type {
+  InsightsReportData,
+  InsightsDateRange,
+} from "./queries-reports";
 
 export {
   CustomerRelatedPanels,

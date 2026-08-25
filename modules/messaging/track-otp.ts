@@ -1,11 +1,17 @@
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { createHmac, createHash, randomInt, timingSafeEqual } from "node:crypto";
+import { cookies, headers } from "next/headers";
 
 import { and, eq, gt } from "drizzle-orm";
 
 import { db, orders, users, verificationTokens, messageLog } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 
+import {
+  checkOtpRequestRateLimit,
+  checkOtpVerifyRateLimit,
+} from "@/modules/auth/rate-limit";
+import { logSignInAttempt } from "@/modules/auth/attempts";
+import { clientIpFromHeaders } from "@/modules/auth/sessions";
 import { normalizeEmail } from "@/modules/auth/otp";
 import { enqueue } from "@/modules/platform/outbox/enqueue";
 
@@ -15,6 +21,28 @@ export const TRACK_ACCESS_COOKIE = "aks_track_access";
 
 function hashToken(value: string): string {
   return createHash("sha256").update(value, "utf8").digest("hex");
+}
+
+function authSecret(): string {
+  const secret = process.env.AUTH_SECRET;
+  if (!secret) {
+    throw new Error("AUTH_SECRET is required to sign track-access cookies.");
+  }
+  return secret;
+}
+
+/** Keyed MAC — never a bare hash of the payload (forgeable). */
+function signTrackPayload(payload: string): string {
+  return createHmac("sha256", authSecret())
+    .update(payload, "utf8")
+    .digest("hex");
+}
+
+function macEqual(a: string, b: string): boolean {
+  const ba = Buffer.from(a, "utf8");
+  const bb = Buffer.from(b, "utf8");
+  if (ba.length !== bb.length) return false;
+  return timingSafeEqual(ba, bb);
 }
 
 function trackIdentifier(orderNumber: string, email: string): string {
@@ -71,7 +99,33 @@ export async function issueTrackOtp(input: {
   orderNumber: string;
   email: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
+  const email = normalizeEmail(input.email);
+  const hdrs = await headers();
+  const ip = clientIpFromHeaders(hdrs);
+
+  const rate = await checkOtpRequestRateLimit({ email, ip });
+  if (!rate.ok) {
+    await logSignInAttempt({
+      email,
+      ip,
+      success: false,
+      reason: rate.reason === "email" ? "track_otp_rate_email" : "track_otp_rate_ip",
+    });
+    return {
+      ok: false,
+      error: "Too many codes requested. Wait a bit and try again.",
+    };
+  }
+
   const resolved = await resolveOrderEmail(input.orderNumber, input.email);
+  // Log issuance attempt either way (enumeration-resistant response still below).
+  await logSignInAttempt({
+    email,
+    ip,
+    success: resolved.ok,
+    reason: "otp_request",
+  });
+
   if (!resolved.ok) {
     return {
       ok: false,
@@ -79,7 +133,6 @@ export async function issueTrackOtp(input: {
     };
   }
 
-  const email = normalizeEmail(input.email);
   const identifier = trackIdentifier(input.orderNumber, email);
   const code = generateOtpCode();
   const tokenHash = hashToken(code);
@@ -133,6 +186,22 @@ export async function verifyTrackOtp(input: {
   const code = input.code.trim();
   if (!/^\d{6}$/.test(code)) return false;
 
+  const hdrs = await headers();
+  const ip = clientIpFromHeaders(hdrs);
+  const verifyLimit = await checkOtpVerifyRateLimit({
+    email: `${input.orderNumber}:${email}`,
+    reasons: ["track_otp_invalid"],
+  });
+  if (!verifyLimit.ok) {
+    await logSignInAttempt({
+      email,
+      ip,
+      success: false,
+      reason: "track_otp_locked",
+    });
+    return false;
+  }
+
   const identifier = trackIdentifier(input.orderNumber, email);
   const tokenHash = hashToken(code);
 
@@ -148,7 +217,16 @@ export async function verifyTrackOtp(input: {
     )
     .limit(1);
 
-  return rows.length > 0 && codesEqual(rows[0]!.token, tokenHash);
+  const ok = rows.length > 0 && codesEqual(rows[0]!.token, tokenHash);
+  if (!ok) {
+    await logSignInAttempt({
+      email,
+      ip,
+      success: false,
+      reason: "track_otp_invalid",
+    });
+  }
+  return ok;
 }
 
 export async function grantTrackAccess(input: {
@@ -156,10 +234,12 @@ export async function grantTrackAccess(input: {
   email: string;
 }): Promise<void> {
   const email = normalizeEmail(input.email);
-  const payload = `${input.orderNumber}:${email}:${Date.now() + TRACK_ACCESS_TTL_MS}`;
-  const signed = hashToken(payload);
+  const expires = Date.now() + TRACK_ACCESS_TTL_MS;
+  // Pipe-separated so email cannot break parsing; MAC is keyed with AUTH_SECRET.
+  const payload = `${input.orderNumber}|${email}|${expires}`;
+  const mac = signTrackPayload(payload);
   const jar = await cookies();
-  jar.set(TRACK_ACCESS_COOKIE, `${signed}:${payload}`, {
+  jar.set(TRACK_ACCESS_COOKIE, `${mac}.${payload}`, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
@@ -169,7 +249,9 @@ export async function grantTrackAccess(input: {
 
   await db
     .delete(verificationTokens)
-    .where(eq(verificationTokens.identifier, trackIdentifier(input.orderNumber, email)));
+    .where(
+      eq(verificationTokens.identifier, trackIdentifier(input.orderNumber, email)),
+    );
 }
 
 export async function hasTrackAccess(orderNumber: string): Promise<boolean> {
@@ -177,12 +259,16 @@ export async function hasTrackAccess(orderNumber: string): Promise<boolean> {
   const raw = jar.get(TRACK_ACCESS_COOKIE)?.value;
   if (!raw) return false;
 
-  const [signed, ...rest] = raw.split(":");
-  const payload = rest.join(":");
-  if (!signed || !payload) return false;
-  if (hashToken(payload) !== signed) return false;
+  const dot = raw.indexOf(".");
+  if (dot <= 0) return false;
+  const mac = raw.slice(0, dot);
+  const payload = raw.slice(dot + 1);
+  if (!mac || !payload) return false;
 
-  const [storedOrder, , expiresRaw] = payload.split(":");
+  const expected = signTrackPayload(payload);
+  if (!macEqual(mac, expected)) return false;
+
+  const [storedOrder, , expiresRaw] = payload.split("|");
   if (storedOrder !== orderNumber) return false;
   const expires = Number(expiresRaw);
   return Number.isFinite(expires) && expires > Date.now();

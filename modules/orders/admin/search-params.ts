@@ -8,6 +8,8 @@ import {
   parseAsStringLiteral,
 } from "nuqs/server";
 
+import { timeRangeParsers } from "@/modules/admin/time-filter";
+
 import {
   PAYMENT_STATUS_FILTER_VALUES,
   PRODUCTION_STATUS_FILTER_VALUES,
@@ -22,6 +24,8 @@ export const ORDER_SOURCE_VALUES = [
 ] as const;
 
 export const ORDER_SIZE_MODE_VALUES = ["STANDARD", "MADE_TO_MEASURE"] as const;
+
+export const ORDER_DUE_VALUES = ["overdue", "soon"] as const;
 
 export const orderListParsers = {
   q: parseAsString,
@@ -38,8 +42,11 @@ export const orderListParsers = {
     parseAsStringLiteral(ORDER_SIZE_MODE_VALUES),
   ).withDefault([]),
   atRisk: parseAsBoolean,
+  due: parseAsStringLiteral(ORDER_DUE_VALUES),
+  completedThisMonth: parseAsBoolean,
   dateFrom: parseAsIsoDateTime,
   dateTo: parseAsIsoDateTime,
+  ...timeRangeParsers,
   page: parseAsInteger.withDefault(1),
   perPage: parseAsInteger.withDefault(25),
   view: parseAsString,
@@ -60,6 +67,8 @@ export function searchParamsToOrderFilters(
     source: params.source.length > 0 ? params.source : undefined,
     sizeMode: params.sizeMode.length > 0 ? params.sizeMode : undefined,
     atRisk: params.atRisk ?? undefined,
+    due: params.due ?? undefined,
+    completedThisMonth: params.completedThisMonth ?? undefined,
     dateFrom: params.dateFrom ?? undefined,
     dateTo: params.dateTo ?? undefined,
     page: params.page,

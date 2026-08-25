@@ -220,6 +220,38 @@ export const GARMENT_CATEGORY_SEEDS: readonly CategorySeed[] = [
     measurementKeys: ["LENGTH", "WIDTH"],
     sortOrder: 50,
   },
+  {
+    key: "SHALWAR",
+    name: "Shalwar",
+    nameUr: "شلوار",
+    measurementKeys: [
+      "WAIST",
+      "HIP",
+      "THIGH",
+      "RISE",
+      "LENGTH",
+      "BOTTOM_OPENING",
+    ],
+    sortOrder: 60,
+  },
+  {
+    key: "SHIRT",
+    name: "Shirt",
+    nameUr: "شرٹ",
+    measurementKeys: [
+      "BUST",
+      "WAIST",
+      "HIP",
+      "SHOULDER",
+      "SLEEVE_LENGTH",
+      "SLEEVE_OPENING",
+      "ARMHOLE",
+      "NECK_DEPTH_FRONT",
+      "NECK_DEPTH_BACK",
+      "LENGTH",
+    ],
+    sortOrder: 70,
+  },
 ] as const;
 
 export function isMeasurementKeyCode(value: string): value is MeasurementKeyCode {

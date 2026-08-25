@@ -28,6 +28,7 @@ import { aiCostMinorForDesign } from "./queries-internal";
 export type DesignCostingData = {
   designId: string;
   basePriceMinor: number;
+  components: string[];
   fabrics: { id: string; name: string; costPerMeterMinor: number }[];
   rates: RateRow[];
   saved: {
@@ -38,6 +39,21 @@ export type DesignCostingData = {
     stitchingRateId: string | null;
     stitchingFlatMinor: number | null;
     packagingMinor: number;
+    shippingMinor: number;
+    overheadMinor: number;
+    costingMode: string;
+    pieceCosts: Array<{
+      componentKey: string;
+      mode: "DETAILED" | "LUMPSUM";
+      fabricId?: string | null;
+      fabricMeters?: number;
+      stitchingRateId?: string | null;
+      stitchingFlatMinor?: number | null;
+      embroideryRateId?: string | null;
+      embroideryFlatMinor?: number | null;
+      lumpsumMinor?: number | null;
+    }>;
+    totalLumpsumMinor: number | null;
     sellingPriceMinor: number;
   } | null;
   aiCostMinor: number;
@@ -53,6 +69,7 @@ export async function getDesignCostingData(
     .select({
       id: designs.id,
       basePriceMinor: designs.basePriceMinor,
+      components: designs.components,
     })
     .from(designs)
     .where(eq(designs.id, designId))
@@ -101,6 +118,11 @@ export async function getDesignCostingData(
         stitchingRateId: savedRow[0].stitchingRateId,
         stitchingFlatMinor: savedRow[0].stitchingFlatMinor,
         packagingMinor: savedRow[0].packagingMinor,
+        shippingMinor: savedRow[0].shippingMinor,
+        overheadMinor: savedRow[0].overheadMinor ?? 0,
+        costingMode: savedRow[0].costingMode ?? "DETAILED_PER_PIECE",
+        pieceCosts: savedRow[0].pieceCosts ?? [],
+        totalLumpsumMinor: savedRow[0].totalLumpsumMinor ?? null,
         sellingPriceMinor: savedRow[0].sellingPriceMinor,
       }
     : null;
@@ -117,8 +139,10 @@ export async function getDesignCostingData(
         stitchingRateId: saved.stitchingRateId,
         stitchingFlatMinor: saved.stitchingFlatMinor,
         packagingMinor: saved.packagingMinor,
+        shippingMinor: saved.shippingMinor,
+        overheadMinor: saved.overheadMinor,
         aiCostMinor,
-        sellingPriceMinor: saved.sellingPriceMinor,
+        sellingPriceMinor: design.basePriceMinor || saved.sellingPriceMinor,
         ratesById,
       });
     }
@@ -127,6 +151,7 @@ export async function getDesignCostingData(
   return {
     designId,
     basePriceMinor: design.basePriceMinor,
+    components: design.components ?? [],
     fabrics: fabricRows,
     rates: ratesList,
     saved,

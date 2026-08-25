@@ -1,10 +1,24 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { EmptyState, Eyebrow } from "@/modules/ui";
 import { auth } from "@/auth";
-import { getPermissionsForUser } from "@/modules/auth";
+import {
+  getPermissionsForUser,
+  PermissionDeniedError,
+  requirePermission,
+  UnauthenticatedError,
+} from "@/modules/auth";
 
 export default async function AdminSettingsPage() {
+  try {
+    await requirePermission("settings.view");
+  } catch (e) {
+    if (e instanceof UnauthenticatedError) redirect("/admin/login");
+    if (e instanceof PermissionDeniedError) redirect("/admin");
+    throw e;
+  }
+
   const session = await auth();
   const permissions = session?.user?.id
     ? await getPermissionsForUser(session.user.id)
@@ -32,6 +46,14 @@ export default async function AdminSettingsPage() {
             <>
               <li>
                 <Link
+                  href="/admin/settings/storefront"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Storefront — lead time, WhatsApp, socials, brand
+                </Link>
+              </li>
+              <li>
+                <Link
                   href="/admin/settings/studio"
                   className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
                 >
@@ -52,6 +74,14 @@ export default async function AdminSettingsPage() {
                   className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
                 >
                   Sizing — size blocks (standard charts)
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/admin/settings/sizing/chart"
+                  className="font-sans text-[13px] text-greige underline-offset-2 hover:underline"
+                >
+                  Sizing — size chart tool
                 </Link>
               </li>
               <li>

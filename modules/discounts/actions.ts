@@ -85,6 +85,7 @@ export async function saveDiscount(formData: FormData): Promise<DiscountActionRe
     if (
       appliesTo !== "ORDER" &&
       appliesTo !== "COLLECTION" &&
+      appliesTo !== "CATEGORY" &&
       appliesTo !== "DESIGN" &&
       appliesTo !== "GARMENT_TYPE"
     ) {
@@ -111,6 +112,7 @@ export async function saveDiscount(formData: FormData): Promise<DiscountActionRe
       appliesTo: appliesTo as
         | "ORDER"
         | "COLLECTION"
+        | "CATEGORY"
         | "DESIGN"
         | "GARMENT_TYPE",
       targetIds,

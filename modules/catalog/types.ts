@@ -49,6 +49,8 @@ export type PublishedDesignCard = {
   slug: string;
   name: string;
   nameUr: string;
+  subtitle?: string;
+  silhouetteLabel?: string;
   basePriceMinor: number;
   compareAtPriceMinor: number | null;
   compareAtStartsAt: Date | null;
@@ -57,7 +59,20 @@ export type PublishedDesignCard = {
   garmentTypeKey: string;
   garmentTypeName: string;
   occasionLabels: string[];
+  /** FREE tag values (e.g. ESSENTIALS, TAILORED). */
+  freeTags: string[];
+  /** Up to 4 colourway hex approximations for card swatches. */
+  colourwayHexes: string[];
+  /** Computed automatic % off from active discounts (optional). */
+  automaticPercentOff?: number | null;
   thumbnail: {
+    assetId: string;
+    r2Key: string;
+    altText: string;
+    url: string | null;
+  } | null;
+  /** Second render for hover swap (THREE_QUARTER preferred). */
+  hoverThumbnail: {
     assetId: string;
     r2Key: string;
     altText: string;
@@ -132,9 +147,15 @@ export type DesignDetailPublic = {
   slug: string;
   name: string;
   nameUr: string;
+  subtitle: string;
+  silhouetteLabel: string;
+  modelInfo: string;
   description: string | null;
   storyCopy: string | null;
   basePriceMinor: number;
+  compareAtPriceMinor: number | null;
+  compareAtStartsAt: Date | null;
+  compareAtEndsAt: Date | null;
   madeToMeasureSurchargeMinor: number;
   leadTimeDaysOverride: number | null;
   /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */

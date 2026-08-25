@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   Layers,
   LineChart,
+  Package,
   Palette,
   Percent,
   Scissors,
@@ -77,11 +78,10 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     permission: "discounts.view",
   },
   {
-    title: "Production",
-    href: "/admin/production",
-    icon: Scissors,
-    permission: "production.view",
-    shortcut: "G P",
+    title: "Content & Settings",
+    href: "/admin/content",
+    icon: FileText,
+    permission: "content.view",
   },
   {
     title: "Fabric",
@@ -89,12 +89,6 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     icon: Layers,
     permission: "fabric.view",
     shortcut: "G F",
-  },
-  {
-    title: "Studio",
-    href: "/admin/studio",
-    icon: Sparkles,
-    permission: "designs.create",
   },
   {
     title: "Photoreal",
@@ -110,35 +104,30 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     shortcut: "G D",
   },
   {
-    title: "Content",
-    href: "/admin/content",
-    icon: FileText,
-    permission: "content.view",
-  },
-  {
     title: "Reflection",
     href: "/admin/tryon",
     icon: Sparkles,
     permission: "tryon.view",
   },
   {
-    title: "Payments",
-    href: "/admin/money",
+    title: "Production",
+    href: "/admin/production",
+    icon: Scissors,
+    permission: "production.view",
+    shortcut: "G P",
+  },
+  {
+    title: "Inventory",
+    href: "/admin/inventory",
+    icon: Package,
+    permission: "inventory.view",
+  },
+  {
+    title: "Payments & Finance",
+    href: "/admin/finance",
     icon: Wallet,
     permission: "money.view",
     shortcut: "G M",
-  },
-  {
-    title: "Verify transfers",
-    href: "/admin/payments/verification",
-    icon: Wallet,
-    permission: "money.verify_payments",
-  },
-  {
-    title: "COD remittances",
-    href: "/admin/payments/cod",
-    icon: Wallet,
-    permission: "money.manage_cod",
   },
   {
     title: "Insights",
@@ -166,14 +155,16 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     id: "sell",
     label: "Sell",
     items: ADMIN_NAV_ITEMS.filter((i) =>
-      ["/admin/orders", "/admin/customers", "/admin/discounts"].includes(i.href),
+      ["/admin/orders", "/admin/customers", "/admin/discounts", "/admin/content"].includes(
+        i.href,
+      ),
     ),
   },
   {
     id: "make",
     label: "Make",
     items: ADMIN_NAV_ITEMS.filter((i) =>
-      ["/admin/production", "/admin/fabrics"].includes(i.href),
+      ["/admin/production", "/admin/inventory"].includes(i.href),
     ),
   },
   {
@@ -181,10 +172,9 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     label: "Create",
     items: ADMIN_NAV_ITEMS.filter((i) =>
       [
-        "/admin/studio",
         "/admin/photoreal",
+        "/admin/fabrics",
         "/admin/designs",
-        "/admin/content",
         "/admin/tryon",
       ].includes(i.href),
     ),
@@ -193,12 +183,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     id: "money",
     label: "Money",
     items: ADMIN_NAV_ITEMS.filter((i) =>
-      [
-        "/admin/money",
-        "/admin/payments/verification",
-        "/admin/payments/cod",
-        "/admin/insights",
-      ].includes(i.href),
+      ["/admin/finance", "/admin/insights"].includes(i.href),
     ),
   },
   {
@@ -216,10 +201,17 @@ const BREADCRUMB_HREF_DENY = new Set([
 ]);
 
 const BREADCRUMB_LABELS: Record<string, string> = {
-  studio: "Studio",
+  studio: "Designs",
   photoreal: "Photoreal",
   tryon: "Reflection",
   fabrics: "Fabric",
+  inventory: "Inventory",
+  designs: "Designs",
+  packing: "Packing",
+  trims: "Trims",
+  storefront: "Storefront",
+  finance: "Payments & Finance",
+  money: "Payments & Finance",
   cod: "COD remittances",
   verification: "Verify transfers",
   ai: "AI brief",

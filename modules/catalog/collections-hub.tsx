@@ -1,48 +1,70 @@
 import { Link } from "@/i18n/routing";
-import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 import {
   COLLECTIONS_HUB_INTRO,
   HOUSE_COLLECTIONS,
 } from "./house-collections";
 
-/** Hub above the five house collection tiles. */
+/** Hub above the house collection tiles — milk / shop-proto typography. */
 export function CollectionsHubPage() {
   return (
-    <ShopPageContainer>
-      <article className="py-12 md:py-16">
+    <main className="collections-hub mx-auto max-w-[1500px] px-[2.5rem] pb-24 pt-28 max-[900px]:px-[1.4rem]">
+      <article>
         <header className="mb-14 max-w-xl">
-          <p className="font-display text-[clamp(28px,3.5vw,40px)] font-medium leading-tight text-ink">
+          <p className="serif text-[clamp(1.75rem,3.5vw,2.5rem)] font-light leading-tight">
             {COLLECTIONS_HUB_INTRO.line1}
           </p>
-          <p className="mt-3 text-[16px] leading-relaxed text-ink/70">
+          <p
+            className="mt-3 text-[15px] leading-relaxed"
+            style={{ color: "var(--espresso)" }}
+          >
             {COLLECTIONS_HUB_INTRO.line2}
           </p>
         </header>
 
-        <ul className="grid gap-0 border-t border-greige-deep md:grid-cols-2 lg:grid-cols-3">
+        <ul
+          className="grid gap-0 border-t md:grid-cols-2 lg:grid-cols-3"
+          style={{ borderColor: "var(--line)" }}
+        >
           {HOUSE_COLLECTIONS.map((collection) => (
             <li
               key={collection.slug}
-              className="border-b border-e border-greige-deep"
+              className="border-b border-e"
+              style={{ borderColor: "var(--line)" }}
             >
               <Link
                 href={`/collections/${collection.slug}`}
-                className="flex h-full flex-col p-7 transition-colors hover:bg-greige-deep/30 md:p-9"
+                className="flex h-full flex-col p-7 md:p-9"
               >
-                <p className="text-[12px] uppercase tracking-[0.12em] text-ink/50">
+                <p
+                  className="text-[10.5px] uppercase tracking-[0.34em]"
+                  style={{ color: "var(--taupe)" }}
+                >
                   {collection.navLabel}
                 </p>
-                <h2 className="mt-3 font-display text-[28px] font-medium leading-tight text-ink">
+                <h2 className="serif mt-3 text-[1.7rem] font-normal leading-tight">
                   {collection.title}
                 </h2>
-                <p className="mt-2 font-display text-[16px] italic text-ink/65">
+                <p
+                  className="serif mt-2 text-[1rem] italic"
+                  style={{ color: "var(--taupe)" }}
+                >
                   {collection.tagline}
                 </p>
-                <p className="mt-4 flex-1 text-[14px] leading-relaxed text-ink/70">
+                <p
+                  className="mt-4 flex-1 text-[14px] leading-relaxed"
+                  style={{ color: "var(--espresso)" }}
+                >
                   {collection.card}
                 </p>
-                <span className="mt-6 inline-flex items-center gap-2 font-display text-[11px] uppercase tracking-[0.12em] text-ink">
+                <span
+                  className="mt-6 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.2em]"
+                  style={{
+                    borderBottom: "1px solid var(--ink)",
+                    paddingBottom: 3,
+                    alignSelf: "flex-start",
+                  }}
+                >
                   View collection
                   <span aria-hidden className="rtl:rotate-180">
                     →
@@ -53,6 +75,6 @@ export function CollectionsHubPage() {
           ))}
         </ul>
       </article>
-    </ShopPageContainer>
+    </main>
   );
 }

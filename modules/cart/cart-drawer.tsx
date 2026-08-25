@@ -22,30 +22,24 @@ export function CartDrawer() {
   return (
     <>
       <div
-        className={
-          drawerOpen
-            ? "fixed inset-0 z-50 bg-ink/40 transition-opacity"
-            : "pointer-events-none fixed inset-0 z-50 bg-transparent opacity-0"
-        }
+        className="cart-drawer-scrim"
+        data-open={drawerOpen ? "true" : "false"}
         aria-hidden={!drawerOpen}
         onClick={closeDrawer}
       />
 
       <aside
-        className={
-          drawerOpen
-            ? "fixed inset-y-0 end-0 z-[60] flex w-full max-w-[420px] translate-x-0 flex-col border-s border-greige-deep bg-greige text-ink transition-transform duration-200"
-            : "fixed inset-y-0 end-0 z-[60] flex w-full max-w-[420px] translate-x-full flex-col border-s border-greige-deep bg-greige text-ink transition-transform duration-200"
-        }
+        className="cart-drawer"
+        data-open={drawerOpen ? "true" : "false"}
         aria-hidden={!drawerOpen}
         aria-label="Shopping cart"
       >
-        <header className="flex items-center justify-between border-b border-greige-deep px-5 py-4">
-          <h2 className="font-display text-[18px] font-medium">Your cart</h2>
+        <header className="cart-drawer-head flex items-center justify-between border-b px-5 py-4">
+          <h2 className="serif text-[18px] font-medium">Your cart</h2>
           <button
             type="button"
             onClick={closeDrawer}
-            className="border border-greige-deep px-3 py-1.5 text-[11px] uppercase tracking-[0.08em] text-ink"
+            className="btn-ghost"
             aria-label="Close cart"
           >
             Close
@@ -54,7 +48,7 @@ export function CartDrawer() {
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {cart.lines.length === 0 ? (
-            <p className="text-[15px] leading-relaxed text-ink/70">
+            <p className="text-[15px] leading-relaxed" style={{ color: "var(--taupe)" }}>
               Empty for now. Everything we make begins the moment you choose it.
             </p>
           ) : (
@@ -62,9 +56,12 @@ export function CartDrawer() {
               {cart.lines.map((line) => (
                 <li
                   key={line.id}
-                  className="grid grid-cols-[72px_1fr] gap-3 border-b border-greige-deep pb-5"
+                  className="cart-drawer-line grid grid-cols-[72px_1fr] gap-3 pb-5"
                 >
-                  <div className="relative aspect-[3/4] bg-greige-deep/50">
+                  <div
+                    className="relative aspect-[3/4]"
+                    style={{ background: "var(--bone)" }}
+                  >
                     {line.thumbnailUrl ? (
                       <Image
                         src={line.thumbnailUrl}
@@ -75,7 +72,10 @@ export function CartDrawer() {
                         unoptimized
                       />
                     ) : (
-                      <div className="flex size-full items-center justify-center text-[10px] uppercase tracking-[0.08em] text-ink/40">
+                      <div
+                        className="flex size-full items-center justify-center text-[10px] uppercase tracking-[0.08em]"
+                        style={{ color: "var(--taupe)" }}
+                      >
                         AKS
                       </div>
                     )}
@@ -84,27 +84,33 @@ export function CartDrawer() {
                   <div className="min-w-0">
                     <Link
                       href={`/designs/${line.designSlug}`}
-                      className="block truncate font-display text-[15px] text-ink"
+                      className="serif block truncate text-[15px]"
+                      style={{ color: "var(--ink)" }}
                       onClick={closeDrawer}
                     >
                       {line.designName}
                     </Link>
-                    <p className="mt-0.5 text-[13px] text-ink/65">
+                    <p
+                      className="mt-0.5 text-[13px]"
+                      style={{ color: "var(--taupe)" }}
+                    >
                       {line.colourwayName}
                     </p>
-                    <p className="text-[12px] uppercase tracking-[0.06em] text-ink/55">
+                    <p
+                      className="text-[12px] uppercase tracking-[0.06em]"
+                      style={{ color: "var(--taupe)" }}
+                    >
                       {sizeLabel(line)}
                     </p>
 
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                      <div className="inline-flex items-center border border-greige-deep">
+                      <div className="cart-drawer-qty">
                         <button
                           type="button"
                           disabled={pending || line.quantity <= 1}
                           onClick={() =>
                             setLineQuantity(line.id, line.quantity - 1)
                           }
-                          className="px-2.5 py-1.5 text-[14px] text-ink disabled:opacity-40"
                           aria-label="Decrease quantity"
                         >
                           −
@@ -118,7 +124,6 @@ export function CartDrawer() {
                           onClick={() =>
                             setLineQuantity(line.id, line.quantity + 1)
                           }
-                          className="px-2.5 py-1.5 text-[14px] text-ink disabled:opacity-40"
                           aria-label="Increase quantity"
                         >
                           +
@@ -126,14 +131,18 @@ export function CartDrawer() {
                       </div>
 
                       <div className="text-end">
-                        <Money
-                          value={line.unitPriceMinor}
-                          className="block text-[12px] text-ink/55"
-                        />
-                        <Money
-                          value={line.lineTotalMinor}
-                          className="block text-[14px] text-ink"
-                        />
+                        <span style={{ color: "var(--taupe)" }}>
+                          <Money
+                            value={line.unitPriceMinor}
+                            className="block text-[12px]"
+                          />
+                        </span>
+                        <span style={{ color: "var(--ink)" }}>
+                          <Money
+                            value={line.lineTotalMinor}
+                            className="block text-[14px]"
+                          />
+                        </span>
                       </div>
                     </div>
 
@@ -141,7 +150,7 @@ export function CartDrawer() {
                       type="button"
                       disabled={pending}
                       onClick={() => removeLine(line.id)}
-                      className="mt-2 text-[12px] uppercase tracking-[0.06em] text-madder"
+                      className="cart-drawer-remove"
                     >
                       Remove
                     </button>
@@ -152,20 +161,29 @@ export function CartDrawer() {
           )}
         </div>
 
-        <footer className="border-t border-greige-deep px-5 py-5">
+        <footer className="cart-drawer-foot border-t px-5 py-5">
           <div className="mb-2 flex items-baseline justify-between gap-3">
-            <span className="text-[13px] uppercase tracking-[0.08em] text-ink/55">
+            <span
+              className="text-[13px] uppercase tracking-[0.08em]"
+              style={{ color: "var(--taupe)" }}
+            >
               Subtotal
             </span>
-            <Money value={cart.subtotalMinor} className="text-[18px] text-ink" />
+            <Money
+              value={cart.subtotalMinor}
+              className="text-[18px]"
+            />
           </div>
-          <p className="mb-4 text-[13px] leading-relaxed text-ink/65">
+          <p
+            className="mb-4 text-[13px] leading-relaxed"
+            style={{ color: "var(--taupe)" }}
+          >
             {cart.leadTimeLabel}
           </p>
           <Link
             href="/checkout"
             onClick={closeDrawer}
-            className="block w-full border border-ink bg-ink px-4 py-3 text-center text-[12px] uppercase tracking-[0.08em] text-greige disabled:pointer-events-none disabled:opacity-40"
+            className="btn-primary"
             aria-disabled={cart.lines.length === 0}
             tabIndex={cart.lines.length === 0 ? -1 : undefined}
           >

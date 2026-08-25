@@ -24,6 +24,9 @@ export const customerProfiles = pgTable("customer_profiles", {
   internalNotes: text("internal_notes"),
   acceptsMarketing: boolean("accepts_marketing").notNull().default(false),
   source: text("source"),
+  /** Soft merge — loser points at survivor; never hard-deleted. */
+  mergedIntoUserId: uuid("merged_into_user_id").references(() => users.id),
+  mergedAt: timestamp("merged_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

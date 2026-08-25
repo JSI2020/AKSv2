@@ -22,8 +22,10 @@ import type { ProductionBoardFilters } from "./admin/search-params";
 
 export type ProductionBoardCard = {
   id: string;
+  orderId: string;
   orderNumber: string;
   customerFirstName: string;
+  designId: string;
   designName: string;
   thumbnailUrl: string | null;
   sizeModeLabel: "M" | "Custom";
@@ -80,9 +82,11 @@ export async function listProductionBoard(
       blockedReason: productionJobs.blockedReason,
       assignedToId: productionJobs.assignedToId,
       assignedToName: staff.name,
+      orderId: orders.id,
       orderNumber: orders.orderNumber,
       recipientName: sql<string>`${orders.shippingAddressSnapshot}->>'recipientName'`,
       userName: users.name,
+      designId: orderItems.designId,
       designSnapshot: orderItems.designSnapshot,
       sizeMode: orderItems.sizeMode,
     })
@@ -113,10 +117,12 @@ export async function listProductionBoard(
 
     const card: ProductionBoardCard = {
       id: row.id,
+      orderId: row.orderId,
       orderNumber: row.orderNumber,
       customerFirstName: options.tailorSafe
         ? customerFirstName(row.userName ?? row.recipientName)
         : customerFirstName(row.userName ?? row.recipientName),
+      designId: row.designId,
       designName: row.designSnapshot.name,
       thumbnailUrl: row.designSnapshot.thumbnailUrl ?? null,
       sizeModeLabel: sizeModeLabel(

@@ -77,10 +77,25 @@ export async function listUserSessions(userId: string) {
 }
 
 export function clientIpFromHeaders(headers: Headers): string | null {
-  const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+  // Prefer headers set by a trusted edge that overwrites client-controlled values.
+  const cf = headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+
+  const realIp = headers.get("x-real-ip")?.trim();
+  if (realIp) return realIp;
+
+  // x-forwarded-for is client-spoofable unless the reverse proxy strips/resets it.
+  // Only use it when TRUST_PROXY is explicitly enabled for that deployment.
+  const trustProxy =
+    process.env.TRUST_PROXY === "1" ||
+    process.env.TRUST_PROXY === "true";
+  if (trustProxy) {
+    const forwarded = headers.get("x-forwarded-for");
+    if (forwarded) {
+      const first = forwarded.split(",")[0]?.trim();
+      if (first) return first;
+    }
   }
-  return headers.get("x-real-ip");
+
+  return null;
 }

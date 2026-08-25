@@ -3,13 +3,12 @@
 import { desc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
-import { db, messageLog, messageTemplates, orders } from "@aks/db";
-import { uuidv7 } from "@aks/shared";
+import { db, messageLog, orders } from "@aks/db";
 
 import { requirePermission } from "@/modules/auth";
 import { enqueue } from "@/modules/platform/outbox/enqueue";
 
-import { MESSAGE_TEMPLATE_SEEDS } from "./templates";
+import { seedMessageTemplatesIntoDb } from "./seed-templates";
 
 async function buildRetryPayload(row: typeof messageLog.$inferSelect) {
   if (!row.orderId) {
@@ -102,18 +101,6 @@ export async function retryMessageAction(
 }
 
 export async function seedMessageTemplates(): Promise<void> {
-  for (const seed of MESSAGE_TEMPLATE_SEEDS) {
-    await db
-      .insert(messageTemplates)
-      .values({
-        id: uuidv7(),
-        key: seed.key,
-        channel: "EMAIL",
-        locale: seed.locale,
-        version: 1,
-        subject: seed.subject,
-        body: seed.body,
-      })
-      .onConflictDoNothing();
-  }
+  await requirePermission("settings.edit");
+  await seedMessageTemplatesIntoDb();
 }

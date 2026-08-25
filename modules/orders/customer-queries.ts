@@ -1,6 +1,14 @@
 import { desc, eq } from "drizzle-orm";
 
-import { db, orderItems, orderPhotos, orders, users, assets } from "@aks/db";
+import {
+  db,
+  orderEvents,
+  orderItems,
+  orderPhotos,
+  orders,
+  users,
+  assets,
+} from "@aks/db";
 
 import { auth } from "@/auth";
 import { createPresignedReadUrl } from "@/modules/platform/assets";
@@ -9,6 +17,7 @@ import type { OrderStatus } from "./constants";
 import {
   buildProductionTimeline,
   deriveProductionStatus,
+  type ProductionStatus,
   type ProductionTimelineStep,
 } from "./status";
 
@@ -31,6 +40,63 @@ export type CustomerOrderView = {
   }>;
   photos: Array<{ stage: string; readUrl: string | null }>;
 };
+
+function formatStepDay(value: Date, now = new Date()): string {
+  const day = new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+  }).format(value);
+  const sameDay =
+    value.getFullYear() === now.getFullYear() &&
+    value.getMonth() === now.getMonth() &&
+    value.getDate() === now.getDate();
+  return sameDay ? `${day} · today` : day;
+}
+
+const ORDER_TO_TIMELINE_KEY: Partial<Record<OrderStatus, ProductionStatus>> = {
+  AWAITING_DEPOSIT: "RECEIVED",
+  DEPOSIT_PAID: "CONFIRMED",
+  MEASUREMENTS_CONFIRMED: "MEASUREMENTS_VERIFIED",
+  CUTTING: "CUTTING",
+  IN_PRODUCTION: "CUTTING",
+  STITCHING: "STITCHING",
+  EMBROIDERY: "EMBROIDERY",
+  FINISHING: "FINISHING",
+  QUALITY_CHECK: "QUALITY_CHECK",
+  READY_TO_SHIP: "PACKED",
+  DISPATCHED: "DISPATCHED",
+  DELIVERED: "DELIVERED",
+  COMPLETED: "COMPLETED",
+};
+
+async function stampTimeline(
+  orderId: string,
+  timeline: ProductionTimelineStep[],
+  placedAt: Date | null,
+): Promise<ProductionTimelineStep[]> {
+  const events = await db
+    .select({
+      toStatus: orderEvents.toStatus,
+      createdAt: orderEvents.createdAt,
+    })
+    .from(orderEvents)
+    .where(eq(orderEvents.entityId, orderId))
+    .orderBy(desc(orderEvents.createdAt));
+
+  const stamps = new Map<ProductionStatus, string>();
+  if (placedAt) stamps.set("RECEIVED", formatStepDay(placedAt));
+  for (const event of events) {
+    const key = ORDER_TO_TIMELINE_KEY[event.toStatus as OrderStatus];
+    if (key && !stamps.has(key)) {
+      stamps.set(key, formatStepDay(event.createdAt));
+    }
+  }
+
+  return timeline.map((step) => ({
+    ...step,
+    atLabel: stamps.get(step.key) ?? null,
+  }));
+}
 
 async function loadCustomerPhotos(orderId: string) {
   const rows = await db
@@ -58,17 +124,25 @@ async function loadCustomerPhotos(orderId: string) {
   return photos;
 }
 
-function mapCustomerOrder(order: typeof orders.$inferSelect, items: typeof orderItems.$inferSelect[]): CustomerOrderView {
+async function mapCustomerOrder(
+  order: typeof orders.$inferSelect,
+  items: (typeof orderItems.$inferSelect)[],
+): Promise<CustomerOrderView> {
   const status = order.status as OrderStatus;
+  const timeline = await stampTimeline(
+    order.id,
+    buildProductionTimeline({
+      currentStatus: status,
+      skipEmbroidery: order.skipEmbroidery,
+    }),
+    order.placedAt,
+  );
   return {
     orderNumber: order.orderNumber,
     status,
     productionStatus: deriveProductionStatus(status),
     skipEmbroidery: order.skipEmbroidery,
-    timeline: buildProductionTimeline({
-      currentStatus: status,
-      skipEmbroidery: order.skipEmbroidery,
-    }),
+    timeline,
     placedAt: order.placedAt,
     promisedShipDate: order.promisedShipDate,
     totalMinor: order.totalMinor,
@@ -104,7 +178,7 @@ export async function getCustomerOrderByNumber(
     .where(eq(orderItems.orderId, order.id))
     .orderBy(orderItems.createdAt);
 
-  const view = mapCustomerOrder(order, items);
+  const view = await mapCustomerOrder(order, items);
   view.photos = await loadCustomerPhotos(order.id);
   return view;
 }
@@ -126,7 +200,7 @@ export async function getTrackedOrderByNumber(
     .where(eq(orderItems.orderId, order.id))
     .orderBy(orderItems.createdAt);
 
-  const view = mapCustomerOrder(order, items);
+  const view = await mapCustomerOrder(order, items);
   const photos = await db
     .select({
       stage: orderPhotos.stage,

@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
   useTransition,
   type ReactNode,
@@ -12,6 +13,7 @@ import {
 
 import {
   addToCart,
+  fetchCart,
   removeCartLine,
   updateCartLineQuantity,
 } from "./actions";
@@ -39,6 +41,9 @@ type CartContextValue = {
   setLineQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
   pending: boolean;
+  /** Design name for add-to-cart toast (prototype C). */
+  lastAddedName: string | null;
+  clearLastAdded: () => void;
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
@@ -102,10 +107,42 @@ export function CartProvider({
   const [cart, setCart] = useState(initialCart);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [lastAddedName, setLastAddedName] = useState<string | null>(null);
+  const drawerOpenRef = useRef(drawerOpen);
+  drawerOpenRef.current = drawerOpen;
 
-  const openDrawer = useCallback(() => setDrawerOpen(true), []);
+  // Keep client cart aligned when the server layout re-hydrates (e.g. after consolidate).
+  const serverStamp = `${initialCart.id}:${initialCart.lines
+    .map((l) => `${l.id}:${l.quantity}`)
+    .join(",")}`;
+  const [seenStamp, setSeenStamp] = useState(serverStamp);
+  if (serverStamp !== seenStamp) {
+    setSeenStamp(serverStamp);
+    setCart(initialCart);
+  }
+
+  const refreshCart = useCallback(() => {
+    startTransition(async () => {
+      try {
+        const fresh = await fetchCart();
+        setCart(fresh);
+      } catch {
+        // Keep optimistic client cart if refresh fails.
+      }
+    });
+  }, [startTransition]);
+
+  const openDrawer = useCallback(() => {
+    setDrawerOpen(true);
+    refreshCart();
+  }, [refreshCart]);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
-  const toggleDrawer = useCallback(() => setDrawerOpen((v) => !v), []);
+  const toggleDrawer = useCallback(() => {
+    const next = !drawerOpenRef.current;
+    setDrawerOpen(next);
+    if (next) refreshCart();
+  }, [refreshCart]);
+  const clearLastAdded = useCallback(() => setLastAddedName(null), []);
 
   const addItem = useCallback(
     async (input: AddToCartInput, designMeta: OptimisticMeta) => {
@@ -118,6 +155,9 @@ export function CartProvider({
       const result = await addToCart(input);
       if (result.ok) {
         setCart(result.cart);
+        setLastAddedName(
+          `${designMeta.designName} — ${designMeta.colourwayName}`,
+        );
         return { ok: true };
       }
 
@@ -184,6 +224,8 @@ export function CartProvider({
       setLineQuantity,
       removeLine,
       pending,
+      lastAddedName,
+      clearLastAdded,
     }),
     [
       cart,
@@ -195,6 +237,8 @@ export function CartProvider({
       setLineQuantity,
       removeLine,
       pending,
+      lastAddedName,
+      clearLastAdded,
     ],
   );
 

@@ -13,6 +13,7 @@ import { resolveMeasurementProfileId } from "@/modules/cart/queries";
 import { auth } from "@/auth";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { DesignViewTracker } from "@/modules/analytics";
+import { getSiteSettings } from "@/modules/content/site-settings";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -60,14 +61,17 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
   const session = await auth();
   const userId = session?.user?.id ?? null;
   const anonId = await getOrSetAnonToken();
-  const measurementProfileId = await resolveMeasurementProfileId({
-    designId: design.id,
-    userId,
-    anonId,
-  });
+  const [measurementProfileId, settings] = await Promise.all([
+    resolveMeasurementProfileId({
+      designId: design.id,
+      userId,
+      anonId,
+    }),
+    getSiteSettings(),
+  ]);
 
   return (
-    <main className="mx-auto max-w-[1300px] px-4 pb-28 pt-9 md:px-10">
+    <main className="pdp-page">
       <DesignViewTracker
         designId={design.id}
         designSlug={design.slug}
@@ -84,6 +88,7 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
         initialSizeLabel={sizeLabel}
         initialQuantity={quantity}
         measurementProfileId={measurementProfileId}
+        leadTimePromise={settings.leadTimePromise}
       />
     </main>
   );

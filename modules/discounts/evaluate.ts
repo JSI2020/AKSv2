@@ -11,6 +11,7 @@ import { uuidv7 } from "@aks/shared";
 
 import { getPublishedDesigns } from "@/modules/catalog/queries";
 import { resolveCollection } from "@/modules/catalog/resolve-collection";
+import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
 import type { DbTx } from "@/modules/platform/types";
 
 import {
@@ -53,8 +54,23 @@ async function buildCollectionDesignMap(
   const slugs = [
     ...new Set(
       rows
-        .filter((row) => row.appliesTo === "COLLECTION")
-        .flatMap((row) => row.targetIds),
+        .filter(
+          (row) =>
+            row.appliesTo === "COLLECTION" || row.appliesTo === "CATEGORY",
+        )
+        .flatMap((row) =>
+          row.targetIds.map((id) => {
+            // CATEGORY stores house-door tags (ESSENTIALS); collections use slugs.
+            const lower = id.toLowerCase();
+            if (row.appliesTo === "CATEGORY") {
+              const house = HOUSE_COLLECTIONS.find(
+                (c) => c.tag === id.toUpperCase() || c.slug === lower,
+              );
+              return house?.slug ?? lower;
+            }
+            return lower;
+          }),
+        ),
     ),
   ];
 
@@ -191,8 +207,13 @@ function collectionDesignIdsForDiscount(
   collectionMap: Map<string, Set<string>>,
 ): Set<string> {
   const ids = new Set<string>();
-  for (const slug of discount.targetIds) {
-    const resolved = collectionMap.get(slug);
+  for (const raw of discount.targetIds) {
+    const lower = raw.toLowerCase();
+    const house = HOUSE_COLLECTIONS.find(
+      (c) => c.tag === raw.toUpperCase() || c.slug === lower,
+    );
+    const key = house?.slug ?? lower;
+    const resolved = collectionMap.get(key) ?? collectionMap.get(raw);
     if (resolved) {
       for (const id of resolved) ids.add(id);
     }
@@ -242,7 +263,8 @@ export async function evaluateCheckoutDiscounts(
     if (input.subtotalMinor < discount.minSpendMinor) continue;
 
     const collectionDesignIds =
-      discount.appliesTo === "COLLECTION"
+      discount.appliesTo === "COLLECTION" ||
+        discount.appliesTo === "CATEGORY"
         ? collectionDesignIdsForDiscount(discount, collectionMap)
         : new Set<string>();
 

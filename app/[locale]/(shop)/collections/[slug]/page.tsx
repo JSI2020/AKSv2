@@ -9,6 +9,10 @@ import {
   collectionSearchParamsCache,
   searchParamsToFilters,
 } from "@/modules/catalog";
+import {
+  automaticPercentForDesign,
+  loadActiveAutomaticPercentDiscounts,
+} from "@/modules/discounts/storefront-badges";
 
 type Props = {
   params: Promise<{ locale: string; slug: string }>;
@@ -26,7 +30,7 @@ export default async function CollectionPage({ params, searchParams }: Props) {
   const { filters, page } = searchParamsToFilters(parsed);
   const sort = parsed.sort ?? collection.defaultSort;
 
-  const [{ items, total }, facets] = await Promise.all([
+  const [{ items, total }, facets, autoDiscounts] = await Promise.all([
     getPublishedDesigns({
       baseFilters: collection.baseFilters,
       filters,
@@ -34,12 +38,23 @@ export default async function CollectionPage({ params, searchParams }: Props) {
       page,
     }),
     getCollectionFacetOptions(),
+    loadActiveAutomaticPercentDiscounts(),
   ]);
+
+  const withBadges = items.map((d) => ({
+    ...d,
+    automaticPercentOff: automaticPercentForDesign({
+      designId: d.id,
+      freeTags: d.freeTags,
+      garmentTypeKey: d.garmentTypeKey,
+      discounts: autoDiscounts,
+    }),
+  }));
 
   return (
     <CollectionPageView
       collection={collection}
-      items={items}
+      items={withBadges}
       total={total}
       facets={facets}
     />

@@ -10,5 +10,6 @@ export {
   completeUpload,
   deleteAsset,
   purgeExpiredAssets,
+  uploadKeyOwnedByPrefix,
 } from "./r2";
 export type { CompleteUploadInput } from "./r2";

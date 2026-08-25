@@ -4,9 +4,9 @@ import { inches } from "@aks/shared";
 
 import { calculateCutSpec } from "@/modules/sizing/engine";
 
+import { formatMetres } from "./format-metres";
 import {
   buildCutSpecRows,
-  formatMetres,
   measurementLabelEn,
   measurementLabelUr,
 } from "./spec-sheet";

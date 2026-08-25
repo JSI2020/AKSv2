@@ -1,9 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { Money, Measure } from "@/modules/ui";
-import { formatMarginPercent } from "@/modules/money";
-import { formatMetres } from "@/modules/production";
+import { formatMarginPercent } from "@/modules/money/compute";
+import { formatMetres } from "@/modules/production/format-metres";
 
 import type {
   CustomerRelatedData,
@@ -68,11 +70,13 @@ export function CustomerRelatedPanels({ data }: { data: CustomerRelatedData }) {
                 >
                   {order.orderNumber}
                 </Link>
+                <span className="rounded-sm border border-ink/20 px-2 py-0.5 text-[10px] uppercase tracking-[0.06em] text-ink">
+                  {order.productionLabel}
+                </span>
                 <span className="font-data text-[12px] text-chalk">
                   {order.placedAt
                     ? new Date(order.placedAt).toLocaleDateString()
-                    : "—"}{" "}
-                  · {order.status}
+                    : "—"}
                 </span>
                 <Money value={order.totalMinor} className="text-[12px]" />
               </li>

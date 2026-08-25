@@ -181,8 +181,13 @@ export async function listCodRemittances(): Promise<CodRemittanceRow[]> {
     receivedAmountMinor: row.receivedAmountMinor,
     receivedAt: row.receivedAt,
     orderIds: row.orderIds,
+    perOrderExpected: row.perOrderExpected ?? {},
     discrepancyNote: row.discrepancyNote,
     hasDiscrepancy: row.expectedAmountMinor !== row.receivedAmountMinor,
+    shortfallMinor: Math.max(
+      0,
+      row.expectedAmountMinor - row.receivedAmountMinor,
+    ),
   }));
 }
 
@@ -194,6 +199,8 @@ export async function createCodRemittance(
     receivedAmountMinor: number;
     receivedAt: Date;
     orderIds: string[];
+    /** Snapshot of expected balance per order (paisa). Built if omitted. */
+    perOrderExpected?: Record<string, number>;
     discrepancyNote?: string;
     recordedById: string;
   },
@@ -228,14 +235,24 @@ export async function createCodRemittance(
     }
   }
 
-  const computedExpected = delivered.reduce(
-    (sum, o) => sum + o.balanceAmountMinor,
+  const perOrderExpected: Record<string, number> =
+    input.perOrderExpected ??
+    Object.fromEntries(
+      delivered.map((o) => [o.id, o.balanceAmountMinor] as const),
+    );
+
+  const computedExpected = Object.values(perOrderExpected).reduce(
+    (sum, n) => sum + n,
     0,
   );
+  const expectedAmountMinor =
+    input.expectedAmountMinor > 0
+      ? input.expectedAmountMinor
+      : computedExpected;
 
   let discrepancyNote = input.discrepancyNote?.trim() || null;
-  if (input.expectedAmountMinor !== input.receivedAmountMinor && !discrepancyNote) {
-    discrepancyNote = `Expected ${input.expectedAmountMinor} paisa, received ${input.receivedAmountMinor} paisa. Order sum: ${computedExpected} paisa.`;
+  if (expectedAmountMinor !== input.receivedAmountMinor && !discrepancyNote) {
+    discrepancyNote = `Expected ${expectedAmountMinor} paisa, received ${input.receivedAmountMinor} paisa. Per-order sum: ${computedExpected} paisa.`;
   }
 
   const id = uuidv7();
@@ -243,10 +260,11 @@ export async function createCodRemittance(
     id,
     courier: input.courier.trim(),
     remittanceRef: input.remittanceRef.trim(),
-    expectedAmountMinor: input.expectedAmountMinor,
+    expectedAmountMinor,
     receivedAmountMinor: input.receivedAmountMinor,
     receivedAt: input.receivedAt,
     orderIds: input.orderIds,
+    perOrderExpected,
     discrepancyNote,
     recordedById: input.recordedById,
   });
@@ -257,10 +275,11 @@ export async function createCodRemittance(
       remittanceId: id,
       courier: input.courier.trim(),
       remittanceRef: input.remittanceRef.trim(),
-      expectedAmountMinor: input.expectedAmountMinor,
+      expectedAmountMinor,
       receivedAmountMinor: input.receivedAmountMinor,
       orderIds: input.orderIds,
-      hasDiscrepancy: input.expectedAmountMinor !== input.receivedAmountMinor,
+      perOrderExpected,
+      hasDiscrepancy: expectedAmountMinor !== input.receivedAmountMinor,
     },
     tx,
   );

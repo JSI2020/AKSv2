@@ -133,18 +133,24 @@ export async function upsertCartLine(input: {
   unitPriceMinor: number;
   quantity: number;
 }): Promise<string> {
+  await consolidateDuplicateCartLines(input.cartId);
+
   const existingLines = await db
     .select()
     .from(cartLines)
     .where(eq(cartLines.cartId, input.cartId));
 
+  const normalizedLabel = input.sizeLabel?.trim() || null;
+  const measurementProfileId =
+    input.sizeMode === "STANDARD" ? null : input.measurementProfileId;
+  const selections = input.customizationSelections ?? {};
   const fp = cartLineFingerprint({
     designId: input.designId,
     colourwayId: input.colourwayId,
     sizeMode: input.sizeMode,
-    sizeLabel: input.sizeLabel,
-    measurementProfileId: input.measurementProfileId,
-    customizationSelections: input.customizationSelections,
+    sizeLabel: normalizedLabel,
+    measurementProfileId,
+    customizationSelections: selections,
   });
 
   const match = existingLines.find(
@@ -165,8 +171,9 @@ export async function upsertCartLine(input: {
     await db
       .update(cartLines)
       .set({
-        quantity: match.quantity + input.quantity,
+        quantity: Math.min(99, match.quantity + input.quantity),
         unitPriceMinor: input.unitPriceMinor,
+        sizeLabel: normalizedLabel,
         updatedAt: now,
       })
       .where(eq(cartLines.id, match.id));
@@ -180,9 +187,9 @@ export async function upsertCartLine(input: {
     designId: input.designId,
     colourwayId: input.colourwayId,
     sizeMode: input.sizeMode,
-    sizeLabel: input.sizeLabel,
-    measurementProfileId: input.measurementProfileId,
-    customizationSelections: input.customizationSelections,
+    sizeLabel: normalizedLabel,
+    measurementProfileId,
+    customizationSelections: selections,
     unitPriceMinor: input.unitPriceMinor,
     quantity: input.quantity,
     createdAt: now,
@@ -190,4 +197,48 @@ export async function upsertCartLine(input: {
   });
 
   return id;
+}
+
+/** Collapse any existing duplicate fingerprints into a single line. */
+export async function consolidateDuplicateCartLines(
+  cartId: string,
+): Promise<void> {
+  const lines = await db
+    .select()
+    .from(cartLines)
+    .where(eq(cartLines.cartId, cartId));
+
+  if (lines.length < 2) return;
+
+  const byFp = new Map<string, (typeof lines)[number]>();
+  const now = new Date();
+
+  for (const line of lines) {
+    const fp = cartLineFingerprint({
+      designId: line.designId,
+      colourwayId: line.colourwayId,
+      sizeMode: line.sizeMode,
+      sizeLabel: line.sizeLabel,
+      measurementProfileId: line.measurementProfileId,
+      customizationSelections: line.customizationSelections ?? {},
+    });
+    const kept = byFp.get(fp);
+    if (!kept) {
+      byFp.set(fp, line);
+      continue;
+    }
+
+    await db
+      .update(cartLines)
+      .set({
+        quantity: Math.min(99, kept.quantity + line.quantity),
+        updatedAt: now,
+      })
+      .where(eq(cartLines.id, kept.id));
+    await db.delete(cartLines).where(eq(cartLines.id, line.id));
+    byFp.set(fp, {
+      ...kept,
+      quantity: Math.min(99, kept.quantity + line.quantity),
+    });
+  }
 }

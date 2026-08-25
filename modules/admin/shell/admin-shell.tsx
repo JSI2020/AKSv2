@@ -11,15 +11,21 @@ type AdminShellProps = {
   children: ReactNode;
 };
 
+/**
+ * Admin shell — indigo rail + warm greige content ground
+ * (docs/AKS_Admin_Redesign.html). Six brand colours only.
+ */
 export function AdminShell({ email, children }: AdminShellProps) {
   const [commandOpen, setCommandOpen] = useState(false);
 
   return (
-    <div className="flex min-h-dvh bg-indigo text-[13px] text-greige">
+    <div className="admin-shell flex min-h-dvh bg-greige text-[14px] text-ink">
       <AdminSidebar email={email} />
       <div className="flex min-w-0 flex-1 flex-col">
         <AdminHeader onOpenCommand={() => setCommandOpen(true)} />
-        <main className="flex-1 px-4 pb-20 pt-4 md:px-6 md:pb-6">{children}</main>
+        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-20 pt-6 md:px-8 md:pb-10">
+          {children}
+        </main>
       </div>
       <AdminMobileNav />
       <AdminCommandMenu open={commandOpen} onOpenChange={setCommandOpen} />

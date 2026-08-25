@@ -7,6 +7,8 @@ import {
   parseAsStringLiteral,
 } from "nuqs/server";
 
+import { timeRangeParsers } from "@/modules/admin/time-filter";
+
 import { PRODUCTION_JOB_STAGES } from "../constants";
 
 export const productionBoardParsers = {
@@ -20,6 +22,7 @@ export const productionBoardParsers = {
   ).withDefault([]),
   dateFrom: parseAsIsoDateTime,
   dateTo: parseAsIsoDateTime,
+  ...timeRangeParsers,
 };
 
 export const productionBoardSearchParamsCache = createSearchParamsCache(

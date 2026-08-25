@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   derivePaymentStatus,
   deriveProductionStatus,
+  dueTone,
   isOrderAtRisk,
+  isOrderDueSoon,
+  isOrderOverdue,
 } from "./status";
 
 describe("order status derivation", () => {
@@ -33,6 +36,26 @@ describe("order status derivation", () => {
         status: "COMPLETED",
       }),
     ).toBe(false);
+  });
+
+  it("splits due soon vs overdue", () => {
+    const now = new Date("2026-09-01T12:00:00Z");
+    const overdue = new Date("2026-08-28T12:00:00Z");
+    const soon = new Date("2026-09-03T12:00:00Z");
+    const ok = new Date("2026-09-12T12:00:00Z");
+
+    expect(
+      dueTone({ promisedShipDate: overdue, status: "STITCHING", now }),
+    ).toBe("overdue");
+    expect(
+      isOrderOverdue({ promisedShipDate: overdue, status: "STITCHING", now }),
+    ).toBe(true);
+    expect(
+      isOrderDueSoon({ promisedShipDate: soon, status: "CUTTING", now }),
+    ).toBe(true);
+    expect(dueTone({ promisedShipDate: ok, status: "CUTTING", now })).toBe(
+      "ok",
+    );
   });
 
   it("derives paid in full when recorded payments cover total", () => {

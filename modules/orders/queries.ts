@@ -1,11 +1,13 @@
 import {
   and,
+  count,
   desc,
   eq,
   gte,
   ilike,
   inArray,
   lte,
+  ne,
   or,
   sql,
 } from "drizzle-orm";
@@ -13,12 +15,14 @@ import {
 import {
   assets,
   db,
+  designs,
   orderEvents,
   orderItems,
   orderPayments,
   orderPhotos,
   orders,
   payments,
+  productionJobs,
   users,
 } from "@aks/db";
 
@@ -29,8 +33,18 @@ import type { OrderStatus } from "./constants";
 import {
   derivePaymentStatus,
   deriveProductionStatus,
+  dueTone,
+  daysUntilPromised,
+  formatRelativeDue,
+  FUNNEL_PRODUCTION_STAGES,
+  IN_PROGRESS_PRODUCTION_STATUSES,
   isOrderAtRisk,
+  isOrderDueSoon,
+  isOrderOverdue,
+  isTerminalOrderStatus,
+  PRODUCTION_STATUS_LABELS,
   PRODUCTION_TO_ORDER_STATUSES,
+  type DueTone,
   type PaymentStatus,
   type ProductionStatus,
 } from "./status";
@@ -42,6 +56,10 @@ export type OrderListFilters = {
   source?: string[];
   sizeMode?: ("STANDARD" | "MADE_TO_MEASURE")[];
   atRisk?: boolean;
+  /** overdue = past promised; soon = within 3 days */
+  due?: "overdue" | "soon";
+  /** Restrict completed to calendar month (shop local approx via Date) */
+  completedThisMonth?: boolean;
   dateFrom?: Date;
   dateTo?: Date;
   page?: number;
@@ -53,13 +71,20 @@ export type OrderListItem = {
   orderNumber: string;
   customerName: string;
   customerUserId: string | null;
+  customerWhatsapp: string | null;
   placedAt: Date | null;
   productionStatus: ProductionStatus;
   paymentStatus: PaymentStatus;
   totalMinor: number;
   promisedShipDate: Date | null;
   atRisk: boolean;
+  dueTone: DueTone;
+  relativeDue: string;
+  daysUntilDue: number | null;
+  itemSummary: string;
+  sizeLabel: string | null;
   source: string;
+  status: OrderStatus;
 };
 
 export type OrderListResult = {
@@ -67,6 +92,17 @@ export type OrderListResult = {
   total: number;
   page: number;
   perPage: number;
+};
+
+export type OrdersListOverview = {
+  inProgress: number;
+  dueSoon: number;
+  overdue: number;
+  completedThisMonth: number;
+  open: number;
+  newCount: number;
+  balanceDue: number;
+  funnel: Array<{ stage: ProductionStatus; label: string; count: number }>;
 };
 
 function buildProductionStatusFilter(
@@ -112,6 +148,48 @@ async function sumPaidMinor(orderId: string): Promise<number> {
   );
 }
 
+function startOfMonth(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth(), 1);
+}
+
+function endOfMonth(now = new Date()): Date {
+  return new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+}
+
+async function firstItemsByOrderId(
+  orderIds: string[],
+): Promise<
+  Map<string, { name: string; sizeLabel: string | null; sizeMode: string }>
+> {
+  const map = new Map<
+    string,
+    { name: string; sizeLabel: string | null; sizeMode: string }
+  >();
+  if (orderIds.length === 0) return map;
+
+  const rows = await db
+    .select({
+      orderId: orderItems.orderId,
+      designSnapshot: orderItems.designSnapshot,
+      sizeLabel: orderItems.sizeLabel,
+      sizeMode: orderItems.sizeMode,
+      createdAt: orderItems.createdAt,
+    })
+    .from(orderItems)
+    .where(inArray(orderItems.orderId, orderIds))
+    .orderBy(orderItems.createdAt);
+
+  for (const row of rows) {
+    if (map.has(row.orderId)) continue;
+    map.set(row.orderId, {
+      name: row.designSnapshot.name,
+      sizeLabel: row.sizeLabel,
+      sizeMode: row.sizeMode,
+    });
+  }
+  return map;
+}
+
 export async function listOrders(
   filters: OrderListFilters = {},
 ): Promise<OrderListResult> {
@@ -120,6 +198,7 @@ export async function listOrders(
   const page = Math.max(1, filters.page ?? 1);
   const perPage = Math.min(100, Math.max(1, filters.perPage ?? 25));
   const offset = (page - 1) * perPage;
+  const now = new Date();
 
   const conditions = [];
 
@@ -159,6 +238,12 @@ export async function listOrders(
     conditions.push(lte(orders.placedAt, filters.dateTo));
   }
 
+  if (filters.completedThisMonth) {
+    conditions.push(eq(orders.status, "COMPLETED"));
+    conditions.push(gte(orders.updatedAt, startOfMonth(now)));
+    conditions.push(lte(orders.updatedAt, endOfMonth(now)));
+  }
+
   if (filters.sizeMode?.length) {
     conditions.push(
       sql`exists (
@@ -179,6 +264,7 @@ export async function listOrders(
       id: orders.id,
       orderNumber: orders.orderNumber,
       userId: orders.userId,
+      whatsappNumber: orders.whatsappNumber,
       guestEmail: orders.guestEmail,
       status: orders.status,
       totalMinor: orders.totalMinor,
@@ -195,12 +281,15 @@ export async function listOrders(
     .where(whereClause)
     .orderBy(desc(orders.placedAt), desc(orders.createdAt));
 
+  const itemMap = await firstItemsByOrderId(rows.map((r) => r.id));
+
   const allItems: OrderListItem[] = [];
   for (const row of rows) {
     const paidMinor = await sumPaidMinor(row.id);
-    const productionStatus = deriveProductionStatus(row.status as OrderStatus);
+    const status = row.status as OrderStatus;
+    const productionStatus = deriveProductionStatus(status);
     const paymentStatus = derivePaymentStatus({
-      status: row.status as OrderStatus,
+      status,
       balanceAmountMinor: row.balanceAmountMinor,
       paidMinor,
       totalMinor: row.totalMinor,
@@ -215,11 +304,19 @@ export async function listOrders(
 
     const atRisk = isOrderAtRisk({
       promisedShipDate: row.promisedShipDate,
-      status: row.status as OrderStatus,
+      status,
+      now,
     });
 
     if (filters.atRisk === true && !atRisk) continue;
     if (filters.atRisk === false && atRisk) continue;
+
+    if (filters.due === "overdue" && !isOrderOverdue({ promisedShipDate: row.promisedShipDate, status, now })) {
+      continue;
+    }
+    if (filters.due === "soon" && !isOrderDueSoon({ promisedShipDate: row.promisedShipDate, status, now })) {
+      continue;
+    }
 
     const customerName =
       row.customerName ??
@@ -227,18 +324,34 @@ export async function listOrders(
       row.guestEmail ??
       row.shippingAddressSnapshot.phone;
 
+    const firstItem = itemMap.get(row.id);
+    const sizeLabel =
+      firstItem?.sizeLabel ??
+      (firstItem?.sizeMode === "MADE_TO_MEASURE" ? "MTM" : null);
+
     allItems.push({
       id: row.id,
       orderNumber: row.orderNumber,
       customerName,
       customerUserId: row.userId,
+      customerWhatsapp: row.whatsappNumber || null,
       placedAt: row.placedAt,
       productionStatus,
       paymentStatus,
       totalMinor: row.totalMinor,
       promisedShipDate: row.promisedShipDate,
       atRisk,
+      dueTone: dueTone({ promisedShipDate: row.promisedShipDate, status, now }),
+      relativeDue: formatRelativeDue({
+        promisedShipDate: row.promisedShipDate,
+        status,
+        now,
+      }),
+      daysUntilDue: daysUntilPromised(row.promisedShipDate, now),
+      itemSummary: firstItem?.name ?? "—",
+      sizeLabel,
       source: row.source,
+      status,
     });
   }
 
@@ -248,11 +361,95 @@ export async function listOrders(
   return { items, total, page, perPage };
 }
 
+export async function getOrdersListOverview(): Promise<OrdersListOverview> {
+  await requirePermission("orders.view");
+  const now = new Date();
+  const monthStart = startOfMonth(now);
+  const monthEnd = endOfMonth(now);
+
+  const rows = await db
+    .select({
+      id: orders.id,
+      status: orders.status,
+      balanceAmountMinor: orders.balanceAmountMinor,
+      totalMinor: orders.totalMinor,
+      promisedShipDate: orders.promisedShipDate,
+      updatedAt: orders.updatedAt,
+    })
+    .from(orders)
+    .where(sql`${orders.status} <> 'DRAFT'`);
+
+  let inProgress = 0;
+  let dueSoon = 0;
+  let overdue = 0;
+  let completedThisMonth = 0;
+  let open = 0;
+  let newCount = 0;
+  let balanceDue = 0;
+  const funnelCounts = Object.fromEntries(
+    FUNNEL_PRODUCTION_STAGES.map((s) => [s, 0]),
+  ) as Record<ProductionStatus, number>;
+
+  for (const row of rows) {
+    const status = row.status as OrderStatus;
+    const production = deriveProductionStatus(status);
+    const paidMinor = await sumPaidMinor(row.id);
+    const payment = derivePaymentStatus({
+      status,
+      balanceAmountMinor: row.balanceAmountMinor,
+      paidMinor,
+      totalMinor: row.totalMinor,
+    });
+
+    if (!isTerminalOrderStatus(status)) {
+      open += 1;
+      if (production === "RECEIVED") newCount += 1;
+      if (IN_PROGRESS_PRODUCTION_STATUSES.includes(production)) inProgress += 1;
+      if (isOrderDueSoon({ promisedShipDate: row.promisedShipDate, status, now })) {
+        dueSoon += 1;
+      }
+      if (isOrderOverdue({ promisedShipDate: row.promisedShipDate, status, now })) {
+        overdue += 1;
+      }
+    }
+
+    if (
+      status === "COMPLETED" &&
+      row.updatedAt >= monthStart &&
+      row.updatedAt <= monthEnd
+    ) {
+      completedThisMonth += 1;
+    }
+
+    if (payment === "BALANCE_DUE") balanceDue += 1;
+
+    if (FUNNEL_PRODUCTION_STAGES.includes(production as (typeof FUNNEL_PRODUCTION_STAGES)[number])) {
+      funnelCounts[production] += 1;
+    }
+  }
+
+  return {
+    inProgress,
+    dueSoon,
+    overdue,
+    completedThisMonth,
+    open,
+    newCount,
+    balanceDue,
+    funnel: FUNNEL_PRODUCTION_STAGES.map((stage) => ({
+      stage,
+      label: PRODUCTION_STATUS_LABELS[stage],
+      count: funnelCounts[stage] ?? 0,
+    })),
+  };
+}
+
 export type OrderDetailItem = {
   id: string;
   designId: string;
   designName: string;
   designSlug: string;
+  thumbnailUrl: string | null;
   sizeMode: "STANDARD" | "MADE_TO_MEASURE";
   sizeLabel: string | null;
   measurementSnapshot: {
@@ -346,6 +543,9 @@ export type OrderDetail = {
   events: OrderDetailEvent[];
   payments: OrderDetailPayment[];
   photos: OrderDetailPhoto[];
+  /** 1-based ordinal among this customer's placed orders */
+  customerOrderOrdinal: number | null;
+  primaryProductionJobId: string | null;
 };
 
 export async function getOrderDetail(
@@ -459,6 +659,61 @@ export async function getOrderDetail(
 
   const status = order.status as OrderStatus;
 
+  let customerOrderOrdinal: number | null = null;
+  const ordinalCutoff = order.placedAt ?? order.createdAt;
+  if (order.userId) {
+    const prior = await db
+      .select({ total: count() })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.userId, order.userId),
+          ne(orders.status, "DRAFT"),
+          lte(orders.placedAt, ordinalCutoff),
+        ),
+      );
+    customerOrderOrdinal = Number(prior[0]?.total ?? 0) || null;
+  } else if (order.whatsappNumber) {
+    const prior = await db
+      .select({ total: count() })
+      .from(orders)
+      .where(
+        and(
+          eq(orders.whatsappNumber, order.whatsappNumber),
+          ne(orders.status, "DRAFT"),
+          lte(orders.placedAt, ordinalCutoff),
+        ),
+      );
+    customerOrderOrdinal = Number(prior[0]?.total ?? 0) || null;
+  }
+
+  const itemIds = items.map((i) => i.id);
+  let primaryProductionJobId: string | null = null;
+  if (itemIds.length > 0) {
+    const [job] = await db
+      .select({ id: productionJobs.id })
+      .from(productionJobs)
+      .where(inArray(productionJobs.orderItemId, itemIds))
+      .orderBy(productionJobs.createdAt)
+      .limit(1);
+    primaryProductionJobId = job?.id ?? null;
+  }
+
+  const designIds = [...new Set(items.map((i) => i.designId))];
+  const designNameById = new Map<string, string>();
+  if (designIds.length > 0) {
+    const designRows = await db
+      .select({ id: designs.id, name: designs.name })
+      .from(designs)
+      .where(inArray(designs.id, designIds));
+    for (const row of designRows) {
+      designNameById.set(row.id, row.name);
+    }
+  }
+
+  // Always derive balance from money received — stored balance can drift.
+  const balanceDueMinor = Math.max(0, order.totalMinor - paidMinor);
+
   return {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -466,7 +721,7 @@ export async function getOrderDetail(
     productionStatus: deriveProductionStatus(status),
     paymentStatus: derivePaymentStatus({
       status,
-      balanceAmountMinor: order.balanceAmountMinor,
+      balanceAmountMinor: balanceDueMinor,
       paidMinor,
       totalMinor: order.totalMinor,
     }),
@@ -484,7 +739,7 @@ export async function getOrderDetail(
     taxMinor: order.taxMinor,
     totalMinor: order.totalMinor,
     depositAmountMinor: order.depositAmountMinor,
-    balanceAmountMinor: order.balanceAmountMinor,
+    balanceAmountMinor: balanceDueMinor,
     paidMinor,
     paymentPlan: order.paymentPlan,
     customerNotes: order.customerNotes,
@@ -504,8 +759,9 @@ export async function getOrderDetail(
     items: items.map((item) => ({
       id: item.id,
       designId: item.designId,
-      designName: item.designSnapshot.name,
+      designName: designNameById.get(item.designId) ?? item.designSnapshot.name,
       designSlug: item.designSnapshot.slug,
+      thumbnailUrl: item.designSnapshot.thumbnailUrl ?? null,
       sizeMode: item.sizeMode,
       sizeLabel: item.sizeLabel,
       measurementSnapshot: item.measurementSnapshot,
@@ -526,5 +782,7 @@ export async function getOrderDetail(
     })),
     payments: paymentsCombined,
     photos,
+    customerOrderOrdinal,
+    primaryProductionJobId,
   };
 }
