@@ -51,6 +51,7 @@ export default async function DesignsAdminPage() {
 
       {total === 0 ? (
         <EmptyState
+          tone="on-greige"
           title="No designs yet"
           description="Create a design with photos, sizes, colours, and price — then publish when ready."
           action={

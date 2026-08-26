@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { Money } from "@/modules/ui";
+import { EmptyState, Money } from "@/modules/ui";
 
 import type { StudioCatalogCard, StudioCatalogGroup } from "./studio-catalog";
 
@@ -70,7 +70,11 @@ export function DesignsCatalog({ groups }: { groups: StudioCatalogGroup[] }) {
       </div>
 
       {designs.length === 0 ? (
-        <p className="text-[13px] text-ink/55">No designs match.</p>
+        <EmptyState
+          tone="on-greige"
+          title="No designs match"
+          description="Try another filter, or clear search to see the full catalogue."
+        />
       ) : (
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
           {designs.map((design) => (

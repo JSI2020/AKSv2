@@ -202,7 +202,7 @@ export function AdminMobileNav() {
       "/admin",
       "/admin/orders",
       "/admin/production",
-      "/admin/studio",
+      "/admin/designs",
       "/admin/content",
       "/admin/settings",
     ];

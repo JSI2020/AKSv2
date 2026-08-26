@@ -6,6 +6,7 @@ import { useQueryStates } from "nuqs";
 
 import { Money } from "@/modules/ui";
 import { AdminTimeFilter } from "@/modules/admin/time-filter";
+import { CostStackBar } from "@/modules/admin/viz";
 import { VerificationQueue } from "@/modules/payments/admin/verification-queue";
 import type { VerificationQueueItem } from "@/modules/payments/bank-transfer/queries";
 import { recordCodRemittanceAction } from "@/modules/payments/cod/actions";
@@ -864,7 +865,7 @@ function MarginPanel({ data }: { data: HubData["margin"] }) {
           <div className="text-[9.5px] uppercase tracking-[0.1em] text-ink/55">
             Gross margin
           </div>
-          <div className="mt-2 font-display text-[2.1rem] text-[#7C8770]">
+          <div className="mt-2 font-display text-[2.1rem] text-ink">
             {data.grossMarginPercent}%
           </div>
         </div>
@@ -872,10 +873,49 @@ function MarginPanel({ data }: { data: HubData["margin"] }) {
           <div className="text-[9.5px] uppercase tracking-[0.1em] text-ink/55">
             Net margin
           </div>
-          <div className="mt-2 font-display text-[2.1rem] text-[#C08A3E]">
+          <div className="mt-2 font-display text-[2.1rem] text-zari">
             {data.netMarginPercent}%
           </div>
         </div>
+      </div>
+      <div className="mb-5">
+        <CostStackBar
+          segments={[
+            {
+              key: "prod",
+              label: "Fabric, stitching, packaging",
+              minor: data.productionCostMinor,
+              tone: "ink",
+            },
+            {
+              key: "cod",
+              label: "Courier + COD fees",
+              minor: data.codFeeMinor,
+              tone: "chalk",
+            },
+            {
+              key: "rec",
+              label: "Recurring overhead",
+              minor: data.recurringExpenditureMinor,
+              tone: "zari",
+            },
+            {
+              key: "one",
+              label: "One-off overhead",
+              minor: data.oneOffExpenditureMinor,
+              tone: "madder",
+            },
+          ]}
+          sellMinor={data.revenueMinor}
+          costMinor={
+            data.productionCostMinor +
+            data.codFeeMinor +
+            data.recurringExpenditureMinor +
+            data.oneOffExpenditureMinor
+          }
+          marginPercent={Math.round(data.grossMarginPercent * 100)}
+          showMargin
+        />
       </div>
       <p className="mb-5 text-[12px] leading-relaxed text-ink/55">
         Gross margin only removes what it directly cost to make and deliver what

@@ -12,6 +12,7 @@ import {
   marginColorClass,
 } from "./compute";
 import type { DesignCostingData } from "./queries";
+import { CostStackBar } from "@/modules/admin/viz";
 
 type DesignCostingPanelProps = {
   data: DesignCostingData;
@@ -493,11 +494,52 @@ export function DesignCostingPanel({
         </div>
 
         {breakdown ? (
-          <div className="border border-ink/10 p-3">
+          <div className="flex flex-col gap-3 border border-ink/10 p-3">
+            <CostStackBar
+              segments={[
+                {
+                  key: "make",
+                  label: "Fabric / pieces",
+                  minor:
+                    breakdown.fabricMinor +
+                    breakdown.stitchingMinor +
+                    breakdown.embroideryMinor,
+                  tone: "ink",
+                },
+                {
+                  key: "pack",
+                  label: "Packaging",
+                  minor: breakdown.packagingMinor,
+                  tone: "chalk",
+                },
+                {
+                  key: "ship",
+                  label: "Shipping",
+                  minor: breakdown.shippingMinor,
+                  tone: "zari",
+                },
+                {
+                  key: "oh",
+                  label: "Overhead",
+                  minor: breakdown.overheadMinor,
+                  tone: "chalk",
+                },
+                {
+                  key: "ai",
+                  label: "AI generation",
+                  minor: breakdown.aiCostMinor,
+                  tone: "madder",
+                },
+              ]}
+              sellMinor={selling}
+              costMinor={breakdown.totalCostMinor}
+              marginPercent={breakdown.marginPercent}
+              showMargin={canViewMargin}
+            />
             <p className="font-sans text-[10px] uppercase tracking-[0.14em] text-ink/45">
-              Breakdown
+              Line items
             </p>
-            <ul className="mt-2 space-y-1 text-[13px] text-ink">
+            <ul className="space-y-1 text-[13px] text-ink">
               <li className="flex justify-between gap-4">
                 <span>Fabric / pieces</span>
                 <Money

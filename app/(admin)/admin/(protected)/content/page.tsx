@@ -30,23 +30,35 @@ export default async function ContentHubPage() {
       count: `${heroes.length} photo${heroes.length === 1 ? "" : "s"} · ${tiles.length} gate${tiles.length === 1 ? "" : "s"}`,
     },
     {
-      href: "/admin/discounts",
-      title: "Discounts",
-      description:
-        "Codes and automatic sales — order, category, or one style.",
-      count: `${liveDiscounts} active or scheduled`,
-    },
-    {
       href: "/admin/content/pages",
       title: "Content pages",
       description: "Atelier, FAQ, shipping & returns, construction principles.",
       count: `${pages.length} page${pages.length === 1 ? "" : "s"}`,
     },
     {
+      href: "/admin/content/nav",
+      title: "Navigation",
+      description: "Header and footer links shoppers use to move around.",
+      count: "Header · footer",
+    },
+    {
+      href: "/admin/content/lists",
+      title: "Lists",
+      description: "Construction signatures and other curated copy lists.",
+      count: "Atelier lists",
+    },
+    {
       href: "/admin/content/settings",
       title: "Site settings",
       description: "Lead time, WhatsApp, socials, currency, brand name.",
       count: "6 fields",
+    },
+    {
+      href: "/admin/discounts",
+      title: "Discounts",
+      description:
+        "Codes and automatic sales — primary place to manage promos.",
+      count: `${liveDiscounts} active or scheduled`,
     },
   ] as const;
 

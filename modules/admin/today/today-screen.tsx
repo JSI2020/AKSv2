@@ -1,4 +1,6 @@
-import { EmptyState, Eyebrow } from "@/modules/ui";
+import { Check } from "lucide-react";
+
+import { Eyebrow } from "@/modules/ui";
 import { can } from "@/modules/auth";
 import type { PermissionKey } from "@aks/shared";
 
@@ -6,7 +8,7 @@ import { getTodayScreenData } from "./queries";
 import { getOverviewCharts } from "./overview-charts";
 import { OverviewChartsPanel } from "./overview-charts-panel";
 import { OverviewRangePicker } from "./overview-range-picker";
-import { TodayActionCards, TodayStatsPanel } from "./today-view";
+import { TodayActionCards, TodayClearCards, TodayNumbers } from "./today-view";
 
 type TodayScreenProps = {
   permissions: readonly PermissionKey[];
@@ -14,18 +16,13 @@ type TodayScreenProps = {
   to?: string;
 };
 
-export async function TodayScreen({
-  permissions,
-  from,
-  to,
-}: TodayScreenProps) {
+export async function TodayScreen({ permissions, from, to }: TodayScreenProps) {
   const granted = new Set(permissions);
   const { cards, stats, allClear, range } = await getTodayScreenData(granted, {
     from,
     to,
   });
   const showRevenue = can(granted, "money.view");
-  const singleDay = range.fromKey === range.toKey;
 
   const chartFrom = new Date(`${range.fromKey}T00:00:00`);
   const chartTo = new Date(`${range.toKey}T23:59:59`);
@@ -43,25 +40,32 @@ export async function TodayScreen({
             Overview
           </h1>
           <p className="mt-2 max-w-xl text-[13.5px] text-ink/55">
-            What needs you right now — every count is live from orders, fabric,
-            and studio state. Numbers below follow the date range you pick.
+            What needs you right now — everything is live from orders, fabric,
+            and studio. The numbers below follow the date range you pick.
           </p>
         </div>
         <OverviewRangePicker fromKey={range.fromKey} toKey={range.toKey} />
       </div>
 
       {allClear ? (
-        <EmptyState
-          tone="on-greige"
-          title="All clear for now"
-          description="No orders, fabric, payments, or designs waiting on you. Enjoy the quiet — period numbers are below."
-        />
+        <div className="flex flex-col items-center gap-3 border border-ink/12 bg-milk px-6 py-14 text-center">
+          <span className="flex size-12 items-center justify-center rounded-full bg-ink/5">
+            <Check className="size-6 text-ink" />
+          </span>
+          <p className="font-display text-[1.4rem] font-light text-ink">
+            All clear for now
+          </p>
+          <p className="max-w-sm text-[13px] text-ink/55">
+            No orders, fabric, payments, or designs waiting on you. Enjoy the
+            quiet — the period numbers are below.
+          </p>
+        </div>
       ) : (
         <>
           {needsYou.length > 0 ? (
             <section className="flex flex-col gap-3">
               <h2 className="font-sans text-[10px] uppercase tracking-[0.2em] text-ink/55">
-                Needs attention
+                Needs you
               </h2>
               <TodayActionCards cards={needsYou} />
             </section>
@@ -71,7 +75,7 @@ export async function TodayScreen({
               <h2 className="font-sans text-[10px] uppercase tracking-[0.2em] text-ink/55">
                 All clear
               </h2>
-              <TodayActionCards cards={clearCards} clear />
+              <TodayClearCards cards={clearCards} />
             </section>
           ) : null}
         </>
@@ -80,11 +84,10 @@ export async function TodayScreen({
       {stats ? (
         <section className="flex flex-col gap-3">
           <h2 className="font-sans text-[10px] uppercase tracking-[0.2em] text-ink/55">
-            {singleDay
-              ? `Numbers · ${range.fromKey}`
-              : `Numbers · ${range.fromKey} → ${range.toKey}`}
+            Numbers · {range.fromKey}
+            {range.fromKey === range.toKey ? "" : ` → ${range.toKey}`}
           </h2>
-          <TodayStatsPanel stats={stats} showRevenue={showRevenue} />
+          <TodayNumbers stats={stats} charts={charts} showRevenue={showRevenue} />
         </section>
       ) : null}
 

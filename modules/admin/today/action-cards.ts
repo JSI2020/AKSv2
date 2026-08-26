@@ -36,8 +36,8 @@ export function buildTodayActionCards(
       },
       {
         id: "measurements-unverified",
-        label: "Measurements not verified",
-        hint: "Blocks cutting",
+        label: "Awaiting size confirmation",
+        hint: "Confirm standard size before cutting",
         count: counts.measurementsUnverified,
         href: "/admin/orders?production=CONFIRMED",
       },

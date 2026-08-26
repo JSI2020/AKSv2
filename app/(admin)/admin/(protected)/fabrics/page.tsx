@@ -38,7 +38,7 @@ export default async function FabricsPage({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-sans text-[10px] uppercase tracking-[0.24em] text-ink/55">
-            Make
+            Create · Fabric
           </p>
           <h1 className="mt-2 font-display text-[2.4rem] font-light leading-none text-ink">
             Fabric

@@ -26,73 +26,6 @@ function Panel({
   );
 }
 
-function RevenueTrend({
-  points,
-  showRevenue,
-}: {
-  points: OverviewCharts["dailyRevenue"];
-  showRevenue: boolean;
-}) {
-  const max = Math.max(1, ...points.map((p) => p.revenueMinor));
-  const total = points.reduce((s, p) => s + p.revenueMinor, 0);
-  const orders = points.reduce((s, p) => s + p.orders, 0);
-  const W = 320;
-  const H = 96;
-  const gap = 4;
-  const bw = (W - gap * (points.length - 1)) / points.length;
-
-  return (
-    <Panel
-      title="Revenue · last 14 days"
-      hint={showRevenue ? undefined : "hidden"}
-    >
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <p className="font-display text-[1.8rem] font-light leading-none text-ink">
-            {showRevenue ? <Money value={total} /> : "—"}
-          </p>
-          <p className="mt-1 text-[12px] text-ink/55">
-            {orders} order{orders === 1 ? "" : "s"} placed
-          </p>
-        </div>
-      </div>
-      {showRevenue ? (
-        <svg
-          viewBox={`0 0 ${W} ${H}`}
-          className="mt-1 h-24 w-full"
-          preserveAspectRatio="none"
-          role="img"
-          aria-label="Daily revenue, last 14 days"
-        >
-          {points.map((p, i) => {
-            const h = Math.max(1, (p.revenueMinor / max) * (H - 6));
-            const x = i * (bw + gap);
-            const y = H - h;
-            return (
-              <rect
-                key={p.day}
-                x={x}
-                y={y}
-                width={bw}
-                height={h}
-                rx={1}
-                className="fill-current text-zari"
-                opacity={p.revenueMinor > 0 ? 0.9 : 0.25}
-              >
-                <title>{`${p.day}: ${(p.revenueMinor / 100).toLocaleString()} · ${p.orders} orders`}</title>
-              </rect>
-            );
-          })}
-        </svg>
-      ) : (
-        <p className="py-6 text-center text-[12px] text-ink/45">
-          You don’t have access to revenue figures.
-        </p>
-      )}
-    </Panel>
-  );
-}
-
 function BarList({
   title,
   rows,
@@ -147,15 +80,14 @@ export function OverviewChartsPanel({
       <h2 className="font-sans text-[10px] uppercase tracking-[0.2em] text-ink/55">
         Business at a glance
       </h2>
-      <div className="grid gap-3 lg:grid-cols-[1.4fr_1fr_1fr]">
-        <RevenueTrend points={data.dailyRevenue} showRevenue={showRevenue} />
+      <div className="grid gap-3 lg:grid-cols-2">
         <BarList
-          title="Top designs"
+          title="Top designs by revenue"
           rows={data.topDesigns}
           showRevenue={showRevenue}
         />
         <BarList
-          title="By category"
+          title="Revenue by category"
           rows={data.byCategory}
           showRevenue={showRevenue}
         />

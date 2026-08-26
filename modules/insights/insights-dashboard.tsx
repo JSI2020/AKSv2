@@ -1,12 +1,26 @@
 "use client";
 
+import {
+  MapPin,
+  Palette,
+  PieChart,
+  Repeat,
+  Ruler,
+  ShoppingBag,
+  TrendingUp,
+  Wallet,
+} from "lucide-react";
+
 import { Money } from "@/modules/ui";
 import { formatMetres } from "@/modules/production/format-metres";
 import { AdminTimeFilter } from "@/modules/admin/time-filter";
+import { StatTile } from "@/modules/admin/ui";
 
 import type { InsightsReportData } from "./queries-reports";
 import { ReportTable } from "./report-table";
-import { ChartCard, Donut, HBars, StatTile, VBars } from "./insight-charts";
+import { ChartCard, Donut, HBars, VBars } from "./insight-charts";
+
+const ic = "size-4";
 
 const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"] as const;
 
@@ -50,36 +64,40 @@ export function InsightsDashboard({ data }: { data: InsightsReportData }) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile
           label="Revenue"
+          icon={<TrendingUp className={ic} />}
           value={<Money value={totalRevenue} />}
-          sub={`${totalOrders} order${totalOrders === 1 ? "" : "s"}`}
+          hint={`${totalOrders} order${totalOrders === 1 ? "" : "s"}`}
         />
         <StatTile
           label="Units sold"
+          icon={<ShoppingBag className={ic} />}
           value={totalUnits}
-          sub="across all designs"
+          hint="across all designs"
         />
         <StatTile
           label="Avg order value"
+          icon={<Wallet className={ic} />}
           value={<Money value={aov} />}
-          sub="revenue ÷ orders"
+          hint="revenue ÷ orders"
         />
         <StatTile
           label="Repeat customers"
+          icon={<Repeat className={ic} />}
           value={`${data.repeatCustomerRate.ratePercent}%`}
-          sub={`${data.repeatCustomerRate.repeatCustomers} of ${data.repeatCustomerRate.totalCustomers} ordered again`}
+          hint={`${data.repeatCustomerRate.repeatCustomers} of ${data.repeatCustomerRate.totalCustomers} ordered again`}
         />
       </div>
 
       {/* Visual row 1 */}
       <div className="grid gap-3 lg:grid-cols-[1fr_1.3fr]">
-        <ChartCard title="Revenue by category">
+        <ChartCard title="Revenue by category" icon={<PieChart className={ic} />}>
           <Donut
             segments={categorySegments}
             centerValue={<Money value={totalRevenue} />}
             centerLabel="total"
           />
         </ChartCard>
-        <ChartCard title="Top designs by revenue">
+        <ChartCard title="Top designs by revenue" icon={<Palette className={ic} />}>
           <HBars rows={topDesigns} format={(v) => <Money value={v} />} />
         </ChartCard>
       </div>
@@ -89,10 +107,11 @@ export function InsightsDashboard({ data }: { data: InsightsReportData }) {
         <ChartCard
           title="Which sizes sell"
           hint="units · M is the base size"
+          icon={<Ruler className={ic} />}
         >
           <VBars rows={sizeBars} />
         </ChartCard>
-        <ChartCard title="Revenue by city">
+        <ChartCard title="Revenue by city" icon={<MapPin className={ic} />}>
           <HBars rows={topCities} format={(v) => <Money value={v} />} />
         </ChartCard>
       </div>

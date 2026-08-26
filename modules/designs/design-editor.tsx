@@ -25,6 +25,7 @@ import {
   PreviewPublishTab,
 } from "./design-price-preview-tabs";
 import { houseDoorOptions, isHouseDoorTag } from "./item-number";
+import { tabReadiness } from "./tab-readiness";
 
 type FormOptions = {
   categories: { id: string; key: string; name: string }[];
@@ -209,6 +210,22 @@ export function DesignEditor({
   const canPublish = d.status === "DRAFT" || d.status === "READY_TO_PUBLISH";
   const components = componentKeysOf(detail);
   const houseDoor = houseDoorFromTags(detail.tags);
+  const readiness = tabReadiness({
+    design: {
+      name: d.name,
+      basePriceMinor: d.basePriceMinor,
+      fabricConsumptionMeters: d.fabricConsumptionMeters,
+      sizeBlockId: d.sizeBlockId,
+      fitProfileIds: d.fitProfileIds,
+    },
+    colourways: detail.colourways.map((c) => ({ id: c.id, name: c.name })),
+    renders: detail.renders.map((r) => ({
+      colourwayId: r.colourwayId,
+      angle: r.angle,
+      altText: r.altText ?? "",
+    })),
+    tags: detail.tags,
+  });
 
   function run(
     action: (fd: FormData) => Promise<ActionResult>,
@@ -334,23 +351,42 @@ export function DesignEditor({
         role="tablist"
         aria-label="Design editor tabs"
       >
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={
-              tab === t
-                ? "-mb-px border-b-2 border-zari px-4 py-2.5 text-[12.5px] text-ink"
-                : "-mb-px border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/55 hover:text-ink"
-            }
-          >
-            {t}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const ok = readiness.tabOk[t];
+          return (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
+              onClick={() => setTab(t)}
+              className={
+                tab === t
+                  ? "-mb-px inline-flex items-center gap-1.5 border-b-2 border-zari px-4 py-2.5 text-[12.5px] text-ink"
+                  : "-mb-px inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/55 hover:text-ink"
+              }
+            >
+              <span
+                className={
+                  ok
+                    ? "size-1.5 shrink-0 rounded-full bg-ink"
+                    : "size-1.5 shrink-0 rounded-full bg-madder"
+                }
+                aria-hidden
+              />
+              <span>{t}</span>
+              <span className="sr-only">
+                {ok ? "ready" : "needs attention"}
+              </span>
+            </button>
+          );
+        })}
       </div>
+      {!readiness.ready && !isArchived ? (
+        <p className="border border-madder/30 bg-milk px-3 py-2 text-[12px] text-madder">
+          Before publish: {readiness.missing.join(" · ")}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem] lg:items-start">
         <div className="min-w-0 flex flex-col gap-1">

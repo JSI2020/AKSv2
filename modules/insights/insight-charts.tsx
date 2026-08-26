@@ -13,16 +13,19 @@ export const CHART_COLORS = [
 export function ChartCard({
   title,
   hint,
+  icon,
   children,
 }: {
   title: string;
   hint?: string;
+  icon?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-3 border border-indigo-lift bg-indigo-lift/20 p-4">
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="font-sans text-[11px] uppercase tracking-[0.14em] text-chalk">
+        <h2 className="flex items-center gap-2 font-sans text-[11px] uppercase tracking-[0.14em] text-chalk">
+          {icon ? <span className="text-zari">{icon}</span> : null}
           {title}
         </h2>
         {hint ? <span className="text-[11px] text-chalk">{hint}</span> : null}

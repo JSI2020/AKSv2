@@ -6,7 +6,8 @@ import { Search } from "lucide-react";
 import type { FormEvent } from "react";
 
 import type { FabricCatalogResult } from "@/modules/inventory";
-import { Metres, Money } from "@/modules/ui";
+import { Money, EmptyState } from "@/modules/ui";
+import { MetresTriadBar } from "@/modules/admin/viz";
 
 type Drape = "LIGHT" | "MEDIUM" | "HEAVY";
 
@@ -101,6 +102,23 @@ export function FabricCatalog({
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {result.items.length === 0 ? (
+          <div className="col-span-full">
+            <EmptyState
+              tone="on-greige"
+              title="No cloth in the library yet"
+              description="Add a fabric with a swatch and reorder point — designs need cloth before they can publish."
+              action={
+                <Link
+                  href="/admin/fabrics/new"
+                  className="border border-zari bg-zari px-3 py-1.5 text-[12px] text-indigo"
+                >
+                  Add fabric
+                </Link>
+              }
+            />
+          </div>
+        ) : null}
         {result.items.map((fabric) => (
           <Link
             key={fabric.id}
@@ -115,7 +133,13 @@ export function FabricCatalog({
                   alt=""
                   className="size-full object-cover"
                 />
-              ) : null}
+              ) : (
+                <div className="flex size-full items-center justify-center">
+                  <span className="font-sans text-[10px] uppercase tracking-[0.14em] text-ink/35">
+                    No swatch
+                  </span>
+                </div>
+              )}
               <span className="absolute top-2.5 inset-inline-end-2.5 bg-milk/90 px-2 py-1 font-data text-[11px] text-ink">
                 <Money value={fabric.costPerMeterMinor} />
                 /m
@@ -142,13 +166,12 @@ export function FabricCatalog({
                       : "Medium"}
                 </span>
               </div>
-              <div className="mt-auto flex items-center justify-between border-t border-ink/12 pt-3 text-[12px]">
-                <span className="text-[10px] uppercase tracking-[0.08em] text-ink/55">
-                  On hand
-                </span>
-                <Metres
-                  value={fabric.metersOnHand}
-                  className={fabric.isLowStock ? "text-madder" : "text-ink"}
+              <div className="mt-auto border-t border-ink/12 pt-3">
+                <MetresTriadBar
+                  onHand={fabric.metersOnHand}
+                  reserved={fabric.metersReserved}
+                  available={fabric.metersAvailable}
+                  reorderPoint={fabric.reorderPointMeters}
                 />
               </div>
             </div>

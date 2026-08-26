@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 
 import type { FabricStockDetail } from "@/modules/inventory";
 import { Metres } from "@/modules/ui";
+import { MetresTriadBar } from "@/modules/admin/viz";
 import type { FabricRow } from "@/modules/sizing/fabric-archetype-actions";
 import {
   archiveFabric,
@@ -644,6 +645,13 @@ export function FabricEditor(props: Props) {
           </form>
 
           <Panel title="Stock">
+            <MetresTriadBar
+              className="mb-5 max-w-md"
+              onHand={stock.metersOnHand}
+              reserved={stock.metersReserved}
+              available={stock.metersAvailable}
+              reorderPoint={stock.reorderPointMeters}
+            />
             <div className="flex flex-wrap items-center gap-6 py-1">
               {(
                 [

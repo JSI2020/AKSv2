@@ -477,15 +477,15 @@ export function OrderDetailView({
               }
 
               return (
-                <ol>
+                <ol className="relative border-s border-ink/12 ms-1.5 ps-4">
                   {entries.map((entry) => {
                     if (entry.kind === "payment") {
                       return (
                         <li
                           key={entry.id}
-                          className="flex gap-4 border-b border-ink/10 py-2.5 last:border-b-0"
+                          className="relative flex gap-4 border-b border-ink/10 py-2.5 last:border-b-0"
                         >
-                          <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-zari" />
+                          <span className="absolute -start-[1.35rem] top-3 size-2.5 shrink-0 rounded-full bg-zari" />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap justify-between gap-2">
                               <span className="text-[13px] text-ink">
@@ -515,9 +515,9 @@ export function OrderDetailView({
                     return (
                       <li
                         key={entry.id}
-                        className="flex gap-4 border-b border-ink/10 py-2.5 last:border-b-0"
+                        className="relative flex gap-4 border-b border-ink/10 py-2.5 last:border-b-0"
                       >
-                        <span className="mt-1.5 size-2.5 shrink-0 rounded-full bg-chalk" />
+                        <span className="absolute -start-[1.35rem] top-3 size-2.5 shrink-0 rounded-full bg-chalk" />
                         <div className="min-w-0 flex-1">
                           <div className="flex flex-wrap justify-between gap-2">
                             <span className="text-[13px] text-ink">

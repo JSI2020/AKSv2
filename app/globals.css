@@ -15,6 +15,9 @@
   --color-chalk: #8fa6b2;
   --color-zari: #b08d4c;
   --color-madder: #8c2f39;
+  /* Semantic status accents (admin) — good / info, alongside zari + madder. */
+  --color-jade: #4a7c59;
+  --color-sky: #4f7ea3;
 
   /* Storefront Quiet Luxury prototype (shop-proto only) */
   --color-milk: #f4eee1;

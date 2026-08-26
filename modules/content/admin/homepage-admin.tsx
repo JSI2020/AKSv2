@@ -161,14 +161,22 @@ export function HomepageAdmin({
   }
 
   return (
-    <div className="mt-6 flex flex-col gap-4">
+    <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_17rem] lg:items-start">
+      <div className="flex flex-col gap-4">
       {msg ? (
         <p className="text-[13px] text-ink/70" role="status">
           {msg}
         </p>
       ) : null}
 
-      {/* Welcome slides */}
+      <aside className="border border-ink/12 bg-[#F4EEE1] p-4 lg:hidden">
+        <HomepageLivePreview
+          slides={slides}
+          gates={gates}
+          statement={statement}
+          featuredCount={featuredIds.length}
+        />
+      </aside>
       <section className="border border-ink/12 bg-milk p-5">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[10px] uppercase tracking-[0.16em] text-ink/55">
@@ -758,6 +766,71 @@ export function HomepageAdmin({
           Save order
         </button>
       </section>
+      </div>
+
+      <aside className="sticky top-4 hidden border border-ink/12 bg-[#F4EEE1] p-4 lg:block">
+        <HomepageLivePreview
+          slides={slides}
+          gates={gates}
+          statement={statement}
+          featuredCount={featuredIds.length}
+        />
+      </aside>
+    </div>
+  );
+}
+
+function HomepageLivePreview({
+  slides,
+  gates,
+  statement,
+  featuredCount,
+}: {
+  slides: SlideDraft[];
+  gates: GateDraft[];
+  statement: string;
+  featuredCount: number;
+}) {
+  const hero = slides[0];
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="font-sans text-[9px] uppercase tracking-[0.18em] text-[#2B2926]/70">
+        Live preview · draft
+      </p>
+      <div className="border border-[#2B2926]/15 bg-[#2B2926] px-3 py-6 text-[#F4EEE1]">
+        <p className="text-[8px] uppercase tracking-[0.16em] opacity-70">
+          {hero?.eyebrow || "Quiet luxury"}
+        </p>
+        <p className="mt-2 font-display text-[1.15rem] font-light leading-snug">
+          {hero?.headline || "Headline"}
+        </p>
+        <p className="mt-2 line-clamp-2 text-[10px] opacity-75">
+          {hero?.subtext || "Supporting line"}
+        </p>
+      </div>
+      <div className="grid grid-cols-2 gap-1.5">
+        {gates.slice(0, 4).map((g, i) => (
+          <div
+            key={g.id ?? `gate-prev-${i}`}
+            className="border border-[#2B2926]/12 bg-[#EAE1CF] px-2 py-2"
+          >
+            <p className="text-[9px] font-medium text-[#2B2926]">
+              {g.displayName || "Door"}
+            </p>
+            <p className="mt-0.5 text-[8px] text-[#2B2926]/60">
+              {g.publishedDesignCount} live
+            </p>
+          </div>
+        ))}
+      </div>
+      {statement.trim() ? (
+        <p className="border border-[#2B2926]/10 bg-white/50 px-2 py-2 font-display text-[11px] italic leading-snug text-[#2B2926]">
+          {statement}
+        </p>
+      ) : null}
+      <p className="font-data text-[9px] uppercase tracking-[0.08em] text-[#2B2926]/55">
+        The Edit · {featuredCount} look{featuredCount === 1 ? "" : "s"}
+      </p>
     </div>
   );
 }
