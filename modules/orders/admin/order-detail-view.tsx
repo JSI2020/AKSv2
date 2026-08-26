@@ -172,33 +172,57 @@ export function OrderDetailView({
         ← All orders
       </Link>
 
-      <header className="pipeline-rail flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+      <header className="pipeline-rail flex flex-col gap-5 px-6 py-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="font-data text-[1.1rem] tracking-[0.02em] text-milk">
+          <p className="font-sans text-[10px] uppercase tracking-[0.2em] text-milk/55">
+            AKS · Order
+          </p>
+          <p className="mt-1.5 font-display text-[2.4rem] font-light leading-none text-milk">
             {order.orderNumber}
           </p>
-          <p className="mt-1 text-[13px] text-milk/70">
-            {order.customer.name} · placed {formatPlaced(order.placedAt)} ·{" "}
+          <p className="mt-2 text-[13px] text-milk/70">
+            For <span className="text-milk">{order.customer.name}</span> · placed{" "}
+            {formatPlaced(order.placedAt)} ·{" "}
             {order.source.replaceAll("_", " ").toLowerCase()} order
           </p>
-        </div>
-        <div className="flex gap-4">
-          <div className="text-center">
-            <p className="mb-1.5 font-sans text-[9px] uppercase tracking-[0.18em] text-milk/55">
-              Production
-            </p>
-            <span className="inline-block border border-[#A8C29A] px-3 py-1.5 text-[11px] uppercase tracking-[0.06em] text-[#A8C29A]">
+          <div className="mt-3.5 flex flex-wrap gap-2">
+            <span className="inline-flex items-center gap-1.5 border border-zari/55 px-3 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zari">
+              <span className="size-1.5 rounded-full bg-zari" />
               {PRODUCTION_STATUS_LABELS[order.productionStatus]}
             </span>
-          </div>
-          <div className="text-center">
-            <p className="mb-1.5 font-sans text-[9px] uppercase tracking-[0.18em] text-milk/55">
-              Payment
-            </p>
-            <span className="inline-block border border-zari px-3 py-1.5 text-[11px] uppercase tracking-[0.06em] text-zari">
+            <span className="inline-flex items-center gap-1.5 border border-milk/30 px-3 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-milk">
+              <span className="size-1.5 rounded-full bg-milk" />
               {PAYMENT_STATUS_LABELS[order.paymentStatus]}
             </span>
           </div>
+        </div>
+        <div className="grid shrink-0 grid-cols-3 gap-px self-stretch border border-milk/15 bg-milk/15 md:self-center">
+          {(
+            [
+              ["Total", order.totalMinor, false],
+              ["Paid", order.paidMinor, false],
+              ["Balance due", order.totalMinor - order.paidMinor, true],
+            ] as const
+          ).map(([label, value, due]) => (
+            <div key={label} className="bg-indigo px-4 py-3 text-center">
+              <p
+                className={cn(
+                  "text-[9px] font-medium uppercase tracking-[0.14em]",
+                  due ? "text-zari" : "text-milk/55",
+                )}
+              >
+                {label}
+              </p>
+              <p
+                className={cn(
+                  "mt-1 font-data text-[1.05rem]",
+                  due ? "text-zari" : "text-milk",
+                )}
+              >
+                <Money value={value} />
+              </p>
+            </div>
+          ))}
         </div>
       </header>
 
@@ -261,6 +285,37 @@ export function OrderDetailView({
             </li>
           ))}
         </ol>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-ink/10 pt-3">
+          <div className="flex flex-wrap gap-4 text-[11px] text-ink/55">
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-chalk" />
+              Done
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full bg-madder" />
+              Current
+            </span>
+            <span className="inline-flex items-center gap-1.5">
+              <span className="size-2 rounded-full border border-ink/25" />
+              Upcoming
+            </span>
+          </div>
+          <p className="text-[12px] text-ink/60">
+            Currently{" "}
+            <span className="font-medium text-ink">
+              {PRODUCTION_STATUS_LABELS[order.productionStatus]}
+            </span>
+            {nextStage ? (
+              <>
+                {" "}
+                — next is{" "}
+                <span className="font-medium text-ink">
+                  {productionStageLabel(nextStage)}
+                </span>
+              </>
+            ) : null}
+          </p>
+        </div>
       </section>
 
       {message ? (
