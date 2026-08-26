@@ -501,12 +501,20 @@ function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-block border px-2.5 py-1 font-sans text-[10px] uppercase tracking-[0.06em]",
-        tone === "payment" && "border-zari text-zari",
-        tone === "production" && !done && "border-chalk text-chalk",
+        "inline-flex items-center gap-1.5 border px-2.5 py-1 font-sans text-[10px] uppercase tracking-[0.06em]",
+        tone === "payment" && "border-zari/70 text-zari",
+        tone === "production" && !done && "border-chalk/80 text-chalk",
         tone === "production" && done && "border-chalk bg-chalk text-milk",
       )}
     >
+      {!done ? (
+        <span
+          className={cn(
+            "size-1.5 rounded-full",
+            tone === "payment" ? "bg-zari" : "bg-chalk",
+          )}
+        />
+      ) : null}
       {label}
     </span>
   );
