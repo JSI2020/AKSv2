@@ -42,3 +42,20 @@ export async function sendResendEmail(
 export function isResendConfigured(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim());
 }
+
+/**
+ * The verified-domain sender for transactional email. In production this MUST
+ * be set — the shared `onboarding@resend.dev` sandbox address is undeliverable
+ * from a real domain and a spam liability. In dev it falls back so email still
+ * "sends" (log-only) without config.
+ */
+export function resolveFromEmail(): string {
+  const from = process.env.RESEND_FROM_EMAIL?.trim();
+  if (from) return from;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "RESEND_FROM_EMAIL must be set to a verified-domain sender in production",
+    );
+  }
+  return "AKS <onboarding@resend.dev>";
+}

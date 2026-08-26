@@ -34,3 +34,38 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  test:
+    name: tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: aks
+          POSTGRES_PASSWORD: aks
+          POSTGRES_DB: aksv2
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aks"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgresql://aks:aks@localhost:5432/aksv2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install
+        run: npm ci
+      # NOTE: relies on migrations being reproducible (audit F1). If DB-backed
+      # tests fail here, the schema-consolidation work is the prerequisite.
+      - name: Apply schema
+        run: npm run db:migrate
+      - name: Test
+        run: npm test

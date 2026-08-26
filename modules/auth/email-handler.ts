@@ -1,6 +1,7 @@
 import type { OutboxHandler } from "@/modules/platform/outbox";
 import {
   isResendConfigured,
+  resolveFromEmail,
   sendResendEmail,
 } from "@/modules/messaging/providers/resend";
 
@@ -31,9 +32,6 @@ export const handleEmailSend: OutboxHandler = async (payload) => {
     throw new Error("Invalid email.send payload");
   }
 
-  const from =
-    process.env.RESEND_FROM_EMAIL?.trim() || "AKS <onboarding@resend.dev>";
-
   if (!isResendConfigured()) {
     console.log(
       `[email.send] RESEND_API_KEY unset — logging only\n  to: ${payload.to}\n  subject: ${payload.subject}\n  text: ${payload.text ?? "(html only)"}`,
@@ -42,7 +40,7 @@ export const handleEmailSend: OutboxHandler = async (payload) => {
   }
 
   await sendResendEmail({
-    from,
+    from: resolveFromEmail(),
     to: payload.to,
     subject: payload.subject,
     html: payload.html,

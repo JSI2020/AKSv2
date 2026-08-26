@@ -19,6 +19,7 @@ Dockerfile*
 **/*.test.ts
 **/*.test.tsx
 **/__tests__
+scripts/dev-*.ts
 .vscode
 .idea
 npm-debug.log*

@@ -5,6 +5,7 @@ import { db, messageLog } from "@aks/db";
 import type { OutboxHandler } from "@/modules/platform/outbox";
 import {
   isResendConfigured,
+  resolveFromEmail,
   sendResendEmail,
 } from "@/modules/messaging/providers/resend";
 
@@ -57,9 +58,6 @@ export const handleMessageSend: OutboxHandler = async (payload) => {
   let body = renderTemplate(template.body, payload.vars);
   body = appendCustomerRemark(body, payload.customerRemark ?? null);
 
-  const from =
-    process.env.RESEND_FROM_EMAIL?.trim() || "AKS <onboarding@resend.dev>";
-
   if (!isResendConfigured()) {
     console.log(
       `[message.send] RESEND_API_KEY unset — logging only\n  to: ${payload.recipient}\n  subject: ${subject}\n  text: ${body}`,
@@ -78,7 +76,7 @@ export const handleMessageSend: OutboxHandler = async (payload) => {
 
   try {
     const result = await sendResendEmail({
-      from,
+      from: resolveFromEmail(),
       to: payload.recipient,
       subject,
       html: `<pre style="font-family: sans-serif; white-space: pre-wrap;">${body.replace(/</g, "&lt;")}</pre>`,

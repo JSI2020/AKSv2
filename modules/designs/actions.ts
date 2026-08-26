@@ -16,6 +16,7 @@ import {
   garmentCategories,
   insertAuditLog,
   sizeBlocks,
+  sizeBlockRows,
   fitProfiles,
   houseModels,
 } from "@aks/db";
@@ -27,6 +28,7 @@ import {
   type RenderAngle,
 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
+import { seedRtwStockForDesign } from "@/modules/inventory/rtw-stock";
 import { createPresignedReadUrl } from "@/modules/platform/assets";
 import { transition } from "@/modules/platform/transition";
 
@@ -461,7 +463,7 @@ export async function updateDesignPricing(
     });
 
     revalidatePath(`/admin/designs/${id}`);
-    revalidatePath("/admin/studio");
+    revalidatePath("/admin/inventory");
     return { ok: true, id };
   } catch (e) {
     return {
@@ -493,8 +495,9 @@ export async function updateDesignSizing(
       .where(eq(designs.id, id))
       .limit(1);
     if (!design[0]) return { ok: false, error: "Not found" };
+    const existingDesign = design[0];
 
-    let fitProfileIds = design[0].fitProfileIds ?? {};
+    let fitProfileIds = existingDesign.fitProfileIds ?? {};
     if (fitProfilesRaw) {
       try {
         const parsed = JSON.parse(fitProfilesRaw) as Record<string, string>;
@@ -508,12 +511,12 @@ export async function updateDesignSizing(
       const cat = await db
         .select({ key: garmentCategories.key })
         .from(garmentCategories)
-        .where(eq(garmentCategories.id, design[0].garmentTypeId))
+        .where(eq(garmentCategories.id, existingDesign.garmentTypeId))
         .limit(1);
       if (cat[0]) fitProfileIds = { [cat[0].key]: fitProfileId };
     }
 
-    let availableSizeLabels = design[0].availableSizeLabels ?? [];
+    let availableSizeLabels = existingDesign.availableSizeLabels ?? [];
     if (sizesRaw) {
       try {
         const parsed = JSON.parse(sizesRaw) as string[];
@@ -525,7 +528,7 @@ export async function updateDesignSizing(
       }
     }
 
-    let pieceSizeBlocks = design[0].pieceSizeBlocks ?? {};
+    let pieceSizeBlocks = existingDesign.pieceSizeBlocks ?? {};
     if (pieceBlocksRaw) {
       try {
         const parsed = JSON.parse(pieceBlocksRaw) as Record<string, string>;
@@ -541,24 +544,33 @@ export async function updateDesignSizing(
       String(formData.get("madeToMeasureOffered") ?? "") === "true";
 
     /** Primary sizeBlockId: first piece fork, else explicit, else existing. */
-    const components = design[0].components ?? [];
+    const components = existingDesign.components ?? [];
     const primaryKey = components[0];
     const resolvedPrimary =
       (primaryKey ? pieceSizeBlocks[primaryKey] : undefined) ??
       sizeBlockId ??
-      design[0].sizeBlockId;
+      existingDesign.sizeBlockId;
 
-    await db
-      .update(designs)
-      .set({
-        sizeBlockId: resolvedPrimary,
-        pieceSizeBlocks,
-        fitProfileIds,
-        availableSizeLabels,
-        madeToMeasureOffered,
-        updatedAt: new Date(),
-      })
-      .where(eq(designs.id, id));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(designs)
+        .set({
+          sizeBlockId: resolvedPrimary,
+          pieceSizeBlocks,
+          fitProfileIds,
+          availableSizeLabels,
+          madeToMeasureOffered,
+          updatedAt: new Date(),
+        })
+        .where(eq(designs.id, id));
+
+      if (
+        existingDesign.status === "PUBLISHED" ||
+        existingDesign.status === "READY_TO_PUBLISH"
+      ) {
+        await seedRtwStockForDesign(tx as never, id, availableSizeLabels);
+      }
+    });
 
     await insertAuditLog(db, {
       id: uuidv7(),
@@ -578,6 +590,8 @@ export async function updateDesignSizing(
     });
 
     revalidatePath(`/admin/designs/${id}`);
+    revalidatePath("/admin/inventory");
+    revalidatePath("/", "layout");
     return { ok: true, id };
   } catch (e) {
     return {
@@ -955,6 +969,24 @@ export async function publishDesign(
       };
     }
 
+    // The checklist guards the size-block pointer, not its data. Refuse to
+    // publish a design whose size chart has no measurement rows (this is how
+    // the storefront size guide previously shipped empty).
+    if (detail.design.sizeBlockId) {
+      const sizeRows = await db
+        .select({ id: sizeBlockRows.id })
+        .from(sizeBlockRows)
+        .where(eq(sizeBlockRows.blockId, detail.design.sizeBlockId))
+        .limit(1);
+      if (sizeRows.length === 0) {
+        return {
+          ok: false,
+          error:
+            "Publish checklist: the size chart has no measurement rows — add sizing before publishing.",
+        };
+      }
+    }
+
     const publishFrom = detail.design.status;
     const publishTo = "PUBLISHED" as const;
     const allowedFrom = [publishFrom, "READY_TO_PUBLISH"] as const;
@@ -975,6 +1007,12 @@ export async function publishDesign(
         allowList: DESIGN_TRANSITION_ALLOW,
         tx: tx as never,
       });
+
+      const sizeLabels =
+        detail.design.availableSizeLabels?.length > 0
+          ? detail.design.availableSizeLabels
+          : STANDARD_SIZE_LABELS.filter((l) => l !== "XXL");
+      await seedRtwStockForDesign(tx as never, id, sizeLabels);
     });
 
     await insertAuditLog(db, {
@@ -991,6 +1029,8 @@ export async function publishDesign(
     revalidatePath(`/admin/designs/${id}`);
     revalidatePath("/admin/designs");
     revalidatePath("/admin/studio");
+    revalidatePath("/admin/inventory");
+    revalidatePath("/", "layout");
     return { ok: true, id };
   } catch (e) {
     return {
