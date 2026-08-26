@@ -331,7 +331,9 @@ export function OrderDetailView({
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <main className="flex flex-col gap-5">
-          <Panel title="Items">
+          <Panel
+            title={`Items · ${order.items.length} ${order.items.length === 1 ? "piece" : "pieces"}`}
+          >
             <div className="divide-y divide-ink/12">
               {order.items.map((item) => {
                 const meta = Object.entries(item.customizationSnapshot)
@@ -483,6 +485,7 @@ export function OrderDetailView({
                     at: Date;
                     toStatus: string;
                     note: string | null;
+                    actorName: string | null;
                   }
                 | {
                     kind: "payment";
@@ -499,6 +502,7 @@ export function OrderDetailView({
                   at: event.createdAt,
                   toStatus: event.toStatus,
                   note: event.note,
+                  actorName: event.actorName,
                 })),
                 ...order.payments
                   .filter((p) => p.status === "SUCCEEDED")
@@ -584,6 +588,11 @@ export function OrderDetailView({
                               {formatDateTime(entry.at)}
                             </span>
                           </div>
+                          {entry.actorName ? (
+                            <p className="mt-0.5 text-[11.5px] text-ink/55">
+                              by {entry.actorName}
+                            </p>
+                          ) : null}
                           {entry.note ? (
                             <p className="mt-0.5 text-[12.5px] text-ink/55">
                               {entry.note}
@@ -591,7 +600,7 @@ export function OrderDetailView({
                           ) : null}
                           {emailed ? (
                             <p className="mt-1 text-[10px] uppercase tracking-[0.06em] text-chalk">
-                              ✓ Emailed
+                              ✓ Notified
                             </p>
                           ) : null}
                         </div>
