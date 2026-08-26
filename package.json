@@ -25,6 +25,7 @@
     "db:ensure:size-block-rows": "tsx scripts/ensure-default-size-block-rows.ts",
     "db:ensure:customer-merge": "tsx scripts/ensure-customer-merge-schema.ts",
     "db:ensure:content-settings": "tsx scripts/ensure-content-settings-schema.ts",
+    "db:ensure:newsletter": "tsx scripts/ensure-newsletter-schema.ts",
     "worker:dev": "tsx worker/index.ts",
     "prove:fal": "tsx scripts/prove-fal-generation.ts",
     "db:ensure:photoreal": "tsx scripts/ensure-photoreal-schema.ts",

@@ -170,7 +170,7 @@ export function TodayNumbers({
               Last 14 days · {orders} order{orders === 1 ? "" : "s"}
             </p>
           </div>
-          <TrendingUp className="size-5 text-jade" />
+          <TrendingUp className="size-5 text-zari" />
         </div>
         {showRevenue ? (
           <>

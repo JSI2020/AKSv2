@@ -15,9 +15,6 @@
   --color-chalk: #8fa6b2;
   --color-zari: #b08d4c;
   --color-madder: #8c2f39;
-  /* Semantic status accents (admin) — good / info, alongside zari + madder. */
-  --color-jade: #4a7c59;
-  --color-sky: #4f7ea3;
 
   /* Storefront Quiet Luxury prototype (shop-proto only) */
   --color-milk: #f4eee1;
@@ -295,19 +292,47 @@
   top: 0.7rem;
   inset-inline-end: 0.7rem;
   z-index: 5;
+  max-width: calc(100% - 1.4rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 8px;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--taupe);
-  background: rgba(244, 238, 225, 0.72);
-  padding: 0.24rem 0.5rem;
+  color: var(--shop-ink, #2b2926);
+  background: rgba(244, 238, 225, 0.92);
+  padding: 0.28rem 0.55rem;
   border-radius: 1px;
+  border: 1px solid rgba(43, 41, 38, 0.08);
+  pointer-events: none;
+}
+
+/* Fixed top stack: ticker (optional) + header — keeps logo clear of ticker */
+.shop-proto .shop-topchrome {
+  position: fixed;
+  top: 0;
+  inset-inline: 0;
+  z-index: 50;
+}
+
+.shop-proto .shop-main {
+  /* Clear fixed header when page is not a full-bleed hero */
+  padding-block-start: 5.25rem;
+}
+
+.shop-proto .shop-topchrome.has-ticker ~ .shop-main {
+  padding-block-start: 7.75rem;
+}
+
+.shop-proto .shop-main:has(> .hero),
+.shop-proto .shop-main:has(.hero) {
+  padding-block-start: 0;
 }
 
 /* Header — modern multi-message ticker */
 .shop-proto .announcement-ticker {
   position: relative;
-  z-index: 60;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -392,10 +417,8 @@
 }
 
 .shop-proto .shop-header {
-  position: fixed;
-  top: 0;
-  inset-inline: 0;
-  z-index: 50;
+  position: relative;
+  z-index: 1;
   transition:
     background 0.5s,
     border-color 0.5s,

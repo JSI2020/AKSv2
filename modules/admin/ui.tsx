@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 /**
  * Shared admin visual kit — one consistent header, stat tile, status badge and
  * meter across every tab, so the portal reads as a single system. All colors
- * come from the palette tokens; semantic status uses jade / sky / zari / madder.
+ * come from the palette tokens; semantic status uses zari / indigo / madder.
  */
 
 export function AdminPageHeader({
@@ -47,10 +47,10 @@ type BadgeTone =
 
 const BADGE_TONE: Record<BadgeTone, string> = {
   neutral: "bg-ink/[0.06] text-ink/60",
-  success: "bg-jade/12 text-jade",
+  success: "bg-zari/15 text-zari",
   warning: "bg-zari/15 text-zari",
   error: "bg-madder/12 text-madder",
-  info: "bg-sky/12 text-sky",
+  info: "bg-indigo/10 text-indigo",
   accent: "bg-indigo/10 text-indigo",
 };
 
@@ -95,16 +95,14 @@ export function StatTile({
   hint?: ReactNode;
   trend?: { value: string; positive: boolean };
   /** Optional accent for the value (e.g. madder for an at-risk count). */
-  tone?: "ink" | "madder" | "jade" | "zari";
+  tone?: "ink" | "madder" | "zari";
 }) {
   const valueTone =
     tone === "madder"
       ? "text-madder"
-      : tone === "jade"
-        ? "text-jade"
-        : tone === "zari"
-          ? "text-zari"
-          : "text-ink";
+      : tone === "zari"
+        ? "text-zari"
+        : "text-ink";
   return (
     <div className="flex flex-col gap-2 border border-ink/12 bg-milk px-5 py-4">
       <div className="flex items-center justify-between">
@@ -120,7 +118,7 @@ export function StatTile({
         <p
           className={cn(
             "font-sans text-[11px] font-medium",
-            trend.positive ? "text-jade" : "text-madder",
+            trend.positive ? "text-zari" : "text-madder",
           )}
         >
           {trend.positive ? "▲ " : "▼ "}
@@ -139,13 +137,13 @@ export function StatTile({
 export function MeterBar({
   value,
   max,
-  tone = "jade",
+  tone = "zari",
   label,
   className,
 }: {
   value: number;
   max: number;
-  tone?: "jade" | "zari" | "madder" | "sky" | "indigo";
+  tone?: "zari" | "madder" | "indigo";
   label?: string;
   className?: string;
 }) {
@@ -153,13 +151,9 @@ export function MeterBar({
   const fill =
     tone === "madder"
       ? "bg-madder"
-      : tone === "zari"
-        ? "bg-zari"
-        : tone === "sky"
-          ? "bg-sky"
-          : tone === "indigo"
-            ? "bg-indigo"
-            : "bg-jade";
+      : tone === "indigo"
+        ? "bg-indigo"
+        : "bg-zari";
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       {label ? (

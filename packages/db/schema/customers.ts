@@ -34,3 +34,23 @@ export const customerProfiles = pgTable("customer_profiles", {
     .notNull()
     .defaultNow(),
 });
+
+/**
+ * Storefront footer email capture — an anonymous marketing list keyed by
+ * email, linked to a user only if one later registers with the same address.
+ * `unsubscribedAt` set = opted out (row is kept, never hard-deleted).
+ */
+export const newsletterSubscribers = pgTable("newsletter_subscribers", {
+  id: uuid("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  locale: text("locale"),
+  source: text("source").notNull().default("footer"),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  unsubscribedAt: timestamp("unsubscribed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
