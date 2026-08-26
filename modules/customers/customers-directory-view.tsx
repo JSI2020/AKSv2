@@ -171,21 +171,29 @@ export function CustomersDirectoryView({
             Matched by phone number — one record, however she ordered.
           </p>
         </div>
-        {canEdit ? (
-          <button
-            type="button"
-            onClick={() => {
-              focusNew();
-              const digits = normalizePhoneDigits(query);
-              if (digits.length >= 10 && matches.length === 0) {
-                void onCreateWhenNoMatch();
-              }
-            }}
-            className="bg-ink px-4 py-2.5 text-[12px] uppercase tracking-[0.08em] text-milk hover:bg-madder"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/admin/customers/subscribers"
+            className="border border-ink/15 px-4 py-2.5 text-[12px] uppercase tracking-[0.08em] text-ink/60 hover:border-ink hover:text-ink"
           >
-            + New customer
-          </button>
-        ) : null}
+            Subscribers
+          </Link>
+          {canEdit ? (
+            <button
+              type="button"
+              onClick={() => {
+                focusNew();
+                const digits = normalizePhoneDigits(query);
+                if (digits.length >= 10 && matches.length === 0) {
+                  void onCreateWhenNoMatch();
+                }
+              }}
+              className="bg-ink px-4 py-2.5 text-[12px] uppercase tracking-[0.08em] text-milk hover:bg-madder"
+            >
+              + New customer
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="mt-6">
