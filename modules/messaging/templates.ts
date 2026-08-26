@@ -71,7 +71,7 @@ export const MESSAGE_TEMPLATE_SEEDS: Array<{
     subject: "We received your order {{orderNumber}}",
     body: `Your order {{orderNumber}} is in.
 
-We received it — pay the deposit when you're ready and we'll begin. Nothing is cut until you do.
+We received it — pay the deposit when you're ready and we'll prepare it for dispatch.
 
 Track it anytime: {{trackUrl}}`,
   },
@@ -81,21 +81,21 @@ Track it anytime: {{trackUrl}}`,
     subject: "Deposit received — {{orderNumber}}",
     body: `Deposit received for order {{orderNumber}}.
 
-We'll check your measurements next, then cut the fabric to yours — and only yours.`,
+Thank you — we're preparing your order now and will let you know the moment it ships.`,
   },
   {
     key: "order.measurements_verified",
     locale: "en",
-    subject: "Measurements checked — {{orderNumber}}",
-    body: `Measurements checked for order {{orderNumber}}.
+    subject: "Order confirmed — {{orderNumber}}",
+    body: `Order {{orderNumber}} is confirmed and moving into production.
 
-Your fabric will be cut to these numbers. Once that happens, this dress can't become anyone else's.`,
+We'll keep you posted at every step.`,
   },
   {
     key: "order.cutting",
     locale: "en",
     subject: "Being cut now — {{orderNumber}}",
-    body: `Your karigar is cutting order {{orderNumber}} now — to your measurements, not a chart's.`,
+    body: `Your karigar is cutting order {{orderNumber}} now — by hand, from natural cloth.`,
   },
   {
     key: "order.stitching",

@@ -15,9 +15,9 @@ export type SiteSettingsPublic = {
 };
 
 export const DEFAULT_SITE_SETTINGS: SiteSettingsPublic = {
-  leadTimePromise: "Made when you order · 18–24 days",
-  leadTimeDaysMin: 18,
-  leadTimeDaysMax: 24,
+  leadTimePromise: "Ready to wear · ships in 3–5 days",
+  leadTimeDaysMin: 3,
+  leadTimeDaysMax: 5,
   whatsappUrl: "https://wa.me/923001234567",
   instagramUrl: "https://instagram.com/aks.atelier",
   newsletterEnabled: true,

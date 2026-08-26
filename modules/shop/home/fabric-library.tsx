@@ -1,36 +1,23 @@
 import { getTranslations } from "next-intl/server";
 
+import { listFeaturedFabrics } from "@/modules/shop/fabrics/queries";
+
 import { Reveal } from "./reveal";
 
-const FABRICS = [
-  {
-    weave: "weave-crepe",
-    nameKey: "fabricCrepeName",
-    chKey: "fabricCrepeCh",
-    whereKey: "fabricCrepeWhere",
-  },
-  {
-    weave: "weave-khaddi",
-    nameKey: "fabricKhaddiName",
-    chKey: "fabricKhaddiCh",
-    whereKey: "fabricKhaddiWhere",
-  },
-  {
-    weave: "weave-silk",
-    nameKey: "fabricSilkName",
-    chKey: "fabricSilkCh",
-    whereKey: "fabricSilkWhere",
-  },
-  {
-    weave: "weave-organza",
-    nameKey: "fabricOrganzaName",
-    chKey: "fabricOrganzaCh",
-    whereKey: "fabricOrganzaWhere",
-  },
+// Decorative swatch textures, rotated by index. The fabric *content*
+// (name, hand, composition) comes from the admin Fabric library.
+const WEAVE_CLASSES = [
+  "weave-crepe",
+  "weave-khaddi",
+  "weave-silk",
+  "weave-organza",
 ] as const;
 
 export async function FabricLibrary() {
   const t = await getTranslations("HomeProto");
+  const fabrics = await listFeaturedFabrics(4);
+
+  if (fabrics.length === 0) return null;
 
   return (
     <Reveal as="section" className="fabric" id="fabric">
@@ -41,12 +28,14 @@ export async function FabricLibrary() {
           <p>{t("fabricLead")}</p>
         </div>
         <div className="fabrics">
-          {FABRICS.map((f) => (
-            <div key={f.weave} className="fab">
-              <div className={`sw ${f.weave}`} />
-              <h4 className="serif">{t(f.nameKey)}</h4>
-              <div className="ch">{t(f.chKey)}</div>
-              <div className="where">{t(f.whereKey)}</div>
+          {fabrics.map((f, i) => (
+            <div key={f.id} className="fab">
+              <div
+                className={`sw ${WEAVE_CLASSES[i % WEAVE_CLASSES.length]}`}
+              />
+              <h4 className="serif">{f.name}</h4>
+              <div className="ch">{f.drapeNotes || f.composition}</div>
+              <div className="where">{f.composition}</div>
             </div>
           ))}
         </div>

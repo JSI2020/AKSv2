@@ -1,226 +1,208 @@
 "use client";
 
-import { Money, Measure } from "@/modules/ui";
+import { Money } from "@/modules/ui";
 import { formatMetres } from "@/modules/production/format-metres";
 import { AdminTimeFilter } from "@/modules/admin/time-filter";
 
 import type { InsightsReportData } from "./queries-reports";
 import { ReportTable } from "./report-table";
-import {
-  AvgMeasurementsTable,
-  SizeDistributionHighlight,
-} from "./related-panels";
+import { ChartCard, Donut, HBars, StatTile, VBars } from "./insight-charts";
+
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"] as const;
 
 export function InsightsDashboard({ data }: { data: InsightsReportData }) {
+  // Top-line KPIs derived from the report data.
+  const totalRevenue = data.salesByCity.reduce((s, r) => s + r.revenueMinor, 0);
+  const totalOrders = data.salesByCity.reduce((s, r) => s + r.orderCount, 0);
+  const totalUnits = data.salesByDesign.reduce((s, r) => s + r.unitsSold, 0);
+  const aov = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+
+  // Size mix (standard sizes only) aggregated for the bar chart.
+  const sizeUnits = new Map<string, number>();
+  for (const r of data.sizeDistribution) {
+    if (r.sizeLabel === "MTM") continue;
+    sizeUnits.set(r.sizeLabel, (sizeUnits.get(r.sizeLabel) ?? 0) + r.unitsSold);
+  }
+  const sizeBars = SIZE_ORDER.map((label) => ({
+    label,
+    value: sizeUnits.get(label) ?? 0,
+    highlight: label === "M",
+  }));
+
+  const topDesigns = data.salesByDesign.slice(0, 8).map((r) => ({
+    name: r.designName || "Untitled",
+    value: r.revenueMinor,
+  }));
+  const topCities = data.salesByCity.slice(0, 8).map((r) => ({
+    name: r.city,
+    value: r.revenueMinor,
+  }));
+  const categorySegments = data.salesByCategory.slice(0, 6).map((r) => ({
+    label: r.categoryName,
+    value: r.revenueMinor,
+  }));
+
   return (
     <div className="flex flex-col gap-8">
       <AdminTimeFilter />
-      <section className="border border-indigo-lift p-4">
-        <h2 className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
-          Repeat customer rate
-        </h2>
-        <p className="mt-2 font-display text-2xl text-greige">
-          {data.repeatCustomerRate.ratePercent}%
-        </p>
-        <p className="mt-1 text-[13px] text-chalk">
-          {data.repeatCustomerRate.repeatCustomers} of{" "}
-          {data.repeatCustomerRate.totalCustomers} customers ordered more than
-          once
-        </p>
-      </section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <section className="border border-indigo-lift p-4">
-          <h2 className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
-            Which sizes actually sell
-          </h2>
-          <div className="mt-3">
-            <SizeDistributionHighlight rows={data.sizeDistribution} />
-          </div>
-        </section>
-
-        <section className="border border-indigo-lift p-4">
-          <h2 className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
-            Average customer measurements (MTM)
-          </h2>
-          <p className="mt-1 text-[12px] text-chalk">
-            Tunes pattern blocks from real orders.
-          </p>
-          <div className="mt-3">
-            <AvgMeasurementsTable rows={data.avgMeasurements} />
-          </div>
-        </section>
+      {/* KPI row */}
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatTile
+          label="Revenue"
+          value={<Money value={totalRevenue} />}
+          sub={`${totalOrders} order${totalOrders === 1 ? "" : "s"}`}
+        />
+        <StatTile
+          label="Units sold"
+          value={totalUnits}
+          sub="across all designs"
+        />
+        <StatTile
+          label="Avg order value"
+          value={<Money value={aov} />}
+          sub="revenue ÷ orders"
+        />
+        <StatTile
+          label="Repeat customers"
+          value={`${data.repeatCustomerRate.ratePercent}%`}
+          sub={`${data.repeatCustomerRate.repeatCustomers} of ${data.repeatCustomerRate.totalCustomers} ordered again`}
+        />
       </div>
 
-      <ReportTable
-        title="Sales by design"
-        rows={data.salesByDesign}
-        exportFilename="sales-by-design.csv"
-        filterKeys={["designName"]}
-        getRowHref={(row) => `/admin/designs/${row.designId}`}
-        columns={[
-          { key: "designName", header: "Design" },
-          { key: "unitsSold", header: "Units" },
-          {
-            key: "revenueMinor",
-            header: "Revenue",
-            render: (row) => <Money value={row.revenueMinor} />,
-            csv: (row) => String(row.revenueMinor / 100),
-          },
-        ]}
-      />
+      {/* Visual row 1 */}
+      <div className="grid gap-3 lg:grid-cols-[1fr_1.3fr]">
+        <ChartCard title="Revenue by category">
+          <Donut
+            segments={categorySegments}
+            centerValue={<Money value={totalRevenue} />}
+            centerLabel="total"
+          />
+        </ChartCard>
+        <ChartCard title="Top designs by revenue">
+          <HBars rows={topDesigns} format={(v) => <Money value={v} />} />
+        </ChartCard>
+      </div>
 
-      <ReportTable
-        title="Sales by category"
-        rows={data.salesByCategory}
-        exportFilename="sales-by-category.csv"
-        filterKeys={["categoryName"]}
-        columns={[
-          { key: "categoryName", header: "Category" },
-          { key: "unitsSold", header: "Units" },
-          {
-            key: "revenueMinor",
-            header: "Revenue",
-            render: (row) => <Money value={row.revenueMinor} />,
-            csv: (row) => String(row.revenueMinor / 100),
-          },
-        ]}
-      />
+      {/* Visual row 2 */}
+      <div className="grid gap-3 lg:grid-cols-2">
+        <ChartCard
+          title="Which sizes sell"
+          hint="units · M is the base size"
+        >
+          <VBars rows={sizeBars} />
+        </ChartCard>
+        <ChartCard title="Revenue by city">
+          <HBars rows={topCities} format={(v) => <Money value={v} />} />
+        </ChartCard>
+      </div>
 
-      <ReportTable
-        title="Sales by city"
-        rows={data.salesByCity}
-        exportFilename="sales-by-city.csv"
-        filterKeys={["city"]}
-        columns={[
-          { key: "city", header: "City" },
-          { key: "orderCount", header: "Orders" },
-          {
-            key: "revenueMinor",
-            header: "Revenue",
-            render: (row) => <Money value={row.revenueMinor} />,
-            csv: (row) => String(row.revenueMinor / 100),
-          },
-        ]}
-      />
+      {/* Detailed tables (drill-down + CSV export) */}
+      <div className="flex flex-col gap-3">
+        <h2 className="font-sans text-[10px] uppercase tracking-[0.2em] text-chalk">
+          Detailed reports · export as CSV
+        </h2>
 
-      <ReportTable
-        title="Size distribution"
-        rows={data.sizeDistribution}
-        exportFilename="size-distribution.csv"
-        filterKeys={["sizeLabel", "sizeMode"]}
-        columns={[
-          { key: "sizeLabel", header: "Size" },
-          { key: "sizeMode", header: "Mode" },
-          { key: "unitsSold", header: "Units sold" },
-          { key: "orderCount", header: "Orders" },
-        ]}
-      />
+        <ReportTable
+          title="Sales by design"
+          rows={data.salesByDesign}
+          exportFilename="sales-by-design.csv"
+          filterKeys={["designName"]}
+          getRowHref={(row) => `/admin/designs/${row.designId}`}
+          columns={[
+            { key: "designName", header: "Design" },
+            { key: "unitsSold", header: "Units" },
+            {
+              key: "revenueMinor",
+              header: "Revenue",
+              render: (row) => <Money value={row.revenueMinor} />,
+              csv: (row) => String(row.revenueMinor / 100),
+            },
+          ]}
+        />
 
-      <ReportTable
-        title="Made-to-measure vs standard"
-        rows={data.sizeModeSplit}
-        exportFilename="size-mode-split.csv"
-        filterKeys={["sizeMode"]}
-        columns={[
-          { key: "sizeMode", header: "Mode" },
-          { key: "unitsSold", header: "Units" },
-          {
-            key: "percentUnits",
-            header: "% of units",
-            render: (row) => `${row.percentUnits}%`,
-            csv: (row) => String(row.percentUnits),
-          },
-          {
-            key: "revenueMinor",
-            header: "Revenue",
-            render: (row) => <Money value={row.revenueMinor} />,
-            csv: (row) => String(row.revenueMinor / 100),
-          },
-        ]}
-      />
+        <ReportTable
+          title="Sales by city"
+          rows={data.salesByCity}
+          exportFilename="sales-by-city.csv"
+          filterKeys={["city"]}
+          columns={[
+            { key: "city", header: "City" },
+            { key: "orderCount", header: "Orders" },
+            {
+              key: "revenueMinor",
+              header: "Revenue",
+              render: (row) => <Money value={row.revenueMinor} />,
+              csv: (row) => String(row.revenueMinor / 100),
+            },
+          ]}
+        />
 
-      <ReportTable
-        title="Promised vs actual lead time (days)"
-        rows={data.leadTimes}
-        exportFilename="lead-times.csv"
-        filterKeys={["orderNumber"]}
-        getRowHref={(row) => `/admin/orders/${row.orderId}`}
-        columns={[
-          { key: "orderNumber", header: "Order" },
-          {
-            key: "promisedDays",
-            header: "Promised",
-            render: (row) => row.promisedDays ?? "—",
-          },
-          {
-            key: "actualDays",
-            header: "Actual",
-            render: (row) => row.actualDays ?? "—",
-          },
-          {
-            key: "deltaDays",
-            header: "Delta",
-            render: (row) =>
-              row.deltaDays === null
-                ? "—"
-                : row.deltaDays > 0
-                  ? `+${row.deltaDays}`
-                  : String(row.deltaDays),
-          },
-        ]}
-      />
+        <ReportTable
+          title="Promised vs actual lead time (days)"
+          rows={data.leadTimes}
+          exportFilename="lead-times.csv"
+          filterKeys={["orderNumber"]}
+          getRowHref={(row) => `/admin/orders/${row.orderId}`}
+          columns={[
+            { key: "orderNumber", header: "Order" },
+            {
+              key: "promisedDays",
+              header: "Promised",
+              render: (row) => row.promisedDays ?? "—",
+            },
+            {
+              key: "actualDays",
+              header: "Actual",
+              render: (row) => row.actualDays ?? "—",
+            },
+            {
+              key: "deltaDays",
+              header: "Delta",
+              render: (row) =>
+                row.deltaDays === null
+                  ? "—"
+                  : row.deltaDays > 0
+                    ? `+${row.deltaDays}`
+                    : String(row.deltaDays),
+            },
+          ]}
+        />
 
-      <ReportTable
-        title="Fabric wastage by design"
-        rows={data.fabricWastage}
-        exportFilename="fabric-wastage.csv"
-        filterKeys={["designName"]}
-        getRowHref={(row) => `/admin/designs/${row.designId}`}
-        columns={[
-          { key: "designName", header: "Design" },
-          {
-            key: "plannedMeters",
-            header: "Planned",
-            render: (row) => formatMetres(row.plannedMeters),
-            csv: (row) => String(row.plannedMeters / 100),
-          },
-          {
-            key: "actualMeters",
-            header: "Actual",
-            render: (row) => formatMetres(row.actualMeters),
-            csv: (row) => String(row.actualMeters / 100),
-          },
-          {
-            key: "wastageMeters",
-            header: "Wastage",
-            render: (row) => formatMetres(row.wastageMeters),
-            csv: (row) => String(row.wastageMeters / 100),
-          },
-          {
-            key: "wastagePercent",
-            header: "Wastage %",
-            render: (row) => `${row.wastagePercent}%`,
-          },
-        ]}
-      />
-
-      <ReportTable
-        title="Average measurements (export)"
-        rows={data.avgMeasurements}
-        exportFilename="avg-measurements.csv"
-        filterKeys={["measurementKey"]}
-        columns={[
-          { key: "measurementKey", header: "Measurement" },
-          {
-            key: "avgValueInches",
-            header: "Average (hundredths in)",
-            render: (row) => <Measure value={row.avgValueInches} />,
-            csv: (row) => String(row.avgValueInches),
-          },
-          { key: "sampleCount", header: "Samples" },
-        ]}
-      />
+        <ReportTable
+          title="Fabric wastage by design"
+          rows={data.fabricWastage}
+          exportFilename="fabric-wastage.csv"
+          filterKeys={["designName"]}
+          getRowHref={(row) => `/admin/designs/${row.designId}`}
+          columns={[
+            { key: "designName", header: "Design" },
+            {
+              key: "plannedMeters",
+              header: "Planned",
+              render: (row) => formatMetres(row.plannedMeters),
+              csv: (row) => String(row.plannedMeters / 100),
+            },
+            {
+              key: "actualMeters",
+              header: "Actual",
+              render: (row) => formatMetres(row.actualMeters),
+              csv: (row) => String(row.actualMeters / 100),
+            },
+            {
+              key: "wastageMeters",
+              header: "Wastage",
+              render: (row) => formatMetres(row.wastageMeters),
+              csv: (row) => String(row.wastageMeters / 100),
+            },
+            {
+              key: "wastagePercent",
+              header: "Wastage %",
+              render: (row) => `${row.wastagePercent}%`,
+            },
+          ]}
+        />
+      </div>
     </div>
   );
 }

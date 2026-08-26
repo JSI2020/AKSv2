@@ -73,7 +73,7 @@ export function cartLineFingerprint(input: {
 
 export function formatCartLeadTime(maxDays: number | null): string {
   if (maxDays != null) {
-    return `Made to order — about ${maxDays} days once you checkout.`;
+    return `Ready to wear — ships in about ${maxDays} days after checkout.`;
   }
-  return "Made to order — about 18–24 days once you checkout.";
+  return "Ready to wear — ships in about 3–5 days after checkout.";
 }

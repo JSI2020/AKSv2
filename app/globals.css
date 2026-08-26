@@ -132,6 +132,9 @@
   --taupe: #8d7e66;
   --antique: #9a8a6b;
   --sage: #99a088;
+  --gold-dk: #8a6a34;
+  --gold: #a8853f;
+  --gold-lt: #cba95e;
   --ink: #2b2926;
   --espresso: #4a3b2f;
   --oxblood: #6b3a3a;
@@ -251,7 +254,12 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  background: linear-gradient(160deg, var(--ivory), var(--bone) 55%, var(--oyster));
+  background: linear-gradient(
+    160deg,
+    var(--ivory),
+    var(--bone) 55%,
+    var(--oyster)
+  );
 }
 
 .shop-proto .imgslot .figure {
@@ -449,9 +457,24 @@
 .shop-proto .brand {
   text-align: center;
   line-height: 0;
-  display: flex;
+  display: inline-flex;
   justify-content: center;
   align-items: center;
+}
+
+.shop-proto .brand-logo {
+  display: block;
+  width: auto;
+  height: 58px;
+}
+
+.shop-proto .shop-header.on-hero .brand-logo {
+  filter: drop-shadow(0 1px 12px rgba(43, 41, 38, 0.5));
+}
+
+.shop-proto .shop-header.solid .brand-logo {
+  height: 50px;
+  transition: height 0.5s;
 }
 
 .shop-proto .brand .aks-logo,
@@ -501,7 +524,7 @@
 
 .shop-proto .nav-right {
   display: flex;
-  gap: 1.8rem;
+  gap: 1.35rem;
   justify-content: flex-end;
   align-items: center;
   font-size: 12px;
@@ -518,6 +541,61 @@
 .shop-proto .nav-right a:hover,
 .shop-proto .nav-right button:hover {
   opacity: 1;
+}
+
+.shop-proto .icobtn {
+  position: relative;
+  display: inline-flex;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  opacity: 0.88;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+.shop-proto .icobtn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.shop-proto .icobtn svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shop-proto .icobtn.bag .count {
+  position: absolute;
+  top: -1px;
+  inset-inline-end: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 3px;
+  border-radius: 9px;
+  background: var(--gold);
+  color: var(--milk);
+  font-family: var(--font-shop-sans), sans-serif;
+  font-weight: 500;
+  font-size: 9px;
+  line-height: 15px;
+  text-align: center;
+  letter-spacing: 0;
+  opacity: 0;
+  transform: scale(0.5);
+  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.shop-proto .icobtn.bag .count.show {
+  opacity: 1;
+  transform: scale(1);
 }
 
 .shop-proto .burger {
@@ -700,6 +778,28 @@
 .shop-proto .statement p em {
   font-style: normal;
   color: var(--ink);
+}
+
+.shop-proto .flourish-divide {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.4rem 2rem 0.2rem;
+}
+
+.shop-proto .flourish-divide svg {
+  width: min(280px, 48vw);
+  height: auto;
+}
+
+.shop-proto .flourish-divide .dot {
+  display: none;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--gold);
+  opacity: 0.6;
 }
 
 /* FOUR CATEGORIES */
@@ -1181,17 +1281,32 @@
   gap: 3rem;
 }
 
-.shop-proto .fbrand .en {
-  font-family: var(--font-shop-display), ui-serif, Georgia, serif;
-  font-size: 2rem;
-  letter-spacing: 0.3em;
-  text-indent: 0.3em;
+.shop-proto .fbrand .fmark {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.1rem;
 }
 
-.shop-proto .fbrand .ur {
+.shop-proto .fbrand .fmark .flogo {
+  width: auto;
+  height: 74px;
+  flex-shrink: 0;
+  color: var(--ivory);
+}
+
+.shop-proto .fbrand .fmark .ur {
   font-family: var(--font-shop-urdu), "Noto Nastaliq Urdu", serif;
+  color: var(--gold-lt);
+  font-size: 1.3rem;
+}
+
+.shop-proto .fbrand .ftag {
+  margin: 0.9rem 0 0;
   color: var(--sand);
-  font-size: 1.2rem;
+  font-size: 9px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
 }
 
 .shop-proto .fbrand p {
@@ -1254,11 +1369,61 @@
 }
 
 .shop-proto .news button {
+  display: inline-flex;
+  align-items: center;
   padding: 0 0.4rem;
   font-size: 16px;
   color: var(--sand);
   background: none;
   border: none;
+}
+
+.shop-proto .news button svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shop-proto .social {
+  display: flex;
+  gap: 1.4rem;
+  margin-top: 1.2rem;
+}
+
+.shop-proto .social a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: rgba(234, 225, 207, 0.72);
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+
+.shop-proto .social a svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.shop-proto .social a:hover {
+  color: var(--milk);
+}
+
+.shop-proto .social a:hover svg {
+  stroke: var(--gold-lt);
+}
+
+.shop-proto svg.ico {
+  fill: none;
+  stroke: currentColor;
 }
 
 .shop-proto .news-note {
@@ -1552,6 +1717,14 @@
   margin: 0.6rem 0;
 }
 
+.shop-proto .size-head {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--taupe);
+  margin-bottom: 0.7rem;
+}
+
 .shop-proto .std {
   display: flex;
   gap: 0.5rem;
@@ -1735,6 +1908,28 @@
     justify-content: flex-start;
   }
 
+  .shop-proto .brand-logo {
+    height: 46px;
+  }
+
+  .shop-proto .shop-header.solid .brand-logo {
+    height: 42px;
+  }
+
+  .shop-proto .nav-right {
+    gap: 0.7rem;
+  }
+
+  .shop-proto .icobtn {
+    width: 32px;
+    height: 32px;
+  }
+
+  .shop-proto .icobtn svg {
+    width: 20px;
+    height: 20px;
+  }
+
   .aks-logo--header {
     height: 42px;
     max-width: min(148px, 48vw);
@@ -1750,6 +1945,11 @@
       rgba(43, 41, 38, 0.55),
       rgba(43, 41, 38, 0.15) 60%
     );
+  }
+
+  .shop-proto .flourish-divide svg {
+    width: 60vw;
+    height: auto;
   }
 
   .shop-proto .cats {

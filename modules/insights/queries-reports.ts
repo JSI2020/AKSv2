@@ -234,10 +234,14 @@ async function loadSizeDistribution(
 async function loadAvgMeasurements(
   range?: InsightsDateRange,
 ): Promise<AvgMeasurementRow[]> {
+  // Dates must be bound as ISO strings in raw db.execute SQL — a Date object
+  // is not a valid postgres parameter here — then cast back to timestamptz.
   const fromClause = range?.from
-    ? sql`AND o.placed_at >= ${range.from}`
+    ? sql`AND o.placed_at >= ${range.from.toISOString()}::timestamptz`
     : sql``;
-  const toClause = range?.to ? sql`AND o.placed_at <= ${range.to}` : sql``;
+  const toClause = range?.to
+    ? sql`AND o.placed_at <= ${range.to.toISOString()}::timestamptz`
+    : sql``;
 
   const rows = await db.execute<{
     measurement_key: string;
@@ -246,7 +250,7 @@ async function loadAvgMeasurements(
   }>(sql`
     SELECT
       key AS measurement_key,
-      round(avg(val))::int AS avg_value,
+      round(avg(val::numeric))::int AS avg_value,
       count(*)::int AS sample_count
     FROM order_items oi
     INNER JOIN orders o ON o.id = oi.order_id

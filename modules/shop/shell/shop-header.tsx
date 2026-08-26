@@ -7,7 +7,7 @@ import { Link, usePathname } from "@/i18n/routing";
 import { CartHeaderButton } from "@/modules/cart/cart-header-button";
 import type { NavItemPublic } from "@/modules/content/types";
 
-import { AksLogoLink } from "./brand";
+import { AksStoreBrandLink } from "./brand";
 
 function isHomePath(pathname: string): boolean {
   return pathname === "/" || pathname === "";
@@ -143,12 +143,24 @@ export function ShopHeaderClient({
             : fallbackLeft}
         </div>
 
-        <AksLogoLink size="header" priority />
+        <AksStoreBrandLink />
 
         <div className="nav-right">
-          <Link href="/collections">{t("search")}</Link>
-          <Link href="/account/orders">{t("account")}</Link>
-          <CartHeaderButton label={t("bag")} textOnly />
+          <Link href="/collections" className="icobtn" aria-label={t("search")}>
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <use href="#ic-search" />
+            </svg>
+          </Link>
+          <Link
+            href="/account/orders"
+            className="icobtn"
+            aria-label={t("account")}
+          >
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <use href="#ic-account" />
+            </svg>
+          </Link>
+          <CartHeaderButton label={t("bag")} iconMode />
         </div>
       </nav>
 

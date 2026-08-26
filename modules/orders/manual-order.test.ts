@@ -237,7 +237,7 @@ describe("manual order entry", () => {
 
     const { depositAmountMinor } = computeDepositAmounts({
       totalMinor: price.unitPriceMinor,
-      plan: "DEPOSIT_70_COD_30",
+      plan: "DEPOSIT_50_COD_50",
     });
 
     const result = await placeManualOrderAction({
@@ -267,7 +267,7 @@ describe("manual order entry", () => {
           quantity: 1,
         },
       ],
-      paymentPlan: "DEPOSIT_70_COD_30",
+      paymentPlan: "DEPOSIT_50_COD_50",
       deposit: {
         amountMinor: depositAmountMinor,
         provider: "BANK_TRANSFER",
@@ -317,7 +317,7 @@ describe("manual order entry", () => {
     expect(events.some((e) => e.toStatus === "DEPOSIT_PAID")).toBe(true);
 
     const queued = await db.select().from(outbox);
-    expect(queued.some((row) => row.topic === "order.placed")).toBe(true);
+    expect(queued.some((row) => row.topic === "order.transitioned")).toBe(true);
   });
 
   it("denies staff without orders.create", async () => {

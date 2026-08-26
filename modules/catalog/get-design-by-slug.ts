@@ -161,6 +161,7 @@ export async function getDesignBySlug(
     leadTimeDaysOverride: row.design.leadTimeDaysOverride,
     components: row.design.components ?? [],
     sizeBlockId: row.design.sizeBlockId,
+    sizingGhostUrl: row.design.sizingGhostUrl ?? null,
     garmentCategory: row.garmentCategory,
     defaultColourwayId: defaultColourway.id,
     colourways: colourwaysPublic,

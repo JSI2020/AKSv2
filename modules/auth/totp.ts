@@ -26,6 +26,17 @@ export function rolesRequiring2fa(role: string): boolean {
   return role === "OWNER" || role === "ADMIN";
 }
 
+/**
+ * Whether OWNER/ADMIN two-factor auth is actually enforced in this
+ * environment. Mandatory in production; skipped in local/dev so a solo
+ * operator can reach the portal with just the emailed code. Force it on
+ * anywhere by setting AKS_ENFORCE_ADMIN_2FA=1.
+ */
+export function adminTwoFactorEnforced(): boolean {
+  if (process.env.AKS_ENFORCE_ADMIN_2FA === "1") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 /** Start TOTP enrolment: secret + otpauth URI + QR data URL (not yet persisted). */
 export async function beginTotpEnrolment(params: {
   email: string;

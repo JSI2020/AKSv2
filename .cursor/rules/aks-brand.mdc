@@ -19,11 +19,11 @@ Source of truth:
 ## Two palettes — never mix
 1. **Admin UI chrome**: greige, ink, indigo, chalk, zari, madder. Admin indigo ground. No gradients, no shadows, radius 2px.
 2. **Storefront (shop-proto / Quiet Luxury prototype)**: may use milk `#F4EEE1`, ivory, bone, oyster, sand, stone, taupe, antique, sage, espresso, shop-ink `#2B2926`. Gradients and soft overlays allowed **only** inside `.shop-proto`. Radius 1px in shop-proto.
-3. **Fashion colourways** (garments): milk / ivory / bone / oyster / sand / stone / taupe + muted accents (tea rose, antique gold, soft olive…) + sparse deep anchors. Launch = White Collection / Signature, then Lahore Edit.
+3. **Fashion colourways** (garments): milk / ivory / bone / oyster / sand / stone / taupe + muted accents (tea rose, antique gold, soft olive…) + sparse deep anchors. Launch = White Collection / Signature, then a follow-on seasonal edition.
 
 ## Product & merchandising
 - Prefer tight on-brand editions over noisy catalogues.
-- Design as complete looks; MTM is the default path.
+- Design as complete looks. AKS is standard-sizes-only ready-to-wear (XS–XL); no made-to-measure / custom-measurement path in customer flows.
 - Do not add embellishment options to close a sale.
 - Motion/drape imagery over flat-lay-first selling.
 - Pakistan-first shipping until Phase 4 explicitly expands.

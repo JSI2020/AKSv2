@@ -448,7 +448,6 @@ export function DesignEditor({
           detail={detail}
           components={components}
           houseDoor={houseDoor}
-          onEdit={(t) => setTab(t)}
         />
       </div>
     </div>
@@ -459,12 +458,10 @@ function PreviewColumn({
   detail,
   components,
   houseDoor,
-  onEdit,
 }: {
   detail: DesignDetail;
   components: string[];
   houseDoor: string;
-  onEdit: (tab: Tab) => void;
 }) {
   const d = detail.design;
   return (
@@ -498,26 +495,6 @@ function PreviewColumn({
             className="size-3 border border-ink/15"
             style={{ backgroundColor: cw.hexApproximation ?? "#EAE1CF" }}
           />
-        ))}
-      </div>
-      <div className="mt-4 flex flex-col gap-1.5">
-        {(
-          [
-            ["Details", "Edit details"],
-            ["Photos", "Edit photos"],
-            ["Sizing", "Edit sizing"],
-            ["Costing", "Edit costing"],
-            ["Price", "Edit price"],
-          ] as const
-        ).map(([t, label]) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => onEdit(t)}
-            className="border border-ink/12 px-3 py-2 text-start text-[11.5px] text-ink/55 hover:border-ink hover:text-ink"
-          >
-            {label}
-          </button>
         ))}
       </div>
     </aside>

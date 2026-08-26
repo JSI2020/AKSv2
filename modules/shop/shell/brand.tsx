@@ -2,6 +2,8 @@ import Image from "next/image";
 
 import { Link } from "@/i18n/routing";
 
+import { AksBrandLogo } from "./aks-brand-logo";
+
 /** Exact brand lockup — do not redraw or restyle the artwork. */
 export const AKS_LOGO = {
   src: "/brand/aks-logo.png",
@@ -40,11 +42,7 @@ export function AksLogoImage({
       height={AKS_LOGO.height}
       priority={priority}
       unoptimized
-      className={[
-        "aks-logo",
-        `aks-logo--${size}`,
-        className,
-      ]
+      className={["aks-logo", `aks-logo--${size}`, className]
         .filter(Boolean)
         .join(" ")}
     />
@@ -69,6 +67,24 @@ export function AksLogoLink({
       aria-label="AKS home"
     >
       <AksLogoImage size={size} priority={priority} />
+    </Link>
+  );
+}
+
+export function AksStoreBrandLink({
+  href = "/",
+  className,
+}: {
+  href?: "/" | string;
+  className?: string;
+}) {
+  return (
+    <Link
+      href={href as "/"}
+      className={["brand", className].filter(Boolean).join(" ")}
+      aria-label="AKS — Minimalist Luxury, home"
+    >
+      <AksBrandLogo className="brand-logo" />
     </Link>
   );
 }

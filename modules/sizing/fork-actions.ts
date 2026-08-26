@@ -290,8 +290,8 @@ export async function revertSizeBlockFork(
     const ownerId = designId ?? block.ownerDesignId;
 
     await db.transaction(async (tx) => {
-      await tx.delete(sizeBlocks).where(eq(sizeBlocks.id, forkBlockId));
-
+      // 1. Clear the design's references to this fork FIRST — designs.sizeBlockId
+      //    is a foreign key, so the block cannot be deleted while it points here.
       const [design] = await tx
         .select({
           id: designs.id,
@@ -342,6 +342,15 @@ export async function revertSizeBlockFork(
           })
           .where(eq(designs.id, ownerId));
       }
+
+      // 2. Now remove the fork's children and the fork itself.
+      await tx
+        .delete(sizeBlockCells)
+        .where(eq(sizeBlockCells.blockId, forkBlockId));
+      await tx
+        .delete(sizeBlockRows)
+        .where(eq(sizeBlockRows.blockId, forkBlockId));
+      await tx.delete(sizeBlocks).where(eq(sizeBlocks.id, forkBlockId));
 
       await insertAuditLog(tx as unknown as Database, {
         id: uuidv7(),

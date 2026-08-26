@@ -33,8 +33,8 @@ const SIG_ICONS = [
 export async function Atelier({
   signatures,
   eyebrow = "The atelier",
-  title = "Made to order, cut to you.",
-  p1 = "Each piece is made after you order it — to your measurements, not a chart's. Construction is the product: hidden pockets, covered fabric buttons, deep curved hems, panels cut in and never gathered on.",
+  title = "Cut by hand, in natural cloth.",
+  p1 = "Construction is the product: hidden pockets, covered fabric buttons, deep curved hems, panels cut into the cloth and never gathered on. Cut by hand, finished with care, made to outlast the season.",
   p2 = "The fusion lives in the line, never a logo.",
   aksLine,
 }: {

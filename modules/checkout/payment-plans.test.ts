@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cartHasMadeToMeasure,
   computeDepositAmounts,
   getAvailablePaymentPlans,
   isPaymentPlanAllowed,
 } from "./payment-plans";
 
 describe("payment plans", () => {
-  it("MTM line refuses the 50/50 plan", () => {
-    const lines = [{ sizeMode: "MADE_TO_MEASURE" as const }];
-    expect(cartHasMadeToMeasure(lines)).toBe(true);
-    expect(isPaymentPlanAllowed("DEPOSIT_50_COD_50", lines)).toBe(false);
+  it("the 70/30 plan is retired — not offered and not allowed", () => {
+    const lines = [{ sizeMode: "STANDARD" as const }];
+    expect(isPaymentPlanAllowed("DEPOSIT_70_COD_30", lines)).toBe(false);
 
     const options = getAvailablePaymentPlans(lines);
-    const fiftyFifty = options.find((o) => o.plan === "DEPOSIT_50_COD_50");
-    expect(fiftyFifty?.disabled).toBe(true);
-    expect(fiftyFifty?.disabledReason).toMatch(/made-to-measure/i);
+    expect(options.find((o) => o.plan === "DEPOSIT_70_COD_30")).toBeUndefined();
+    // Only standard COD-half and full-prepaid remain.
+    expect(options.map((o) => o.plan).sort()).toEqual([
+      "DEPOSIT_50_COD_50",
+      "FULL_PREPAID",
+    ]);
   });
 
   it("standard sizes allow 50/50", () => {

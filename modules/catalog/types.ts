@@ -111,7 +111,7 @@ export function isWorkValue(value: string): boolean {
 }
 
 export const COLLECTION_INTRO =
-  "Everything is made to order. Choose what's yours; we begin the moment you do.";
+  "Ready-to-wear pieces in natural cloth — Eastern silhouettes, cut with Western restraint.";
 
 export type GalleryAngle = "FRONT" | "THREE_QUARTER" | "BACK";
 
@@ -161,6 +161,8 @@ export type DesignDetailPublic = {
   /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */
   components: string[];
   sizeBlockId: string | null;
+  /** Ghost-mannequin image from the sizing recognition (nullable). */
+  sizingGhostUrl: string | null;
   garmentCategory: {
     id: string;
     key: string;
@@ -220,9 +222,9 @@ export function tagValueToCollectionSlug(value: string): string {
 
 export function formatLeadTime(daysOverride: number | null): string {
   if (daysOverride != null) {
-    return `${daysOverride} days, begins on order`;
+    return `Ships in ${daysOverride} days`;
   }
-  return "18–24 days, begins on order";
+  return "Ships in 3–5 days";
 }
 
 export function resolveColourwayId(

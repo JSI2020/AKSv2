@@ -16,10 +16,7 @@ import { FabricLibrary } from "./fabric-library";
 import { HomeHero } from "./hero";
 import { HomeStatement } from "./statement";
 
-function sectionOn(
-  enabled: Record<string, boolean>,
-  key: string,
-): boolean {
+function sectionOn(enabled: Record<string, boolean>, key: string): boolean {
   return enabled[key] !== false;
 }
 
@@ -65,13 +62,10 @@ export async function HomePage() {
       ? construction.map((c) => c.text)
       : (t.raw("signatures") as string[]);
 
-  const statementText =
-    homepage?.statement ||
-    "The market signals value through what it *adds*. We signal it through what remains — *proportion, drape, and finishing*. Unmistakably Pakistani in silhouette, contemporary and covered in cut.";
+  const statementText = homepage?.statement || t("statement");
 
-  const order =
-    homepage?.sectionsOrder?.length ?
-      homepage.sectionsOrder
+  const order = homepage?.sectionsOrder?.length
+    ? homepage.sectionsOrder
     : ["hero", "statement", "categories", "edit", "fabric", "atelier"];
   const enabled = homepage?.sectionsEnabled ?? {};
 
@@ -104,7 +98,18 @@ export async function HomePage() {
     ),
     edit: <EditGrid designs={designs} />,
     fabric: <FabricLibrary />,
-    atelier: <Atelier signatures={signatures} />,
+    atelier: (
+      <Atelier
+        signatures={signatures}
+        eyebrow={t("atelierEyebrow")}
+        title={t("atelierTitle")}
+        p1={t("atelierP1")}
+        p2={t("atelierP2")}
+        aksLine={t.rich("atelierAks", {
+          em: (chunks) => <em>{chunks}</em>,
+        })}
+      />
+    ),
   };
 
   return (

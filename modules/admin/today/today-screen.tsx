@@ -3,6 +3,8 @@ import { can } from "@/modules/auth";
 import type { PermissionKey } from "@aks/shared";
 
 import { getTodayScreenData } from "./queries";
+import { getOverviewCharts } from "./overview-charts";
+import { OverviewChartsPanel } from "./overview-charts-panel";
 import { OverviewRangePicker } from "./overview-range-picker";
 import { TodayActionCards, TodayStatsPanel } from "./today-view";
 
@@ -24,6 +26,10 @@ export async function TodayScreen({
   });
   const showRevenue = can(granted, "money.view");
   const singleDay = range.fromKey === range.toKey;
+
+  const chartFrom = new Date(`${range.fromKey}T00:00:00`);
+  const chartTo = new Date(`${range.toKey}T23:59:59`);
+  const charts = await getOverviewCharts({ from: chartFrom, to: chartTo });
 
   const needsYou = cards.filter((c) => c.count > 0);
   const clearCards = cards.filter((c) => c.count === 0);
@@ -81,6 +87,8 @@ export async function TodayScreen({
           <TodayStatsPanel stats={stats} showRevenue={showRevenue} />
         </section>
       ) : null}
+
+      <OverviewChartsPanel data={charts} showRevenue={showRevenue} />
     </div>
   );
 }

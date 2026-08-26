@@ -165,7 +165,7 @@ export function DesignCard({ design }: { design: PublishedDesignCard }) {
               <Money value={display.compareAtMinor} />
             </span>
           ) : null}
-          <span>· made to order</span>
+          <span>· ready to wear</span>
         </div>
       </div>
     </Link>

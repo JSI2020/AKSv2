@@ -75,11 +75,8 @@ export function validateCheckoutAddress(
 export function validatePaymentPlan(
   plan: string,
 ): { ok: true; plan: import("./payment-plans").PaymentPlan } | { ok: false; error: string } {
-  if (
-    plan === "FULL_PREPAID" ||
-    plan === "DEPOSIT_50_COD_50" ||
-    plan === "DEPOSIT_70_COD_30"
-  ) {
+  // DEPOSIT_70_COD_30 is retired — no longer accepted for new orders.
+  if (plan === "FULL_PREPAID" || plan === "DEPOSIT_50_COD_50") {
     return { ok: true, plan };
   }
   return { ok: false, error: "Choose how you would like to pay." };

@@ -7,7 +7,7 @@ import { listActiveNav } from "@/modules/content/nav";
 import { getSiteSettings } from "@/modules/content/site-settings";
 
 import { AnnouncementTicker } from "./announcement-ticker";
-import { AksLogoLink } from "./brand";
+import { AksBrandLogo } from "./aks-brand-logo";
 import { FooterNewsletter } from "./footer-newsletter";
 import { ShopHeaderClient } from "./shop-header";
 
@@ -72,7 +72,11 @@ export async function ShopFooter() {
     <footer className="shop-footer">
       <div className="foot">
         <div className="fbrand">
-          <AksLogoLink size="footer" />
+          <div className="fmark">
+            <AksBrandLogo className="flogo" />
+            <span className="ur">عکس</span>
+          </div>
+          <div className="ftag">{t("footerTag")}</div>
           <p>{t("footerBlurb")}</p>
         </div>
 
@@ -142,15 +146,36 @@ export async function ShopFooter() {
             {t("footerNewsletterLead")}
           </p>
           {settings.newsletterEnabled ? <FooterNewsletter /> : null}
-          <div style={{ marginTop: "1.2rem", fontSize: "13px" }}>
-            <a href={settings.whatsappUrl} rel="noreferrer" target="_blank">
-              {t("whatsapp")}
-            </a>
-            {" · "}
-            <a href={settings.instagramUrl} rel="noreferrer" target="_blank">
-              {t("instagram")}
-            </a>
-          </div>
+          {settings.whatsappUrl || settings.instagramUrl ? (
+            <div className="social">
+              {settings.whatsappUrl ? (
+                <a
+                  href={settings.whatsappUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                  aria-label={t("whatsapp")}
+                >
+                  <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
+                    <use href="#ic-whatsapp" />
+                  </svg>
+                  {t("whatsapp")}
+                </a>
+              ) : null}
+              {settings.instagramUrl ? (
+                <a
+                  href={settings.instagramUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                  aria-label={t("instagram")}
+                >
+                  <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
+                    <use href="#ic-instagram" />
+                  </svg>
+                  {t("instagram")}
+                </a>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
 

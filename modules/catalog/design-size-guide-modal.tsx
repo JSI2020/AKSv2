@@ -12,6 +12,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   chart: DesignSizeChartPublic | null;
+  ghostUrl?: string | null;
   selectedSizeLabel: string | null;
   measurementView: BodyOrGarment;
   onMeasurementViewChange: (view: BodyOrGarment) => void;
@@ -26,6 +27,7 @@ export function DesignSizeGuideModal({
   open,
   onClose,
   chart,
+  ghostUrl,
   selectedSizeLabel,
   measurementView,
   onMeasurementViewChange,
@@ -73,8 +75,7 @@ export function DesignSizeGuideModal({
               Size guide
             </h2>
             <p className="mt-1 max-w-lg text-[13px] leading-relaxed text-ink/65">
-              Standard sizes fit the average of everyone, which is to say, no
-              one in particular. Choose a column to apply that size.
+              Measured for this exact piece. Choose a column to apply that size.
             </p>
           </div>
           <button
@@ -115,10 +116,23 @@ export function DesignSizeGuideModal({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {ghostUrl ? (
+            <figure className="mb-6 flex flex-col items-center gap-2 border border-greige-deep bg-milk p-3">
+              {/* eslint-disable-next-line @next/next/no-img-element -- external sizing image */}
+              <img
+                src={ghostUrl}
+                alt="This design shown on a ghost mannequin"
+                className="max-h-[44dvh] w-auto object-contain"
+              />
+              <figcaption className="text-[11px] uppercase tracking-[0.1em] text-ink/45">
+                Measured on the piece · sizes below
+              </figcaption>
+            </figure>
+          ) : null}
           {!chart ? (
             <p className="text-[14px] leading-relaxed text-ink/70">
-              No size chart is assigned to this design yet. Choose made to
-              measure, or contact us if you need help with sizing.
+              No size chart is published for this design yet — message us on
+              WhatsApp and we&apos;ll help you find your size.
             </p>
           ) : (
             <div className="space-y-8">

@@ -2,6 +2,7 @@ import { auth } from "@/auth";
 import {
   getPermissionsForUser,
   rolesRequiring2fa,
+  adminTwoFactorEnforced,
 } from "@/modules/auth";
 import { PermissionsProvider } from "@/modules/auth/use-can";
 import { AdminShell } from "@/modules/admin";
@@ -23,7 +24,8 @@ export default async function ProtectedAdminLayout({
 
   if (
     rolesRequiring2fa(session.user.role) &&
-    !session.user.twoFactorEnabled
+    !session.user.twoFactorEnabled &&
+    adminTwoFactorEnforced()
   ) {
     redirect("/admin/2fa");
   }

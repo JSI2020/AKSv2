@@ -35,7 +35,9 @@ export function FooterNewsletter() {
           autoComplete="email"
         />
         <button type="submit" aria-label={t("footerSubscribe")}>
-          →
+          <svg className="ico" viewBox="0 0 24 24" aria-hidden="true">
+            <use href="#ic-arrow" />
+          </svg>
         </button>
       </form>
       {note ? <p className="news-note">{note}</p> : null}

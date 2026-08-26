@@ -107,7 +107,7 @@ export default async function AdminOrdersPage({
           <EmptyState
             tone="on-greige"
             title="No orders yet"
-            description="When a guest completes checkout, the order will appear here with its measurement snapshot frozen."
+            description="When a customer completes checkout, the order lands here — with its items, size, and payment state ready to work."
           />
         ) : (
           <OrdersTable result={result} overview={overview} />

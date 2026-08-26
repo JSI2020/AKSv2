@@ -22,6 +22,7 @@ import {
   logSignInAttempt,
   normalizeEmail,
   rolesRequiring2fa,
+  adminTwoFactorEnforced,
   touchSession,
   verifyEmailOtp,
   verifyTotpForUser,
@@ -147,7 +148,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
         const twoFactorEnabled = !!user.twoFactorEnabledAt && !!user.twoFactorSecret;
 
-        if (twoFactorEnabled) {
+        // 2FA is enforced in production; skipped in local/dev (see
+        // adminTwoFactorEnforced) so the portal is reachable with just the code.
+        if (twoFactorEnabled && adminTwoFactorEnforced()) {
           if (!totp && !recoveryCode) {
             throw new TwoFactorRequired();
           }
@@ -239,7 +242,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           role: user.role,
           twoFactorEnabled,
           requires2faEnrolment:
-            rolesRequiring2fa(user.role) && !twoFactorEnabled,
+            rolesRequiring2fa(user.role) &&
+            !twoFactorEnabled &&
+            adminTwoFactorEnforced(),
           sessionId: session.id,
         };
       },

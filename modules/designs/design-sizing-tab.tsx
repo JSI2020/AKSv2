@@ -3,12 +3,23 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   useTransition,
 } from "react";
 import { useRouter } from "next/navigation";
 
-import { MEASUREMENT_KEY_DEFS, STANDARD_SIZE_LABELS } from "@aks/shared";
+import {
+  recognizeDesignSizing,
+  applyStandardStyle,
+} from "./recognize-sizing-action";
+import { stylesForCategory } from "./standard-styles";
+
+import {
+  DEFAULT_SIZE_BLOCK_SEEDS,
+  MEASUREMENT_KEY_DEFS,
+  STANDARD_SIZE_LABELS,
+} from "@aks/shared";
 import { Measure, formatMeasure, parseMeasureInput } from "@/modules/ui";
 import {
   editBaseCell,
@@ -70,9 +81,10 @@ export function DesignSizingTab({
 }) {
   const d = detail.design;
   const components = componentKeysOf(detail);
-  const [fitProfiles, setFitProfiles] = useState<Record<string, string>>(
-    () => ({ ...(d.fitProfileIds ?? {}) }),
-  );
+  // Fit profiles are preserved on save but no longer edited from this tab.
+  const [fitProfiles] = useState<Record<string, string>>(() => ({
+    ...(d.fitProfileIds ?? {}),
+  }));
   const [pieceSizeBlocks, setPieceSizeBlocks] = useState<
     Record<string, string>
   >(() => ({ ...(d.pieceSizeBlocks ?? {}) }));
@@ -83,10 +95,6 @@ export function DesignSizingTab({
     if (!initial.includes("M")) initial.push("M");
     return [...STANDARD_SIZE_LABELS].filter((s) => initial.includes(s));
   });
-
-  const categoryIdByKey = useMemo(() => {
-    return new Map(options.categories.map((c) => [c.key, c.id]));
-  }, [options.categories]);
 
   const defaultBlockIdByCategory = useMemo(() => {
     const m = new Map<string, string>();
@@ -178,10 +186,6 @@ export function DesignSizingTab({
       ) : null}
 
       {components.map((comp) => {
-        const catId = categoryIdByKey.get(comp) ?? d.garmentTypeId;
-        const profiles = options.profiles.filter(
-          (p) => p.categoryId === catId,
-        );
         const blockId = resolveBlockId(comp);
         const defaultId = defaultBlockIdByCategory.get(comp) ?? null;
 
@@ -193,11 +197,6 @@ export function DesignSizingTab({
             blockId={blockId}
             defaultBlockId={defaultId}
             availableSizes={selectedSizes}
-            fitProfileId={fitProfiles[comp] ?? ""}
-            profiles={profiles}
-            onFitChange={(id) =>
-              setFitProfiles((prev) => ({ ...prev, [comp]: id }))
-            }
             onForked={(forkId) => {
               setPieceSizeBlocks((prev) => ({ ...prev, [comp]: forkId }));
             }}
@@ -229,9 +228,6 @@ function PieceSizeGuide({
   blockId,
   defaultBlockId,
   availableSizes,
-  fitProfileId,
-  profiles,
-  onFitChange,
   onForked,
   onReverted,
 }: {
@@ -240,9 +236,6 @@ function PieceSizeGuide({
   blockId: string | null;
   defaultBlockId: string | null;
   availableSizes: string[];
-  fitProfileId: string;
-  profiles: { id: string; name: string }[];
-  onFitChange: (id: string) => void;
   onForked: (forkId: string) => void;
   onReverted: () => void;
 }) {
@@ -257,6 +250,99 @@ function PieceSizeGuide({
   const [flashKeys, setFlashKeys] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [loadKey, setLoadKey] = useState(0);
+
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [recognizing, setRecognizing] = useState(false);
+  const [recogMsg, setRecogMsg] = useState<string | null>(null);
+  const [ghostUrl, setGhostUrl] = useState<string | null>(null);
+  const [styleKey, setStyleKey] = useState("");
+  const [applying, setApplying] = useState(false);
+  const pieceStyles = stylesForCategory(pieceKey);
+
+  async function onApplyStandard() {
+    if (!styleKey || !activeBlockId) return;
+    setApplying(true);
+    setRecogMsg("Applying standard sizing…");
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("designId", designId);
+      fd.set("blockId", activeBlockId);
+      fd.set("pieceKey", pieceKey);
+      fd.set("styleId", styleKey);
+      const res = await applyStandardStyle(fd);
+      if (!res.ok) {
+        setRecogMsg(null);
+        setError(res.error);
+        return;
+      }
+      setRecogMsg(
+        `Applied ${res.label} · filled ${res.filled.length} row${res.filled.length === 1 ? "" : "s"}.`,
+      );
+      if (res.blockId !== activeBlockId) {
+        setActiveBlockId(res.blockId);
+        onForked(res.blockId);
+      }
+      setLoadKey((k) => k + 1);
+      router.refresh();
+    } catch (e) {
+      setRecogMsg(null);
+      setError(e instanceof Error ? e.message : "Could not apply style.");
+    } finally {
+      setApplying(false);
+    }
+  }
+
+  /** Standard M value per measurement key for this piece's category — the
+   *  canonical baseline every style is compared against (before customisation). */
+  const stdBaseByKey = useMemo(() => {
+    const seed = DEFAULT_SIZE_BLOCK_SEEDS.find(
+      (s) => s.categoryKey === pieceKey.toUpperCase(),
+    );
+    const m: Record<string, number> = {};
+    if (seed) for (const r of seed.rows) m[r.measurementKey] = r.baseValue;
+    return m;
+  }, [pieceKey]);
+
+  async function onRecognize() {
+    const file = fileRef.current?.files?.[0];
+    if (!file) {
+      setRecogMsg("Choose a garment photo first.");
+      return;
+    }
+    if (!activeBlockId) return;
+    setRecognizing(true);
+    setRecogMsg("Uploading & recognising… this can take up to a minute.");
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("designId", designId);
+      fd.set("blockId", activeBlockId);
+      fd.set("pieceKey", pieceKey);
+      fd.set("image", file);
+      const res = await recognizeDesignSizing(fd);
+      if (!res.ok) {
+        setRecogMsg(null);
+        setError(res.error);
+        return;
+      }
+      setGhostUrl(res.ghostUrl);
+      setRecogMsg(
+        `Filled ${res.filled.length} row${res.filled.length === 1 ? "" : "s"} · ${res.template.replace(/_/g, " ")} · ${Math.round(res.confidence * 100)}% confidence${res.lowConfidence ? " — worth a review" : ""}.`,
+      );
+      if (res.blockId !== activeBlockId) {
+        setActiveBlockId(res.blockId);
+        onForked(res.blockId);
+      }
+      setLoadKey((k) => k + 1);
+      router.refresh();
+    } catch (e) {
+      setRecogMsg(null);
+      setError(e instanceof Error ? e.message : "Recognition failed.");
+    } finally {
+      setRecognizing(false);
+    }
+  }
 
   useEffect(() => {
     setActiveBlockId(blockId);
@@ -389,6 +475,27 @@ function PieceSizeGuide({
   const isFork = Boolean(block?.ownerDesignId === designId);
   const inheriting = Boolean(block && block.isDefault && !isFork);
 
+  /** Per-measurement M value for this style vs the standard house chart. */
+  const mSummary = useMemo(() => {
+    if (!block || !grid) return [];
+    return previewRows.map((r) => {
+      const cur = grid[r.measurementKey]?.[block.baseSizeLabel]?.value ?? r.baseValue;
+      const std = stdBaseByKey[r.measurementKey];
+      return {
+        key: r.measurementKey,
+        label: MEASURE_LABEL.get(r.measurementKey) ?? r.measurementKey,
+        cur,
+        std: std ?? null,
+        delta: std == null ? null : cur - std,
+      };
+    });
+  }, [block, grid, previewRows, stdBaseByKey]);
+
+  const mByKey = useMemo(
+    () => new Map(mSummary.map((s) => [s.key, s])),
+    [mSummary],
+  );
+
   const dirty = useMemo(() => {
     return rows.some((r) => {
       const raw = draftM[r.measurementKey];
@@ -483,21 +590,6 @@ function PieceSizeGuide({
         <p className="font-display text-[1.5rem] font-light text-ink">
           {titleCasePiece(pieceKey)}
         </p>
-        <div className="flex flex-wrap items-center gap-2 text-[12px] text-ink/55">
-          <span>Fit profile</span>
-          <select
-            value={fitProfileId}
-            onChange={(e) => onFitChange(e.target.value)}
-            className="border border-ink/12 bg-greige/40 px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-ink"
-          >
-            <option value="">Select…</option>
-            {profiles.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
       </div>
 
       <div
@@ -523,6 +615,112 @@ function PieceSizeGuide({
           </button>
         ) : null}
       </div>
+
+      {activeBlockId ? (
+        <div className="border-b border-ink/12 bg-greige/20 px-5 py-3">
+          {pieceStyles.length > 0 ? (
+            <div className="mb-2 flex flex-wrap items-end gap-x-3 gap-y-2">
+              <div className="flex flex-col gap-1">
+                <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
+                  Start from a standard {titleCasePiece(pieceKey).toLowerCase()}{" "}
+                  style
+                </span>
+                <select
+                  value={styleKey}
+                  onChange={(e) => setStyleKey(e.target.value)}
+                  disabled={applying || recognizing}
+                  className="border border-ink/12 bg-milk px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-ink"
+                >
+                  <option value="">Choose a standard style…</option>
+                  {pieceStyles.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                disabled={applying || recognizing || !styleKey}
+                onClick={() => void onApplyStandard()}
+                className="border border-ink/15 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-ink/70 hover:border-ink hover:text-ink disabled:opacity-40"
+              >
+                {applying ? "Applying…" : "Apply standard sizes"}
+              </button>
+              <span className="text-[11px] text-ink/40">
+                Industry-standard measurements for this piece — a baseline you
+                can then fine-tune.
+              </span>
+            </div>
+          ) : null}
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex flex-col gap-1">
+              <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
+                Build this chart from a garment photo
+              </span>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                disabled={recognizing}
+                className="max-w-[15rem] text-[12px] text-ink/70 file:mr-3 file:border file:border-ink/15 file:bg-milk file:px-2 file:py-1 file:text-[11px] file:text-ink/70"
+              />
+            </div>
+            <button
+              type="button"
+              disabled={recognizing}
+              onClick={() => void onRecognize()}
+              className="border border-zari bg-zari px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-indigo disabled:opacity-50"
+            >
+              {recognizing ? "Recognising…" : "Recognise & fill"}
+            </button>
+            {recogMsg ? (
+              <span className="text-[11.5px] text-ink/60">{recogMsg}</span>
+            ) : (
+              <span className="text-[11px] text-ink/40">
+                AI reads the style and fills XS–XXL. You can fine-tune below;
+                it reflects on the storefront.
+              </span>
+            )}
+          </div>
+
+          {ghostUrl ? (
+            <div className="mt-3 flex flex-wrap gap-5">
+              {/* eslint-disable-next-line @next/next/no-img-element -- fal.ai preview URL */}
+              <img
+                src={ghostUrl}
+                alt="Ghost-mannequin preview"
+                className="h-64 w-auto border border-ink/12 bg-milk object-contain"
+              />
+              <div className="min-w-[13rem] flex-1">
+                <p className="mb-1.5 font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
+                  M measurements · vs standard
+                </p>
+                <ul className="grid max-w-lg grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
+                  {mSummary.map((s) => (
+                    <li
+                      key={s.key}
+                      className="flex items-baseline justify-between gap-2 border-b border-ink/10 pb-0.5"
+                    >
+                      <span className="text-ink/55">{s.label}</span>
+                      <span className="font-data text-ink">
+                        <Measure value={s.cur} />
+                        {s.delta != null && s.delta !== 0 ? (
+                          <span className="ms-1 text-[10px] text-ink/45">
+                            ({s.delta > 0 ? "+" : "−"}
+                            {formatMeasure(Math.abs(s.delta), "in")})
+                          </span>
+                        ) : null}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {!blockId ? (
         <p className="px-5 py-4 text-[12px] text-ink/45">
@@ -577,6 +775,23 @@ function PieceSizeGuide({
                     <td className="border-b border-ink/10 px-2.5 py-2 text-start text-[12.5px] text-ink/55">
                       {MEASURE_LABEL.get(row.measurementKey) ??
                         row.measurementKey}
+                      {(() => {
+                        const s = mByKey.get(row.measurementKey);
+                        if (!s || s.delta == null) return null;
+                        if (s.delta === 0) {
+                          return (
+                            <span className="block text-[10px] text-ink/35">
+                              same as standard
+                            </span>
+                          );
+                        }
+                        return (
+                          <span className="block text-[10px] text-ink/45">
+                            {s.delta > 0 ? "+" : "−"}
+                            {formatMeasure(Math.abs(s.delta), "in")} vs standard
+                          </span>
+                        );
+                      })()}
                     </td>
                     {displaySizes.map((s) => {
                       const cell = grid[row.measurementKey]?.[s];

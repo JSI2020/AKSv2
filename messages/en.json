@@ -3,7 +3,7 @@
     "name": "AKS",
     "nameUr": "عکس",
     "tagline": "a reflection",
-    "footerBlurb": "Eastern hands, a quieter line. Cut to your measure after you order."
+    "footerBlurb": "Eastern hands, a quieter line — cut with Western restraint, in natural cloth."
   },
   "Nav": {
     "new": "New",
@@ -24,29 +24,29 @@
     "localeUr": "اردو"
   },
   "Utility": {
-    "leadTime": "Made to order — cut after you ask, about 18–24 days",
+    "leadTime": "Ready to wear — dispatched in 3–5 days",
     "whatsapp": "Message us on WhatsApp"
   },
   "Marquee": {
     "items": [
-      "Made to your measure",
-      "18–24 days",
+      "Ready to wear",
+      "Ships in 3–5 days",
       "Cut and cloth",
       "Modern but modest",
-      "Cut after you order"
+      "Natural fabric, matte finish"
     ]
   },
   "Home": {
     "eyebrow": "عکس · a reflection",
-    "headlineLine1": "Nothing here",
-    "headlineLine2": "exists yet",
-    "subhead": "We make each piece after you order it — cut to your measurements, not a chart’s. Eastern hands, a quieter line.",
+    "headlineLine1": "Eastern lines,",
+    "headlineLine2": "Western calm",
+    "subhead": "Ready-to-wear pieces in natural cloth — Eastern silhouettes cut with Western restraint. Chosen for how they drape, and how they last.",
     "cta": "See the collections"
   },
   "SizeGuide": {
     "title": "Size guide",
-    "lead": "Standard sizes fit the average of everyone, which is to say, no one in particular. Here’s how each house size measures up — but if you want it to truly fit, give us your own.",
-    "customPrimary": "Made to your measurements is the way it should fit.",
+    "lead": "Find your size below. Every piece is cut to a considered house fit — clean through the shoulder, easy through the body.",
+    "customPrimary": "Between two sizes? Size up for a relaxed line — or message us and we’ll help you choose.",
     "customCta": "See the collections",
     "standardNote": "Numbers are garment / body measures in inches. Charts are house defaults; a design may refine them.",
     "empty": "Size charts aren’t published yet. Message us and we’ll walk you through fit.",
@@ -78,11 +78,12 @@
     "account": "Account",
     "bag": "Bag",
     "menu": "Menu",
-    "footerBlurb": "A quiet-luxury house in Pakistani womenswear. Heritage silhouettes, natural cloth, couture finishing — built to outlast the season, not chase it.",
+    "footerBlurb": "A minimalist-luxury house in Pakistani womenswear — Eastern silhouettes cut with Western restraint, in natural cloth and couture finishing. Built to outlast the season, not chase it.",
+    "footerTag": "East meets West",
     "footerShop": "Shop",
     "footerAtelier": "Atelier",
     "footerStayClose": "Stay close",
-    "footerMadeToOrder": "Made to order",
+    "footerMadeToOrder": "Ready to wear",
     "footerFabricLibrary": "Fabric library",
     "footerSizeFit": "Size & fit",
     "footerOurStory": "Our story",
@@ -93,18 +94,18 @@
     "newsletterInvalid": "Enter a valid email address.",
     "whatsapp": "WhatsApp",
     "instagram": "Instagram",
-    "footerTagline": "AKS — عکس · Quiet luxury, rooted in heritage",
-    "footerCopyright": "© 2026 · Lahore"
+    "footerTagline": "AKS — عکس · Minimalist luxury · East meets West",
+    "footerCopyright": "© 2026 AKS"
   },
   "HomeProto": {
     "heroSlotTag": "Hero image · set in admin",
-    "heroEyebrow": "Quiet luxury · rooted in heritage",
+    "heroEyebrow": "Minimalist luxury · East meets West",
     "heroLine1": "The cut is",
     "heroLine2": "the <em>ornament</em>.",
-    "heroSub": "Heritage silhouettes in matte natural cloth — refined by proportion, drape and finishing. Nothing added to be seen; everything made to be felt.",
+    "heroSub": "Eastern silhouettes cut with Western restraint, in matte natural cloth — refined by proportion, drape and finishing. Nothing added to be seen; everything made to be felt.",
     "heroCta": "Enter the house",
     "heroSlotCap": "Full-bleed welcome image — uploaded & swapped from the admin portal per edition",
-    "statement": "The market signals value through what it <em>adds</em>. We signal it through what remains — <em>proportion, drape, and finishing</em>. Unmistakably Pakistani in silhouette, contemporary and covered in cut.",
+    "statement": "The market signals value through what it *adds*. We signal it through what remains — *proportion, drape, and finishing*. Eastern in silhouette, Western in restraint: two traditions meeting in a single clean line.",
     "catsEyebrow": "Four doors into the house",
     "catsTitle": "Shop by category",
     "catSlotTag": "Category image · admin",
@@ -112,8 +113,8 @@
     "doorTailoredMotto": "Structured · clean line",
     "doorOccasionMotto": "Restrained · covered",
     "doorSignatureMotto": "The statement pieces",
-    "exploreDoor": "Explore {name}",
-    "editEyebrow": "Made to order · begins when you choose it",
+    "exploreDoor": "Explore {name} →",
+    "editEyebrow": "The current edit · refreshed each edition",
     "editTitle": "The current edit",
     "filterAll": "All",
     "editEmpty": "No published pieces in this door yet.",
@@ -133,17 +134,17 @@
     "fabricOrganzaCh": "Crisp, sheer, holds its own shape.",
     "fabricOrganzaWhere": "Outer farshi · dupatta",
     "atelierEyebrow": "The atelier",
-    "atelierTitle": "Made to order, cut to you.",
-    "atelierP1": "Each piece is made after you order it — to your measurements, not a chart's. Construction is the product: hidden pockets, covered fabric buttons, deep curved hems, panels cut in and never gathered on.",
+    "atelierTitle": "Cut by hand, in natural cloth.",
+    "atelierP1": "Construction is the product: hidden pockets, covered fabric buttons, deep curved hems, panels cut into the cloth and never gathered on. Cut by hand, finished with care, made to outlast the season.",
     "atelierP2": "The fusion lives in the line, never a logo.",
     "atelierAks": "<em>aks</em> — a reflection. A dress that reflects you, in both worlds.",
     "signatures": [
-      "Cut by hand from natural cloth, made only after you order",
+      "Cut by hand from natural cloth",
       "Panels and flare cut into the cloth — never gathered on",
       "Deep, softly curved hems, so the garment carries weight and hangs true",
       "Covered fabric fastenings, matched to the cloth — never metal",
       "Invisible finishing, inside and out — the seam is part of the design",
-      "Made to your measurements, or a standard house size"
+      "Standard house sizes, cut to a considered fit"
     ]
   }
 }

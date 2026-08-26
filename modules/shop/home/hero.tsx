@@ -25,12 +25,20 @@ export function HomeHero({
   const sub = slide?.subtext || fallback.sub;
   const cta = slide?.buttonLabel || fallback.cta;
   const href = slide?.buttonHref || "#cats";
-  const overlay = slide?.overlayStrength ?? 40;
   const imageUrl = slide?.desktopImageUrl || slide?.mobileImageUrl;
   const centre = slide?.textPosition === "CENTRE";
+  const overlay = slide?.overlayStrength ?? 40;
 
   return (
-    <div id="top" className="hero">
+    <div
+      id="top"
+      className="hero"
+      style={
+        {
+          ["--hero-overlay" as string]: String(overlay / 100),
+        } as React.CSSProperties
+      }
+    >
       {imageUrl ? (
         <div className="imgslot" style={{ position: "absolute", inset: 0 }}>
           <Image
@@ -45,15 +53,6 @@ export function HomeHero({
       ) : (
         <ImageSlotPlaceholder silhouette="farshi" fill="#F4EEE1" />
       )}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: `linear-gradient(to top, rgba(43,41,38,${overlay / 100}), rgba(43,41,38,${overlay / 200}))`,
-          pointerEvents: "none",
-        }}
-      />
       <span className="slot-tag">{fallback.slotTag}</span>
       <div className="hero-inner">
         <div

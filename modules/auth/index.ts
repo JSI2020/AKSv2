@@ -29,6 +29,7 @@ export {
 } from "./sessions";
 export {
   rolesRequiring2fa,
+  adminTwoFactorEnforced,
   beginTotpEnrolment,
   confirmTotpEnrolment,
   verifyTotpForUser,

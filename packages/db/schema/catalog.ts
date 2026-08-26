@@ -103,6 +103,8 @@ export const designs = pgTable(
     .$type<Record<string, string>>()
     .notNull()
     .default({}),
+  /** Ghost-mannequin image built from the sizing recognition; shown on the PDP. */
+  sizingGhostUrl: text("sizing_ghost_url"),
   /**
    * Standard size labels offered on PDP (subset of the size block).
    * Empty = offer all labels from the linked size block.

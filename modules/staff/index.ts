@@ -10,4 +10,10 @@ export type { StaffListItem, StaffDetail } from "./queries";
 export { InviteStaffForm } from "./invite-form";
 export { PermissionMatrix } from "./permission-matrix";
 export { StaffDetailPanel } from "./staff-detail-panel";
-export { INVITABLE_ROLES, STAFF_ROLES } from "./roles";
+export { RoleAccessEditor } from "./role-access-editor";
+export {
+  getAllRolePermissionKeys,
+  getRolePermissionKeys,
+  setRolePermissionAction,
+} from "./role-actions";
+export { INVITABLE_ROLES, STAFF_ROLES, EDITABLE_ROLES } from "./roles";

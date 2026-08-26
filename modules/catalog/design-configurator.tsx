@@ -41,13 +41,10 @@ type Props = {
 };
 
 function leadLine(
-  daysOverride: number | null,
+  _daysOverride: number | null,
   promise?: string,
 ): string {
-  if (daysOverride != null) {
-    return `Made when you order · ${daysOverride} days`;
-  }
-  return promise ?? "Made when you order · 18–24 days";
+  return promise ?? "Ready to wear · ships in 3–5 days";
 }
 
 export function DesignConfigurator({
@@ -172,7 +169,7 @@ export function DesignConfigurator({
       />
 
       <div className="pdp-info">
-        <span className="eyebrow">Made to order</span>
+        <span className="eyebrow">Ready to wear</span>
         <h1 className="serif">{design.name}</h1>
         <div className="pdp-sil">{silLine}</div>
         <div className="pdp-price">
@@ -193,7 +190,6 @@ export function DesignConfigurator({
         />
 
         <DesignSizePicker
-          designSlug={design.slug}
           sizeMode={state.sizeMode}
           sizeLabel={state.sizeLabel}
           onSizeModeChange={(sizeMode) => patchState({ sizeMode })}
@@ -205,6 +201,7 @@ export function DesignConfigurator({
           open={sizeGuideOpen}
           onClose={() => setSizeGuideOpen(false)}
           chart={sizeChart}
+          ghostUrl={design.sizingGhostUrl}
           selectedSizeLabel={state.sizeLabel}
           measurementView={measurementView}
           onMeasurementViewChange={setMeasurementView}

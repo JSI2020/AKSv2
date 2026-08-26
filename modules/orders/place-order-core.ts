@@ -15,7 +15,6 @@ import { uuidv7 } from "@aks/shared";
 import type { PaymentPlan } from "@/modules/checkout/payment-plans";
 import { computeDepositAmounts } from "@/modules/checkout/payment-plans";
 import { recordDiscountRedemptions } from "@/modules/discounts/evaluate";
-import { enqueue } from "@/modules/platform/outbox/enqueue";
 import { transition } from "@/modules/platform/transition";
 import type { DbTx } from "@/modules/platform/types";
 
@@ -184,15 +183,9 @@ export async function placeOrderCore(
     await tx.delete(cartLines).where(eq(cartLines.cartId, input.cartId));
   }
 
-  await enqueue(
-    "order.placed",
-    {
-      orderId,
-      orderNumber,
-      whatsappNumber: input.whatsappNumber,
-    },
-    tx,
-  );
+  // Note: customer notification is driven by the DRAFT → AWAITING_DEPOSIT
+  // transition above (order.transitioned → order.received email). We do not
+  // emit a separate "order.placed" event — nothing consumes it.
 
   return { orderId, orderNumber };
 }

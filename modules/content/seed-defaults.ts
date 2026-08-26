@@ -22,12 +22,12 @@ import {
 } from "./types";
 
 const CONSTRUCTION_ITEMS = [
-  "Cut by hand from natural cloth, made only after you order",
+  "Cut by hand from natural cloth",
   "Panels and flare cut into the cloth — never gathered on",
   "Deep, softly curved hems, so the garment carries weight and hangs true",
   "Covered fabric fastenings, matched to the cloth — never metal",
   "Invisible finishing, inside and out — the seam is part of the design",
-  "Made to your measurements, or a standard house size",
+  "Standard house sizes, cut to a considered fit",
 ];
 
 /**
@@ -264,7 +264,7 @@ export async function seedContentDefaults(): Promise<void> {
       });
     }
     const footerAtelier = [
-      { label: "Made to order", link: pageLink("size-guide"), order: 0 },
+      { label: "Ready to wear", link: pageLink("size-guide"), order: 0 },
       { label: "Fabric library", link: pageLink("fabrics"), order: 1 },
       { label: "Size & fit", link: pageLink("size-guide"), order: 2 },
       { label: "Our story", link: pageLink("atelier"), order: 3 },
@@ -299,7 +299,7 @@ export async function seedContentDefaults(): Promise<void> {
     {
       slug: "atelier",
       title: "Atelier / Our story",
-      body: "Made to order, cut to you.\n\nEach piece is made after you order it — to your measurements, not a chart's. Construction is the product: hidden pockets, covered fabric buttons, deep curved hems, panels cut in and never gathered on.\n\nThe fusion lives in the line, never a logo.",
+      body: "Cut by hand, in natural cloth.\n\nConstruction is the product: hidden pockets, covered fabric buttons, deep curved hems, panels cut into the cloth and never gathered on. Cut by hand, finished with care, made to outlast the season.\n\nThe fusion lives in the line, never a logo.",
     },
     {
       slug: "construction",

@@ -95,7 +95,7 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
   });
 
   const [lines, setLines] = useState<DraftLine[]>([emptyLine()]);
-  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("DEPOSIT_70_COD_30");
+  const [paymentPlan, setPaymentPlan] = useState<PaymentPlan>("FULL_PREPAID");
   const [adjustPrice, setAdjustPrice] = useState(false);
   const [adjustedTotalMinor, setAdjustedTotalMinor] = useState<number | "">("");
   const [adjustReasonCode, setAdjustReasonCode] = useState("");
@@ -150,8 +150,8 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
 
   useEffect(() => {
     const selected = paymentPlanOptions.find((p) => p.plan === paymentPlan);
-    if (selected?.disabled) {
-      setPaymentPlan("DEPOSIT_70_COD_30");
+    if (!selected || selected.disabled) {
+      setPaymentPlan("FULL_PREPAID");
     }
   }, [paymentPlan, paymentPlanOptions]);
 
@@ -629,7 +629,6 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
                     className={inputClass}
                   >
                     <option value="STANDARD">Standard size</option>
-                    <option value="MADE_TO_MEASURE">Made to measure</option>
                   </select>
                 </Field>
 

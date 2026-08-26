@@ -23,10 +23,9 @@ export function cartHasMadeToMeasure(lines: CartLineForPlan[]): boolean {
 }
 
 export function getAvailablePaymentPlans(
-  lines: CartLineForPlan[],
+  _lines: CartLineForPlan[],
   options?: { codDisabled?: boolean },
 ): PaymentPlanOption[] {
-  const hasMtm = cartHasMadeToMeasure(lines);
   const codDisabled = options?.codDisabled ?? false;
 
   return [
@@ -34,21 +33,8 @@ export function getAvailablePaymentPlans(
       plan: "DEPOSIT_50_COD_50",
       label: "Half now, half on delivery",
       description:
-        "Pay 50% to begin cutting. The rest when your order arrives. Available for standard sizes only — we can resell those if plans change.",
+        "Pay 50% now to confirm your order; pay the rest in cash when it arrives.",
       depositPercent: 50,
-      disabled: hasMtm || codDisabled,
-      disabledReason: codDisabled
-        ? "Cash on delivery is not available on your account — pay in full upfront for your next order."
-        : hasMtm
-          ? "Made-to-measure pieces need a higher deposit — your dress is cut only for you and cannot be resold."
-          : undefined,
-    },
-    {
-      plan: "DEPOSIT_70_COD_30",
-      label: "70% now, balance on delivery",
-      description:
-        "Pay 70% to begin. The remaining 30% when it reaches you. Required for made-to-measure, also available for standard sizes.",
-      depositPercent: 70,
       disabled: codDisabled,
       disabledReason: codDisabled
         ? "Cash on delivery is not available on your account — pay in full upfront for your next order."
@@ -70,6 +56,10 @@ export function isPaymentPlanAllowed(
   lines: CartLineForPlan[],
   options?: { codDisabled?: boolean },
 ): boolean {
+  // The 70/30 plan is retired (it existed only for made-to-measure).
+  if (plan === "DEPOSIT_70_COD_30") {
+    return false;
+  }
   if (options?.codDisabled && plan !== "FULL_PREPAID") {
     return false;
   }
@@ -107,7 +97,7 @@ export function computeDepositAmounts(input: {
 }
 
 export const DEPOSIT_POLICY_COPY =
-  "Once we begin cutting fabric to your measurements, your deposit is committed — your piece cannot become anyone else's.";
+  "Your deposit confirms the order and reserves your piece; the balance is due before it ships.";
 
 export const PAKISTAN_PROVINCES: {
   value: PakistanProvince;

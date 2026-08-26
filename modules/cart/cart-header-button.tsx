@@ -6,9 +6,15 @@ type Props = {
   label: string;
   /** Prototype C header uses text label instead of bag icon. */
   textOnly?: boolean;
+  /** Storefront v7 sprite icon with animated item count. */
+  iconMode?: boolean;
 };
 
-export function CartHeaderButton({ label, textOnly = false }: Props) {
+export function CartHeaderButton({
+  label,
+  textOnly = false,
+  iconMode = false,
+}: Props) {
   const { cart, toggleDrawer } = useCart();
 
   if (textOnly) {
@@ -16,6 +22,24 @@ export function CartHeaderButton({ label, textOnly = false }: Props) {
       <button type="button" onClick={toggleDrawer} aria-label={label}>
         {label}
         {cart.itemCount > 0 ? ` (${cart.itemCount})` : ""}
+      </button>
+    );
+  }
+
+  if (iconMode) {
+    return (
+      <button
+        type="button"
+        onClick={toggleDrawer}
+        className="icobtn bag"
+        aria-label={label}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <use href="#ic-bag" />
+        </svg>
+        <span className={`count${cart.itemCount > 0 ? " show" : ""}`}>
+          {cart.itemCount}
+        </span>
       </button>
     );
   }
