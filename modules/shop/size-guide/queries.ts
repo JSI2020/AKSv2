@@ -1,4 +1,4 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import {
   db,
@@ -53,7 +53,7 @@ export async function listSizeGuideCharts(): Promise<SizeGuideChartPublic[]> {
       garmentCategories,
       eq(sizeBlocks.categoryId, garmentCategories.id),
     )
-    .where(eq(sizeBlocks.active, true))
+    .where(and(eq(sizeBlocks.active, true), eq(sizeBlocks.isDefault, true)))
     .orderBy(asc(garmentCategories.name), asc(sizeBlocks.name));
 
   const charts: SizeGuideChartPublic[] = [];

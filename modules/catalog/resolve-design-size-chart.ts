@@ -1,6 +1,12 @@
 import { and, asc, eq } from "drizzle-orm";
 
-import { db, sizeBlockCells, sizeBlockRows, sizeBlocks } from "@aks/db";
+import {
+  db,
+  garmentCategories,
+  sizeBlockCells,
+  sizeBlockRows,
+  sizeBlocks,
+} from "@aks/db";
 import {
   GARMENT_CATEGORY_SEEDS,
   MEASUREMENT_KEY_DEFS,
@@ -98,55 +104,101 @@ function effectiveComponents(
   return [primaryCategoryKey];
 }
 
+type BlockMeta = {
+  id: string;
+  sizeLabels: string[];
+  baseSizeLabel: string;
+  notes: string | null;
+};
+
+const BLOCK_COLUMNS = {
+  id: sizeBlocks.id,
+  sizeLabels: sizeBlocks.sizeLabels,
+  baseSizeLabel: sizeBlocks.baseSizeLabel,
+  notes: sizeBlocks.notes,
+} as const;
+
+async function loadActiveBlock(blockId: string): Promise<BlockMeta | null> {
+  const [block] = await db
+    .select(BLOCK_COLUMNS)
+    .from(sizeBlocks)
+    .where(and(eq(sizeBlocks.id, blockId), eq(sizeBlocks.active, true)))
+    .limit(1);
+  return block ?? null;
+}
+
+async function loadDefaultBlockForCategory(
+  categoryKey: string,
+): Promise<BlockMeta | null> {
+  const [block] = await db
+    .select(BLOCK_COLUMNS)
+    .from(sizeBlocks)
+    .innerJoin(
+      garmentCategories,
+      eq(sizeBlocks.categoryId, garmentCategories.id),
+    )
+    .where(
+      and(
+        eq(garmentCategories.key, categoryKey),
+        eq(sizeBlocks.isDefault, true),
+        eq(sizeBlocks.active, true),
+      ),
+    )
+    .limit(1);
+  return block ?? null;
+}
+
+function loadBlockRows(blockId: string) {
+  return db
+    .select({
+      measurementKey: sizeBlockRows.measurementKey,
+      baseValue: sizeBlockRows.baseValue,
+      gradeIncrement: sizeBlockRows.gradeIncrement,
+      gradeOverrides: sizeBlockRows.gradeOverrides,
+      sortOrder: sizeBlockRows.sortOrder,
+    })
+    .from(sizeBlockRows)
+    .where(eq(sizeBlockRows.blockId, blockId))
+    .orderBy(asc(sizeBlockRows.sortOrder));
+}
+
+function loadPinnedCells(blockId: string) {
+  return db
+    .select({
+      measurementKey: sizeBlockCells.measurementKey,
+      sizeLabel: sizeBlockCells.sizeLabel,
+      value: sizeBlockCells.value,
+    })
+    .from(sizeBlockCells)
+    .where(
+      and(eq(sizeBlockCells.blockId, blockId), eq(sizeBlockCells.isPinned, true)),
+    );
+}
+
 export async function resolveDesignSizeChart(input: {
   sizeBlockId: string | null;
   components: readonly string[];
   primaryCategoryKey: string;
 }): Promise<DesignSizeChartPublic | null> {
-  if (!input.sizeBlockId) return null;
+  // Prefer the design's own block. When it has no rows (not yet forked/sized)
+  // or no block is set, fall back to the category's active default block so the
+  // storefront still shows a complete, correct size chart instead of nothing.
+  let block = input.sizeBlockId
+    ? await loadActiveBlock(input.sizeBlockId)
+    : null;
+  let rows = block ? await loadBlockRows(block.id) : [];
 
-  const blocks = await db
-    .select({
-      id: sizeBlocks.id,
-      sizeLabels: sizeBlocks.sizeLabels,
-      baseSizeLabel: sizeBlocks.baseSizeLabel,
-      notes: sizeBlocks.notes,
-    })
-    .from(sizeBlocks)
-    .where(and(eq(sizeBlocks.id, input.sizeBlockId), eq(sizeBlocks.active, true)))
-    .limit(1);
+  if (rows.length === 0) {
+    const fallback = await loadDefaultBlockForCategory(input.primaryCategoryKey);
+    if (fallback) {
+      block = fallback;
+      rows = await loadBlockRows(fallback.id);
+    }
+  }
 
-  const block = blocks[0];
-  if (!block) return null;
+  if (!block || rows.length === 0) return null;
 
-  const [rows, pinned] = await Promise.all([
-    db
-      .select({
-        measurementKey: sizeBlockRows.measurementKey,
-        baseValue: sizeBlockRows.baseValue,
-        gradeIncrement: sizeBlockRows.gradeIncrement,
-        gradeOverrides: sizeBlockRows.gradeOverrides,
-        sortOrder: sizeBlockRows.sortOrder,
-      })
-      .from(sizeBlockRows)
-      .where(eq(sizeBlockRows.blockId, block.id))
-      .orderBy(asc(sizeBlockRows.sortOrder)),
-    db
-      .select({
-        measurementKey: sizeBlockCells.measurementKey,
-        sizeLabel: sizeBlockCells.sizeLabel,
-        value: sizeBlockCells.value,
-      })
-      .from(sizeBlockCells)
-      .where(
-        and(
-          eq(sizeBlockCells.blockId, block.id),
-          eq(sizeBlockCells.isPinned, true),
-        ),
-      ),
-  ]);
-
-  if (rows.length === 0) return null;
+  const pinned = await loadPinnedCells(block.id);
 
   const grid = resolveChart(
     {
