@@ -1117,15 +1117,8 @@ export async function studioBuildSizeChartAction(
     const { buildStyleChart } = await import(
       "@/modules/dress-sizing/recognition/review"
     );
-    const { recognizeGarment } = await import(
-      "@/modules/dress-sizing/recognition/recognize"
-    );
-    const {
-      createRecognitionAdapter,
-      recognitionConfigured,
-    } = await import("@/modules/dress-sizing/recognition/pipeline");
-    const { uploadVisionFile } = await import(
-      "@/modules/dress-sizing/providers/fal"
+    const { recognitionConfigured } = await import(
+      "@/modules/dress-sizing/recognition/pipeline"
     );
     const { GARMENT_LABELS, FIT_LABELS, LENGTH_LABELS } = await import(
       "@/modules/dress-sizing/ui/labels"

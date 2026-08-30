@@ -39,6 +39,7 @@ import type { FitIntent, GarmentType, LengthBand } from "../db/enums";
 import type { HemFullness, StylePoints } from "../core/style-points";
 import { renderFalEdit, uploadVisionFile } from "../providers/fal";
 import { detectLandmarks } from "../recognition/landmark-detect";
+import type { VisionAdapter } from "../recognition/adapter";
 import { createRecognitionAdapter } from "../recognition/pipeline";
 import { recognizeGarment } from "../recognition/recognize";
 import { buildStyleChart } from "../recognition/review";
@@ -165,7 +166,13 @@ async function applyPhotoMeasurements(input: {
   }
 
   if (applied.length > 0) {
-    const reconciled = reconcileSilhouette(corrected, input.reconcile);
+    // Reconcile first (a column must share one circumference), then snap every
+    // cell: shifting the base alone leaves the other sizes carrying the
+    // template's fractional grade increments, which is how 2.49" reaches a
+    // chart. Snapping after reconcile keeps the equalities intact.
+    const reconciled = reconcileSilhouette(corrected, input.reconcile).map(
+      (row) => ({ ...row, valueHundredths: snapQuarter(row.valueHundredths) }),
+    );
     for (const row of reconciled) {
       const before = chartRows.find(
         (r) => r.pomKey === row.pomKey && r.size === row.size,
@@ -202,6 +209,11 @@ export type MeasureGarmentInput = {
   imageUrl?: string;
   /** Render the ghost mannequin (one extra generation call). Default true. */
   ghost?: boolean;
+  /**
+   * Vision adapter override. Defaults to the configured provider chain; supply
+   * one to drive the pipeline deterministically (tests, replay, batch jobs).
+   */
+  adapter?: VisionAdapter;
 };
 
 export type MeasureGarmentResult = {
@@ -227,7 +239,7 @@ export async function measureGarmentFromPhoto(
   input: MeasureGarmentInput,
 ): Promise<MeasureGarmentResult> {
   const imageUrl = input.imageUrl ?? (await uploadVisionFile(input.image));
-  const adapter = createRecognitionAdapter();
+  const adapter = input.adapter ?? createRecognitionAdapter();
   const proposal = await recognizeGarment(db, imageUrl, adapter);
 
   const { styleId } = await buildStyleChart(db, {
