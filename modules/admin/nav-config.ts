@@ -1,6 +1,5 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Camera,
   FileText,
   LayoutDashboard,
   Layers,
@@ -8,12 +7,14 @@ import {
   Package,
   Palette,
   Percent,
+  Ruler,
   Scissors,
   Settings,
   ShoppingBag,
   Sparkles,
   Users,
   Wallet,
+  WandSparkles,
 } from "lucide-react";
 
 import type { PermissionKey } from "@aks/shared";
@@ -91,10 +92,16 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     shortcut: "G F",
   },
   {
-    title: "Photoreal",
+    title: "AI Studio",
     href: "/admin/photoreal",
-    icon: Camera,
+    icon: WandSparkles,
     permission: "photoreal.view",
+  },
+  {
+    title: "Garment sizing",
+    href: "/admin/studio/sizing",
+    icon: Ruler,
+    permission: "designs.create",
   },
   {
     title: "Designs",
@@ -173,6 +180,7 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     items: ADMIN_NAV_ITEMS.filter((i) =>
       [
         "/admin/photoreal",
+        "/admin/studio/sizing",
         "/admin/fabrics",
         "/admin/designs",
         "/admin/tryon",
@@ -202,7 +210,7 @@ const BREADCRUMB_HREF_DENY = new Set([
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   studio: "Designs",
-  photoreal: "Photoreal",
+  photoreal: "AI Studio",
   tryon: "Reflection",
   fabrics: "Fabric",
   inventory: "Inventory",
