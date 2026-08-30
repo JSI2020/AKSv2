@@ -1,0 +1,253 @@
+/**
+ * Garment sizing engine — the single reusable service behind every
+ * "build a size chart from a photo" surface (Designs → Sizing tab, AI Studio →
+ * Sizing, and anything added later).
+ *
+ * It owns the whole photo→chart pipeline and nothing about where the result is
+ * stored, so callers stay thin: they decide what to bind the chart to, this
+ * decides what the garment measures.
+ *
+ *   upload → classify style → compose template chart
+ *          → detect landmarks → measure → fuse → correct the chart
+ *          → ghost mannequin (best effort)
+ *
+ * Deliberately a plain module, not a "use server" file, so it can export types
+ * and be called from any server action.
+ */
+
+import { and, eq } from "drizzle-orm";
+
+import { db } from "@/packages/db/client";
+import { dressGeneratedChart, dressStyle } from "@/packages/db/schema";
+import {
+  estimateFromPhoto,
+  ghostProportions,
+  imageSizeFromFile,
+  templatePrior,
+  type Estimate,
+  type GarmentLandmarks,
+  type PhotoPomKey,
+} from "@/modules/garment-metrology";
+
+import { ghostMannequinPrompt } from "../core/ghost-prompt";
+import type { FitIntent, GarmentType, LengthBand } from "../db/enums";
+import type { StylePoints } from "../core/style-points";
+import { renderFalEdit, uploadVisionFile } from "../providers/fal";
+import { detectLandmarks } from "../recognition/landmark-detect";
+import { createRecognitionAdapter } from "../recognition/pipeline";
+import { recognizeGarment } from "../recognition/recognize";
+import { buildStyleChart } from "../recognition/review";
+
+/** POM keys the photo pass can measure. */
+const MEASURABLE_POMS: Record<PhotoPomKey, true> = {
+  chest: true,
+  waist: true,
+  shoulder: true,
+  garmentLength: true,
+  sleeveLength: true,
+  hemWidth: true,
+  neckDrop: true,
+};
+
+export type PhotoMeasurementSummary = {
+  landmarks: GarmentLandmarks;
+  /** POM keys the photo actually moved, with the shift applied (hundredths). */
+  applied: Array<{ pomKey: string; deltaHundredths: number }>;
+  /** POM keys where photo and template disagreed beyond 3σ — template kept. */
+  conflicts: string[];
+  anchor: string;
+  landmarkConfidence: number;
+  warnings: string[];
+  imageWidthPx: number;
+  imageHeightPx: number;
+};
+
+/**
+ * Measure the photo and correct the composed template chart with it.
+ *
+ * The photo fixes what the sample garment ACTUALLY measures; the house grade
+ * rules still produce every other size. So a fused value is applied as a
+ * uniform shift across all sizes of that POM — the run keeps its grading (and
+ * therefore a clean gradeIncrement downstream) while landing on the real
+ * garment. Fail-soft: any missing piece leaves the template untouched.
+ */
+async function applyPhotoMeasurements(input: {
+  styleId: string;
+  image: File;
+  imageUrl: string;
+  adapter: Parameters<typeof detectLandmarks>[1];
+}): Promise<PhotoMeasurementSummary | null> {
+  const size = await imageSizeFromFile(input.image);
+  if (!size) return null;
+
+  const detection = await detectLandmarks(input.imageUrl, input.adapter);
+  if (!detection) return null;
+
+  const [style] = await db
+    .select({ baseSize: dressStyle.baseSize })
+    .from(dressStyle)
+    .where(eq(dressStyle.id, input.styleId))
+    .limit(1);
+  if (!style) return null;
+
+  const chartRows = await db
+    .select()
+    .from(dressGeneratedChart)
+    .where(eq(dressGeneratedChart.styleId, input.styleId));
+  if (chartRows.length === 0) return null;
+
+  const priorBase = new Map<string, number>();
+  for (const row of chartRows) {
+    if (row.size === style.baseSize) {
+      priorBase.set(row.pomKey, row.valueHundredths);
+    }
+  }
+
+  const prior: Partial<Record<PhotoPomKey, Estimate>> = {};
+  for (const [pomKey, value] of priorBase) {
+    const key = pomKey as PhotoPomKey;
+    if (key in MEASURABLE_POMS) prior[key] = templatePrior(key, value);
+  }
+
+  let result;
+  try {
+    result = estimateFromPhoto({
+      landmarks: detection.landmarks,
+      imageWidthPx: size.width,
+      imageHeightPx: size.height,
+      prior,
+    });
+  } catch {
+    return null;
+  }
+
+  const applied: PhotoMeasurementSummary["applied"] = [];
+  for (const [pomKey, fused] of Object.entries(result.fused)) {
+    const key = pomKey as PhotoPomKey;
+    if (!result.measured[key]) continue; // template-only row, nothing to correct
+    if (result.conflicts.includes(key)) continue;
+    const base = priorBase.get(key);
+    if (base == null) continue;
+    const delta = fused.value - base;
+    if (delta === 0) continue;
+
+    for (const row of chartRows) {
+      if (row.pomKey !== key) continue;
+      await db
+        .update(dressGeneratedChart)
+        .set({ valueHundredths: row.valueHundredths + delta })
+        .where(
+          and(
+            eq(dressGeneratedChart.styleId, input.styleId),
+            eq(dressGeneratedChart.pomKey, key),
+            eq(dressGeneratedChart.size, row.size),
+          ),
+        );
+    }
+    applied.push({ pomKey: key, deltaHundredths: delta });
+  }
+
+  return {
+    landmarks: detection.landmarks,
+    applied,
+    conflicts: result.conflicts,
+    anchor: result.anchor.kind,
+    landmarkConfidence: detection.confidence,
+    warnings: detection.warnings,
+    imageWidthPx: size.width,
+    imageHeightPx: size.height,
+  };
+}
+
+export type MeasureGarmentInput = {
+  image: File;
+  /** Reuse an already-hosted URL instead of re-uploading. */
+  imageUrl?: string;
+  /** Render the ghost mannequin (one extra generation call). Default true. */
+  ghost?: boolean;
+};
+
+export type MeasureGarmentResult = {
+  imageUrl: string;
+  /** Generated dress-sizing style holding the corrected XS–XXL chart. */
+  styleId: string;
+  templateKey: GarmentType;
+  lengthBand: LengthBand;
+  fitIntent: FitIntent;
+  points?: StylePoints;
+  confidence: number;
+  lowConfidence: boolean;
+  measurement: PhotoMeasurementSummary | null;
+  ghostUrl: string | null;
+};
+
+/**
+ * Photo → measured, graded size chart. The returned `styleId` owns the chart
+ * rows; callers bind them wherever they need (a design's size block, a preview
+ * table, an export).
+ */
+export async function measureGarmentFromPhoto(
+  input: MeasureGarmentInput,
+): Promise<MeasureGarmentResult> {
+  const imageUrl = input.imageUrl ?? (await uploadVisionFile(input.image));
+  const adapter = createRecognitionAdapter();
+  const proposal = await recognizeGarment(db, imageUrl, adapter);
+
+  const { styleId } = await buildStyleChart(db, {
+    templateKey: proposal.templateKey,
+    lengthBand: proposal.lengthBand,
+    fitIntent: proposal.fitIntent,
+    imageUrl,
+    confidence: proposal.confidence,
+    status: "draft",
+    points: proposal.points,
+  });
+
+  let measurement: PhotoMeasurementSummary | null = null;
+  try {
+    measurement = await applyPhotoMeasurements({
+      styleId,
+      image: input.image,
+      imageUrl,
+      adapter,
+    });
+  } catch {
+    measurement = null;
+  }
+
+  let ghostUrl: string | null = null;
+  if (input.ghost !== false) {
+    try {
+      ghostUrl = await renderFalEdit(
+        input.image,
+        ghostMannequinPrompt({
+          garmentType: proposal.templateKey,
+          lengthBand: proposal.lengthBand,
+          points: proposal.points,
+          proportions: measurement
+            ? ghostProportions(
+                measurement.landmarks,
+                measurement.imageWidthPx,
+                measurement.imageHeightPx,
+              )
+            : undefined,
+        }),
+      );
+    } catch {
+      ghostUrl = null;
+    }
+  }
+
+  return {
+    imageUrl,
+    styleId,
+    templateKey: proposal.templateKey,
+    lengthBand: proposal.lengthBand,
+    fitIntent: proposal.fitIntent,
+    points: proposal.points,
+    confidence: proposal.confidence,
+    lowConfidence: proposal.lowConfidence,
+    measurement,
+    ghostUrl,
+  };
+}

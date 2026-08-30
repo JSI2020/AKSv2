@@ -3,6 +3,7 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
+import { BuildFromPhoto } from "@/modules/sizing/build-from-photo";
 import { SizeChartEditor } from "@/modules/sizing/size-chart-editor";
 import { formatMeasure } from "@/modules/ui";
 
@@ -91,6 +92,16 @@ export function SizingPanel({ data: initial }: { data: SizingPageData }) {
             e.g. make this 3″ shorter. Edits move the chalk lines instantly at
             zero cost.
           </p>
+          <div className="border border-indigo-lift px-3 py-3">
+            <BuildFromPhoto
+              designId={data.designId}
+              blockId={data.block.id}
+              pieceKey={data.block.categoryKey}
+              disabled={data.readOnly}
+              tone="dark"
+              onBuilt={() => router.refresh()}
+            />
+          </div>
           <SizeChartEditor
             block={data.block}
             designId={data.designId}
