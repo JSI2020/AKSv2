@@ -59,7 +59,17 @@ export type PhotoEstimateResult = {
   anchor: { kind: "person_height" | "garment_length_prior"; relativeSd: number };
 };
 
-const DEFAULT_PERSON_HEIGHT: Estimate = { value: 6400, sd: 250 }; // 64" ± 2.5"
+/**
+ * Height of the person in a garment photo — NOT the house body grid's M height.
+ * The size grid's 64" describes a customer; the woman in a product photo is a
+ * fashion/product model, typically 5'8"–5'10". Assuming 64" for a 69" model
+ * scales every measurement down by ~7% (a true 55" gown reads as 51"), which is
+ * enough to push real measurements past the conflict gate and get them thrown
+ * away. Default to the photographic norm with an honest error bar, and let
+ * callers pass the real figure when they know it (the studio stores its
+ * archetype's height).
+ */
+const DEFAULT_PERSON_HEIGHT: Estimate = { value: 6800, sd: 300 }; // 68" ± 3"
 
 /**
  * Relative 1σ of the style-template prior per POM — how much the composed
@@ -180,7 +190,7 @@ export function estimateFromPhoto(
   }
 
   const hemWidthIn = dist(lm.hemL, lm.hemR, w, h) / ppi;
-  record("hemWidth", widthToGirth(hemWidthIn, "hip"), girthSd, anchorRelSd);
+  record("hemWidth", widthToGirth(hemWidthIn, "hem"), girthSd, anchorRelSd);
 
   const shoulderIn = dist(lm.shoulderL, lm.shoulderR, w, h) / ppi;
   record("shoulder", shoulderIn, lengthSd, anchorRelSd);

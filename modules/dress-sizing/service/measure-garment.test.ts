@@ -132,7 +132,20 @@ describe("garment sizing engine — end-to-end wiring", () => {
       );
     }
 
-    // 3. Grading survives the shift — sizes still ascend.
+    // 3. Every run grades EVENLY — the screenshot bug was neck coming out
+    //    2.00 2.00 2.25 2.50 2.50 2.75 (steps 0, ¼, ¼, 0, ¼) because each cell
+    //    was snapped on its own.
+    const O = ["XS", "S", "M", "L", "XL", "XXL"];
+    for (const [pom, bySize] of chart) {
+      const vals = O.map((s) => bySize[s]).filter((v) => v != null) as number[];
+      const steps = vals.slice(1).map((v, i) => v - vals[i]!);
+      expect(
+        new Set(steps).size,
+        `${pom} grades unevenly: [${steps.map((x) => x / 100).join(", ")}]`,
+      ).toBeLessThanOrEqual(1);
+    }
+
+    // 4. Grading survives the shift — sizes still ascend.
     const order = ["XS", "S", "M", "L", "XL", "XXL"];
     for (const [pom, bySize] of chart) {
       const values = order.map((s) => bySize[s]).filter((v) => v != null);

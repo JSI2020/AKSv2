@@ -65,10 +65,36 @@ describe("photo-only estimation — scale anchored on priors", () => {
       imageWidthPx: 1000,
       imageHeightPx: 1000,
       prior: {},
+      personHeight: { value: 6400, sd: 250 }, // stated 64" model
     });
 
     expect(result.anchor.kind).toBe("person_height");
     expect(result.measured.garmentLength!.value).toBe(3200);
+  });
+
+  it("assumes a photographic model height, not the customer M height", () => {
+    // The house grid's 64" describes a customer; a product-photo model is
+    // taller. Assuming too short shrinks every measurement proportionally.
+    const onModel: GarmentLandmarks = {
+      ...FLAT_LAY,
+      captureContext: "on_model",
+      shoulderL: { x: 0.4, y: 0.2 },
+      shoulderR: { x: 0.6, y: 0.2 },
+      pitL: { x: 0.38, y: 0.28 },
+      pitR: { x: 0.62, y: 0.28 },
+      hemL: { x: 0.38, y: 0.7 },
+      hemR: { x: 0.62, y: 0.7 },
+      personTop: { x: 0.5, y: 0.0 },
+      personBottom: { x: 0.5, y: 1.0 },
+    };
+    const result = estimateFromPhoto({
+      landmarks: onModel,
+      imageWidthPx: 1000,
+      imageHeightPx: 1000,
+      prior: {},
+    });
+    // Half the frame of a 68" model = 34.00", not the 32.00" a 64" grid gives.
+    expect(result.measured.garmentLength!.value).toBe(3400);
   });
 
   it("is invariant to image resolution (normalized landmarks)", () => {

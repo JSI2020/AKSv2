@@ -35,6 +35,7 @@ import {
   resolveSilhouette,
   type SilhouetteMode,
 } from "../core/silhouette";
+import { STANDARD_SIZES } from "../db/enums";
 import type { FitIntent, GarmentType, LengthBand } from "../db/enums";
 import type { HemFullness, StylePoints } from "../core/style-points";
 import { renderFalEdit, uploadVisionFile } from "../providers/fal";
@@ -86,6 +87,51 @@ export type PhotoMeasurementSummary = {
 /** Charts live on the quarter-inch grid; a fused value must land on it too. */
 function snapQuarter(hundredths: number): number {
   return Math.round(hundredths / 25) * 25;
+}
+
+type ChartRow = {
+  size: (typeof dressGeneratedChart.$inferSelect)["size"];
+  pomKey: (typeof dressGeneratedChart.$inferSelect)["pomKey"];
+  valueHundredths: number;
+};
+
+/**
+ * Rebuild each POM's run from a snapped base and a single snapped step, so the
+ * chart is simultaneously on the quarter-inch grid and evenly graded. Rows that
+ * do not grade (every size equal, e.g. a sleeveless zero) stay flat.
+ */
+function regulariseRun(
+  rows: ChartRow[],
+  baseSize: ChartRow["size"],
+): ChartRow[] {
+  const sizes: readonly string[] = STANDARD_SIZES;
+  const baseIdx = sizes.indexOf(baseSize);
+  if (baseIdx < 0) return rows.map((r) => ({ ...r, valueHundredths: snapQuarter(r.valueHundredths) }));
+
+  type Size = ChartRow["size"];
+  type Pom = ChartRow["pomKey"];
+  const byPom = new Map<Pom, Map<Size, number>>();
+  for (const r of rows) {
+    const bucket = byPom.get(r.pomKey) ?? new Map<Size, number>();
+    bucket.set(r.size, r.valueHundredths);
+    byPom.set(r.pomKey, bucket);
+  }
+
+  const out: ChartRow[] = [];
+  for (const [pomKey, bySize] of byPom) {
+    const present = (sizes as readonly Size[]).filter((s) => bySize.has(s));
+    const base = snapQuarter(bySize.get(baseSize) ?? bySize.get(present[0]!) ?? 0);
+    const first = bySize.get(present[0]!)!;
+    const last = bySize.get(present[present.length - 1]!)!;
+    const spans = present.length - 1;
+    const step = spans > 0 ? snapQuarter((last - first) / spans) : 0;
+
+    for (const size of present) {
+      const value = base + step * (sizes.indexOf(size) - baseIdx);
+      out.push({ size, pomKey, valueHundredths: Math.max(0, value) });
+    }
+  }
+  return out;
 }
 
 async function applyPhotoMeasurements(input: {
@@ -166,12 +212,15 @@ async function applyPhotoMeasurements(input: {
   }
 
   if (applied.length > 0) {
-    // Reconcile first (a column must share one circumference), then snap every
-    // cell: shifting the base alone leaves the other sizes carrying the
-    // template's fractional grade increments, which is how 2.49" reaches a
-    // chart. Snapping after reconcile keeps the equalities intact.
-    const reconciled = reconcileSilhouette(corrected, input.reconcile).map(
-      (row) => ({ ...row, valueHundredths: snapQuarter(row.valueHundredths) }),
+    // Reconcile first (a column must share one circumference), then regularise:
+    // snapping each cell on its own puts values on the grid but destroys the
+    // grade, because a fractional template increment rounds alternately up and
+    // down (neck came out 2.00 2.00 2.25 2.50 2.50 2.75 — steps 0,¼,¼,0,¼).
+    // Snapping the BASE and the STEP, then rebuilding the run, gives a chart
+    // that is both on-grid and evenly graded.
+    const reconciled = regulariseRun(
+      reconcileSilhouette(corrected, input.reconcile),
+      style.baseSize,
     );
     for (const row of reconciled) {
       const before = chartRows.find(

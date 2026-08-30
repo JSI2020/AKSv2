@@ -30,6 +30,13 @@ export const BODY_ASPECT_BY_LANDMARK: Record<string, number> = {
   chest: 0.7,
   waist: 0.74,
   hip: 0.78,
+  /**
+   * A hem hangs free — its cross-section is a cone/cylinder section, close to
+   * circular, not a body section. Using the hip's 0.78 here understates the
+   * sweep badly (a floor-length gown reads ~10% narrower than it is).
+   */
+  hem: 0.97,
+  sweep: 0.97,
   neck: 0.85,
   thigh: 0.9,
   upper_arm: 0.95,
