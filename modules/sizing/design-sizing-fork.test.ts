@@ -60,7 +60,7 @@ describe("design sizing fork does not mutate shared default", () => {
     designId = uuidv7();
     await db.insert(designs).values({
       id: designId,
-      slug: `fork-guard-${designId.slice(0, 8)}`,
+      slug: `fork-guard-${designId}`,
       name: "Fork guard design",
       garmentTypeId: categoryId,
       components: ["KAMEEZ", "TROUSER"],

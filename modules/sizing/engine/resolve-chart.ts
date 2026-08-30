@@ -1,3 +1,4 @@
+import { applyChartPolicy } from "./chart-policy";
 import type {
   ChartCell,
   ChartGrid,
@@ -57,8 +58,21 @@ export function resolveCellValue(
 
 /**
  * Build the full chart grid. Pinned cells win; everything else is computed.
+ * The chart policy (floors, flat-zero features, monotonic sizes) is enforced
+ * on the result — this is the single law for every chart reader; use
+ * `resolveChartRaw` only to inspect the unrepaired arithmetic.
  */
 export function resolveChart(
+  block: SizeBlockInput,
+  rows: readonly SizeBlockRowInput[],
+  pinnedCells: readonly PinnedCellInput[] = [],
+): ChartGrid {
+  const raw = resolveChartRaw(block, rows, pinnedCells);
+  return applyChartPolicy(block, rows, raw).grid;
+}
+
+/** The unguarded arithmetic: base ± accumulated steps, pins win. */
+export function resolveChartRaw(
   block: SizeBlockInput,
   rows: readonly SizeBlockRowInput[],
   pinnedCells: readonly PinnedCellInput[] = [],

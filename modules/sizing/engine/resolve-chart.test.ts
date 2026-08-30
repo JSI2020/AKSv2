@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   editBaseCell,
   resolveCellValue,
-  resolveChart,
+  resolveChartRaw as resolveChart,
   SizingEngineError,
   type SizeBlockInput,
   type SizeBlockRowInput,

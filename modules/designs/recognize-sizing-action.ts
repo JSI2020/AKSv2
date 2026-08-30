@@ -1,6 +1,6 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db } from "@/packages/db/client";
 import {
@@ -22,22 +22,37 @@ import { recognizeGarment } from "@/modules/dress-sizing/recognition/recognize";
 import { buildStyleChart } from "@/modules/dress-sizing/recognition/review";
 import { uploadVisionFile, renderFalEdit } from "@/modules/dress-sizing/providers/fal";
 import { ghostMannequinPrompt } from "@/modules/dress-sizing/core/ghost-prompt";
+import { POM_TO_MEASUREMENT } from "@/modules/sizing/garment-size-guide/measurement-pom-map";
 
-/** Dress-sizing POM keys → the house size-block measurement keys. */
-const POM_TO_MEASUREMENT: Record<string, string> = {
-  chest: "BUST",
-  waist: "WAIST",
-  hip: "HIP",
-  shoulder: "SHOULDER",
-  sleeveLength: "SLEEVE_LENGTH",
-  garmentLength: "LENGTH",
-  hemWidth: "SWEEP",
-  neckDrop: "NECK_DEPTH_FRONT",
-};
-
-/** Values are integer hundredths of an inch; snap to the quarter-inch grid. */
+/**
+ * Values are integer hundredths of an inch; snap to the quarter-inch grid.
+ * A true 0 stays 0 — a sleeveless sleeve or absent feature must not be
+ * inflated to a phantom quarter inch.
+ */
 function snapQuarter(v: number): number {
-  return Math.max(25, Math.round(v / 25) * 25);
+  return Math.max(0, Math.round(v / 25) * 25);
+}
+
+/** Chart size order used by the dress-sizing generator. */
+const CHART_SIZE_ORDER = ["XS", "S", "M", "L", "XL", "XXL"] as const;
+
+/**
+ * If the generated per-size values grade uniformly (identical step between
+ * every adjacent size), return that step so the row can carry a clean
+ * gradeIncrement instead of six independently-snapped pins. Snapping each size
+ * separately manufactures irregular steps (0, +¼, +¼, 0, +¼ …) that read as
+ * engine errors in the chart.
+ */
+function uniformStep(vals: Record<string, number>): number | null {
+  const ordered = CHART_SIZE_ORDER.filter((s) => vals[s] != null).map(
+    (s) => vals[s]!,
+  );
+  if (ordered.length < 3) return null;
+  const first = ordered[1]! - ordered[0]!;
+  for (let i = 2; i < ordered.length; i++) {
+    if (ordered[i]! - ordered[i - 1]! !== first) return null;
+  }
+  return first;
 }
 
 type FillResult =
@@ -64,12 +79,14 @@ async function fillBlockFromStyle(
     .from(dressGeneratedChart)
     .where(eq(dressGeneratedChart.styleId, styleId));
 
+  // Keep RAW values here; snap once at write time. Snapping per size first and
+  // grading later is what produced irregular steps in the visible chart.
   const byMeasure = new Map<string, Record<string, number>>();
   for (const r of chartRows) {
     const mk = POM_TO_MEASUREMENT[r.pomKey];
     if (!mk) continue;
     const bucket = byMeasure.get(mk) ?? {};
-    bucket[r.size] = snapQuarter(r.valueHundredths);
+    bucket[r.size] = r.valueHundredths;
     byMeasure.set(mk, bucket);
   }
   if (byMeasure.size === 0) {
@@ -118,7 +135,7 @@ async function fillBlockFromStyle(
   for (const [mk, vals] of byMeasure) {
     if (!existingKeys.has(mk)) continue;
     const baseVal = vals[baseLabel];
-    if (baseVal != null) bases[mk] = baseVal;
+    if (baseVal != null) bases[mk] = snapQuarter(baseVal);
   }
   if (Object.keys(bases).length === 0) {
     return { ok: false, error: "No measurement matches this piece's chart." };
@@ -142,13 +159,36 @@ async function fillBlockFromStyle(
   for (const [mk, vals] of byMeasure) {
     if (!existingKeys.has(mk)) continue;
     filled.push(mk);
+
+    // Prefer a clean uniform grade over six independent pins: derive the step
+    // from the RAW generated values, snap it once. An absent feature
+    // (base 0, e.g. sleeveless) grades flat at 0 instead of inheriting the
+    // seeded row's default increment — that inheritance is what produced
+    // negative sleeve lengths in smaller sizes.
+    const step = uniformStep(vals);
+    const base = bases[mk];
+    if (step != null || base === 0) {
+      const increment =
+        base === 0 ? 0 : Math.max(0, Math.round((step ?? 0) / 25) * 25);
+      await db
+        .update(sizeBlockRows)
+        .set({ gradeIncrement: increment, gradeOverrides: {} })
+        .where(
+          and(
+            eq(sizeBlockRows.blockId, finalBlockId),
+            eq(sizeBlockRows.measurementKey, mk),
+          ),
+        );
+      continue;
+    }
+
     for (const [size, value] of Object.entries(vals)) {
       if (size === baseLabel) continue;
       await pinSizeBlockCell({
         blockId: finalBlockId,
         measurementKey: mk,
         sizeLabel: size,
-        value,
+        value: snapQuarter(value),
         designId,
       });
     }

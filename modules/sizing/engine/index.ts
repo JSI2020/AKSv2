@@ -5,7 +5,18 @@ export type {
   ChartCell,
   ChartGrid,
 } from "./types";
-export { resolveChart, resolveCellValue, SizingEngineError } from "./resolve-chart";
+export {
+  resolveChart,
+  resolveChartRaw,
+  resolveCellValue,
+  SizingEngineError,
+} from "./resolve-chart";
+export {
+  applyChartPolicy,
+  validateChartAnatomy,
+  policyFor,
+} from "./chart-policy";
+export type { ChartRepair, ChartWarning, MeasurementPolicy } from "./chart-policy";
 export { editBaseCell } from "./edit-base-cell";
 export {
   calculateCutSpec,
