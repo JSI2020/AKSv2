@@ -61,6 +61,35 @@ export type PhotoEstimateResult = {
 
 const DEFAULT_PERSON_HEIGHT: Estimate = { value: 6400, sd: 250 }; // 64" ± 2.5"
 
+/**
+ * Relative 1σ of the style-template prior per POM — how much the composed
+ * chart can be wrong when the vision model picks a neighbouring style bucket.
+ * Calibrated from the template's own step sizes: one fit-intent step is ~3" of
+ * ease on a ~45" girth (~6%), one hem-landmark step is ~6" of length, and neck
+ * drop swings hardest between shapes.
+ */
+export const TEMPLATE_PRIOR_RELATIVE_SD: Record<PhotoPomKey, number> = {
+  chest: 0.05,
+  waist: 0.05,
+  hemWidth: 0.06,
+  shoulder: 0.04,
+  garmentLength: 0.06,
+  sleeveLength: 0.08,
+  neckDrop: 0.15,
+};
+
+/** Wrap a composed template value as a prior Estimate with its error bar. */
+export function templatePrior(
+  key: PhotoPomKey,
+  valueHundredths: number,
+): Estimate {
+  const rel = TEMPLATE_PRIOR_RELATIVE_SD[key] ?? 0.06;
+  return {
+    value: valueHundredths,
+    sd: Math.max(1, Math.abs(valueHundredths) * rel),
+  };
+}
+
 /** Landmark placement noise (1σ, relative) — how precisely points get set. */
 const PLACEMENT_SD = 0.015;
 

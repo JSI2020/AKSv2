@@ -103,6 +103,39 @@ export function validateLandmarks(lm: GarmentLandmarks): LandmarkValidation {
 }
 
 /**
+ * Shape ratios of the detected garment, relative to its shoulder-to-hem
+ * length. Image dimensions are required because normalized coordinates scale
+ * by width and height separately — ignoring the aspect ratio would distort
+ * every horizontal span against every vertical one.
+ */
+export function ghostProportions(
+  lm: GarmentLandmarks,
+  imageWidthPx: number,
+  imageHeightPx: number,
+): { chestToLength?: number; hemToLength?: number; shoulderToLength?: number } {
+  const dx = (a: NormPoint, b: NormPoint) => (a.x - b.x) * imageWidthPx;
+  const dy = (a: NormPoint, b: NormPoint) => (a.y - b.y) * imageHeightPx;
+  const span = (a: NormPoint, b: NormPoint) => Math.hypot(dx(a, b), dy(a, b));
+
+  const shoulderMid: NormPoint = {
+    x: (lm.shoulderL.x + lm.shoulderR.x) / 2,
+    y: (lm.shoulderL.y + lm.shoulderR.y) / 2,
+  };
+  const hemMid: NormPoint = {
+    x: (lm.hemL.x + lm.hemR.x) / 2,
+    y: (lm.hemL.y + lm.hemR.y) / 2,
+  };
+  const length = span(shoulderMid, hemMid);
+  if (length <= 0) return {};
+
+  return {
+    chestToLength: span(lm.pitL, lm.pitR) / length,
+    hemToLength: span(lm.hemL, lm.hemR) / length,
+    shoulderToLength: span(lm.shoulderL, lm.shoulderR) / length,
+  };
+}
+
+/**
  * Overlay anchors for the ghost mannequin, derived from the DETECTED garment
  * instead of fixed defaults — basis points (hundredths of a percent of image
  * height), matching the schematic overlay's coordinate system.

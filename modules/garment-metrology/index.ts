@@ -41,14 +41,25 @@ export type { Calibration } from "./calibrate";
 export { fuse, isConflicting, measurementEstimate } from "./fuse";
 export type { Estimate } from "./fuse";
 
-export { validateLandmarks, landmarkAnchorsYBp } from "./landmarks";
+export {
+  validateLandmarks,
+  landmarkAnchorsYBp,
+  ghostProportions,
+} from "./landmarks";
 export type {
   GarmentLandmarks,
   LandmarkValidation,
   NormPoint,
 } from "./landmarks";
 
-export { estimateFromPhoto } from "./photo-only";
+export { imageSizeFromBytes, imageSizeFromFile } from "./image-size";
+export type { ImageSize } from "./image-size";
+
+export {
+  estimateFromPhoto,
+  templatePrior,
+  TEMPLATE_PRIOR_RELATIVE_SD,
+} from "./photo-only";
 export type {
   PhotoEstimateInput,
   PhotoEstimateResult,
