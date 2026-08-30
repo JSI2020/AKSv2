@@ -4,13 +4,19 @@ import { automaticPercentForDesign } from "../discounts/badge-math";
 import { houseDoorTagKeys } from "./house-door";
 
 describe("houseDoorTagKeys", () => {
-  it("expands ESSENTIALS tag and slug", () => {
-    expect(houseDoorTagKeys("ESSENTIALS")).toEqual(
+  // Resolves against house_collections now, so it is async. Both the DB hit
+  // and the no-match fallback yield the tag and its slug form.
+  it("expands ESSENTIALS tag and slug", async () => {
+    await expect(houseDoorTagKeys("ESSENTIALS")).resolves.toEqual(
       expect.arrayContaining(["ESSENTIALS", "essentials"]),
     );
-    expect(houseDoorTagKeys("essentials")).toEqual(
+    await expect(houseDoorTagKeys("essentials")).resolves.toEqual(
       expect.arrayContaining(["ESSENTIALS", "essentials"]),
     );
+  });
+
+  it("returns nothing for a blank key", async () => {
+    await expect(houseDoorTagKeys("  ")).resolves.toEqual([]);
   });
 });
 

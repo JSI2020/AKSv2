@@ -10,8 +10,8 @@ import {
 import { useRouter } from "next/navigation";
 
 import {
-  recognizeDesignSizing,
   applyStandardStyle,
+  recognizeDesignSizing,
 } from "./recognize-sizing-action";
 import { stylesForCategory } from "./standard-styles";
 
@@ -35,6 +35,13 @@ import {
   revertSizeBlockFork,
   updateDesignPieceBaseSizes,
 } from "@/modules/sizing/fork-actions";
+import {
+  blockGridToGarmentChartRows,
+  displayGarmentChartRows,
+  GarmentSizingPreview,
+  inferSilhouetteFromChartRows,
+  measurementKeyToPomKey,
+} from "@/modules/sizing/garment-size-guide";
 
 import type { DesignDetail } from "./actions";
 
@@ -197,6 +204,7 @@ export function DesignSizingTab({
             blockId={blockId}
             defaultBlockId={defaultId}
             availableSizes={selectedSizes}
+            initialGhostUrl={d.sizingGhostUrl ?? null}
             onForked={(forkId) => {
               setPieceSizeBlocks((prev) => ({ ...prev, [comp]: forkId }));
             }}
@@ -228,6 +236,7 @@ function PieceSizeGuide({
   blockId,
   defaultBlockId,
   availableSizes,
+  initialGhostUrl,
   onForked,
   onReverted,
 }: {
@@ -236,10 +245,12 @@ function PieceSizeGuide({
   blockId: string | null;
   defaultBlockId: string | null;
   availableSizes: string[];
+  initialGhostUrl: string | null;
   onForked: (forkId: string) => void;
   onReverted: () => void;
 }) {
   const router = useRouter();
+  const photoRef = useRef<HTMLInputElement>(null);
   const [block, setBlock] = useState<SizeBlockDetail | null>(null);
   const [rows, setRows] = useState<RowState[]>([]);
   /** Draft M values as display strings (inches), keyed by measurementKey. */
@@ -250,19 +261,91 @@ function PieceSizeGuide({
   const [flashKeys, setFlashKeys] = useState<Set<string>>(new Set());
   const [pending, startTransition] = useTransition();
   const [loadKey, setLoadKey] = useState(0);
-
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [ghostUrl, setGhostUrl] = useState<string | null>(initialGhostUrl);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recognizing, setRecognizing] = useState(false);
-  const [recogMsg, setRecogMsg] = useState<string | null>(null);
-  const [ghostUrl, setGhostUrl] = useState<string | null>(null);
+  const [recognizeMsg, setRecognizeMsg] = useState<string | null>(null);
+  const [highlightKey, setHighlightKey] = useState<string | null>(null);
+
+  const [applyMsg, setApplyMsg] = useState<string | null>(null);
   const [styleKey, setStyleKey] = useState("");
   const [applying, setApplying] = useState(false);
   const pieceStyles = stylesForCategory(pieceKey);
 
+  useEffect(() => {
+    setGhostUrl(initialGhostUrl);
+  }, [initialGhostUrl]);
+
+  function onPhotoSelected(files: FileList | null) {
+    const file = files?.[0];
+    if (!file?.type.startsWith("image/")) return;
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoFile(file);
+    setRecognizeMsg(null);
+    setError(null);
+  }
+
+  async function onRecognizeFromPhoto() {
+    if (!photoFile || !activeBlockId) return;
+    setRecognizing(true);
+    setRecognizeMsg("Recognising garment · building chart…");
+    setError(null);
+    try {
+      const fd = new FormData();
+      fd.set("designId", designId);
+      fd.set("blockId", activeBlockId);
+      fd.set("pieceKey", pieceKey);
+      fd.set("image", photoFile);
+      const res = await recognizeDesignSizing(fd);
+      if (!res.ok) {
+        setRecognizeMsg(null);
+        setError(res.error);
+        return;
+      }
+      // Say plainly whether the photo was actually measured or the chart came
+      // from the style template alone — otherwise a silent fallback looks
+      // identical to a successful measurement.
+      const m = res.measurement;
+      const source = m
+        ? [
+            `measured from photo (${m.landmarks.captureContext.replace("_", " ")}`,
+            m.anchor === "person_height"
+              ? ", scaled on model height)"
+              : ", scaled on garment length)",
+            m.applied.length
+              ? ` · ${m.applied.length} corrected`
+              : " · matched the template",
+            m.conflicts.length
+              ? ` · ${m.conflicts.length} flagged for review`
+              : "",
+          ].join("")
+        : "from style template only — photo could not be measured";
+      setRecognizeMsg(
+        `Chart built · ${res.filled.length} measurements · ${source} · ${
+          res.ghostUrl ? "ghost saved" : "ghost unavailable"
+        }`,
+      );
+      if (res.ghostUrl) setGhostUrl(res.ghostUrl);
+      if (res.blockId !== activeBlockId) {
+        setActiveBlockId(res.blockId);
+        onForked(res.blockId);
+      }
+      setLoadKey((k) => k + 1);
+      router.refresh();
+    } catch (e) {
+      setRecognizeMsg(null);
+      setError(e instanceof Error ? e.message : "Recognition failed.");
+    } finally {
+      setRecognizing(false);
+    }
+  }
+
   async function onApplyStandard() {
     if (!styleKey || !activeBlockId) return;
     setApplying(true);
-    setRecogMsg("Applying standard sizing…");
+    setApplyMsg("Applying standard sizing…");
     setError(null);
     try {
       const fd = new FormData();
@@ -272,11 +355,11 @@ function PieceSizeGuide({
       fd.set("styleId", styleKey);
       const res = await applyStandardStyle(fd);
       if (!res.ok) {
-        setRecogMsg(null);
+        setApplyMsg(null);
         setError(res.error);
         return;
       }
-      setRecogMsg(
+      setApplyMsg(
         `Applied ${res.label} · filled ${res.filled.length} row${res.filled.length === 1 ? "" : "s"}.`,
       );
       if (res.blockId !== activeBlockId) {
@@ -286,7 +369,7 @@ function PieceSizeGuide({
       setLoadKey((k) => k + 1);
       router.refresh();
     } catch (e) {
-      setRecogMsg(null);
+      setApplyMsg(null);
       setError(e instanceof Error ? e.message : "Could not apply style.");
     } finally {
       setApplying(false);
@@ -303,46 +386,6 @@ function PieceSizeGuide({
     if (seed) for (const r of seed.rows) m[r.measurementKey] = r.baseValue;
     return m;
   }, [pieceKey]);
-
-  async function onRecognize() {
-    const file = fileRef.current?.files?.[0];
-    if (!file) {
-      setRecogMsg("Choose a garment photo first.");
-      return;
-    }
-    if (!activeBlockId) return;
-    setRecognizing(true);
-    setRecogMsg("Uploading & recognising… this can take up to a minute.");
-    setError(null);
-    try {
-      const fd = new FormData();
-      fd.set("designId", designId);
-      fd.set("blockId", activeBlockId);
-      fd.set("pieceKey", pieceKey);
-      fd.set("image", file);
-      const res = await recognizeDesignSizing(fd);
-      if (!res.ok) {
-        setRecogMsg(null);
-        setError(res.error);
-        return;
-      }
-      setGhostUrl(res.ghostUrl);
-      setRecogMsg(
-        `Filled ${res.filled.length} row${res.filled.length === 1 ? "" : "s"} · ${res.template.replace(/_/g, " ")} · ${Math.round(res.confidence * 100)}% confidence${res.lowConfidence ? " — worth a review" : ""}.`,
-      );
-      if (res.blockId !== activeBlockId) {
-        setActiveBlockId(res.blockId);
-        onForked(res.blockId);
-      }
-      setLoadKey((k) => k + 1);
-      router.refresh();
-    } catch (e) {
-      setRecogMsg(null);
-      setError(e instanceof Error ? e.message : "Recognition failed.");
-    } finally {
-      setRecognizing(false);
-    }
-  }
 
   useEffect(() => {
     setActiveBlockId(blockId);
@@ -471,6 +514,52 @@ function PieceSizeGuide({
       [], // pins never hold after Update — guide always follows M
     );
   }, [block, previewRows]);
+
+  const garmentChartRows = useMemo(() => {
+    if (!grid || !block) return [];
+    return blockGridToGarmentChartRows({
+      grid,
+      measurementKeys: previewRows.map((r) => r.measurementKey),
+      sizeLabels: block.sizeLabels,
+      labelFor: (mk) => MEASURE_LABEL.get(mk) ?? mk,
+    });
+  }, [grid, block, previewRows]);
+
+  const silhouette = useMemo(
+    () =>
+      inferSilhouetteFromChartRows(
+        garmentChartRows,
+        block?.baseSizeLabel ?? "M",
+      ),
+    [garmentChartRows, block?.baseSizeLabel],
+  );
+
+  const overlayRows = useMemo(
+    () =>
+      displayGarmentChartRows(
+        garmentChartRows,
+        silhouette.mode,
+        block?.baseSizeLabel ?? "M",
+      ),
+    [garmentChartRows, silhouette.mode, block?.baseSizeLabel],
+  );
+
+  const visibleMeasurementKeys = useMemo(() => {
+    const keys = new Set(overlayRows.map((r) => r.measurementKey));
+    for (const row of previewRows) {
+      if (!measurementKeyToPomKey(row.measurementKey)) {
+        keys.add(row.measurementKey);
+      }
+    }
+    return keys;
+  }, [overlayRows, previewRows]);
+
+  const tableDisplayRows = useMemo(
+    () => previewRows.filter((r) => visibleMeasurementKeys.has(r.measurementKey)),
+    [previewRows, visibleMeasurementKeys],
+  );
+
+  const displayImageUrl = ghostUrl ?? photoPreview;
 
   const isFork = Boolean(block?.ownerDesignId === designId);
   const inheriting = Boolean(block && block.isDefault && !isFork);
@@ -617,18 +706,70 @@ function PieceSizeGuide({
       </div>
 
       {activeBlockId ? (
-        <div className="border-b border-ink/12 bg-greige/20 px-5 py-3">
+        <div className="border-b border-ink/12 bg-greige/20 px-5 py-4">
+          <p className="mb-3 font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
+            Build from garment photo
+          </p>
+          <div className="mb-3 flex flex-wrap items-end gap-3">
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => onPhotoSelected(e.target.files)}
+            />
+            <button
+              type="button"
+              disabled={recognizing}
+              onClick={() => photoRef.current?.click()}
+              className="border border-ink/15 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-ink/70 hover:border-ink hover:text-ink disabled:opacity-40"
+            >
+              Choose photo
+            </button>
+            <button
+              type="button"
+              disabled={recognizing || !photoFile}
+              onClick={() => void onRecognizeFromPhoto()}
+              className="border border-zari bg-zari px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-indigo disabled:opacity-40"
+            >
+              {recognizing ? "Building…" : "Build size chart"}
+            </button>
+            {photoFile ? (
+              <button
+                type="button"
+                disabled={recognizing}
+                onClick={() => {
+                  if (photoPreview) URL.revokeObjectURL(photoPreview);
+                  setPhotoPreview(null);
+                  setPhotoFile(null);
+                  setRecognizeMsg(null);
+                }}
+                className="text-[11px] text-ink/45 underline underline-offset-2 hover:text-ink"
+              >
+                Clear photo
+              </button>
+            ) : null}
+          </div>
+          <p className="mb-3 max-w-xl text-[11.5px] text-ink/55">
+            Front-on photo → AI recognises the cut, fills XS–XXL, and saves a
+            ghost mannequin with the design. Edit M below to adjust; grading
+            stays on the house step.
+          </p>
+          {recognizeMsg ? (
+            <p className="mb-2 text-[11.5px] text-ink/60">{recognizeMsg}</p>
+          ) : null}
+
           {pieceStyles.length > 0 ? (
-            <div className="mb-2 flex flex-wrap items-end gap-x-3 gap-y-2">
+            <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2 border-t border-ink/10 pt-4">
               <div className="flex flex-col gap-1">
                 <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
-                  Start from a standard {titleCasePiece(pieceKey).toLowerCase()}{" "}
+                  Or start from a standard {titleCasePiece(pieceKey).toLowerCase()}{" "}
                   style
                 </span>
                 <select
                   value={styleKey}
                   onChange={(e) => setStyleKey(e.target.value)}
-                  disabled={applying || recognizing}
+                  disabled={applying}
                   className="border border-ink/12 bg-milk px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-ink"
                 >
                   <option value="">Choose a standard style…</option>
@@ -641,82 +782,15 @@ function PieceSizeGuide({
               </div>
               <button
                 type="button"
-                disabled={applying || recognizing || !styleKey}
+                disabled={applying || !styleKey}
                 onClick={() => void onApplyStandard()}
                 className="border border-ink/15 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-ink/70 hover:border-ink hover:text-ink disabled:opacity-40"
               >
                 {applying ? "Applying…" : "Apply standard sizes"}
               </button>
-              <span className="text-[11px] text-ink/40">
-                Industry-standard measurements for this piece — a baseline you
-                can then fine-tune.
-              </span>
-            </div>
-          ) : null}
-
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex flex-col gap-1">
-              <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
-                Build this chart from a garment photo
-              </span>
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                disabled={recognizing}
-                className="max-w-[15rem] text-[12px] text-ink/70 file:mr-3 file:border file:border-ink/15 file:bg-milk file:px-2 file:py-1 file:text-[11px] file:text-ink/70"
-              />
-            </div>
-            <button
-              type="button"
-              disabled={recognizing}
-              onClick={() => void onRecognize()}
-              className="border border-zari bg-zari px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-indigo disabled:opacity-50"
-            >
-              {recognizing ? "Recognising…" : "Recognise & fill"}
-            </button>
-            {recogMsg ? (
-              <span className="text-[11.5px] text-ink/60">{recogMsg}</span>
-            ) : (
-              <span className="text-[11px] text-ink/40">
-                AI reads the style and fills XS–XXL. You can fine-tune below;
-                it reflects on the storefront.
-              </span>
-            )}
-          </div>
-
-          {ghostUrl ? (
-            <div className="mt-3 flex flex-wrap gap-5">
-              {/* eslint-disable-next-line @next/next/no-img-element -- fal.ai preview URL */}
-              <img
-                src={ghostUrl}
-                alt="Ghost-mannequin preview"
-                className="h-64 w-auto border border-ink/12 bg-milk object-contain"
-              />
-              <div className="min-w-[13rem] flex-1">
-                <p className="mb-1.5 font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
-                  M measurements · vs standard
-                </p>
-                <ul className="grid max-w-lg grid-cols-2 gap-x-6 gap-y-1 text-[12px]">
-                  {mSummary.map((s) => (
-                    <li
-                      key={s.key}
-                      className="flex items-baseline justify-between gap-2 border-b border-ink/10 pb-0.5"
-                    >
-                      <span className="text-ink/55">{s.label}</span>
-                      <span className="font-data text-ink">
-                        <Measure value={s.cur} />
-                        {s.delta != null && s.delta !== 0 ? (
-                          <span className="ms-1 text-[10px] text-ink/45">
-                            ({s.delta > 0 ? "+" : "−"}
-                            {formatMeasure(Math.abs(s.delta), "in")})
-                          </span>
-                        ) : null}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {applyMsg ? (
+                <span className="text-[11.5px] text-ink/60">{applyMsg}</span>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -747,6 +821,30 @@ function PieceSizeGuide({
         </p>
       ) : (
         <>
+          {displayImageUrl && garmentChartRows.length > 0 ? (
+            <div className="border-b border-ink/12 px-5 py-4">
+              <p className="mb-3 text-[11.5px] text-ink/55">
+                {silhouette.label}. Overlay follows your chart — edit M and press
+                Update to re-grade every size.
+              </p>
+              <GarmentSizingPreview
+                imageUrl={displayImageUrl}
+                rows={garmentChartRows}
+                unit="in"
+                silhouette={silhouette.mode}
+                highlightKey={highlightKey}
+                baseSize={block.baseSizeLabel}
+                theme="design"
+              />
+              {!ghostUrl && photoPreview ? (
+                <p className="mt-2 text-[11px] text-ink/45">
+                  Ghost generation unavailable — overlay on your upload. Save the
+                  design to persist the chart; add FAL_KEY for ghost shots.
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
           <div className="overflow-x-auto px-5 py-4">
             <table className="w-full min-w-[28rem] border-collapse text-[13px]">
               <thead>
@@ -770,10 +868,21 @@ function PieceSizeGuide({
                 </tr>
               </thead>
               <tbody>
-                {previewRows.map((row) => (
-                  <tr key={row.id}>
+                {tableDisplayRows.map((row) => {
+                  const overlayLabel = overlayRows.find(
+                    (r) => r.measurementKey === row.measurementKey,
+                  )?.label;
+                  const highlighted = highlightKey === row.measurementKey;
+                  return (
+                  <tr
+                    key={row.id}
+                    className={highlighted ? "bg-zari/10" : undefined}
+                    onMouseEnter={() => setHighlightKey(row.measurementKey)}
+                    onMouseLeave={() => setHighlightKey(null)}
+                  >
                     <td className="border-b border-ink/10 px-2.5 py-2 text-start text-[12.5px] text-ink/55">
-                      {MEASURE_LABEL.get(row.measurementKey) ??
+                      {overlayLabel ??
+                        MEASURE_LABEL.get(row.measurementKey) ??
                         row.measurementKey}
                       {(() => {
                         const s = mByKey.get(row.measurementKey);
@@ -833,7 +942,8 @@ function PieceSizeGuide({
                       );
                     })}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
