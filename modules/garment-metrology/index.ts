@@ -41,5 +41,19 @@ export type { Calibration } from "./calibrate";
 export { fuse, isConflicting, measurementEstimate } from "./fuse";
 export type { Estimate } from "./fuse";
 
+export { validateLandmarks, landmarkAnchorsYBp } from "./landmarks";
+export type {
+  GarmentLandmarks,
+  LandmarkValidation,
+  NormPoint,
+} from "./landmarks";
+
+export { estimateFromPhoto } from "./photo-only";
+export type {
+  PhotoEstimateInput,
+  PhotoEstimateResult,
+  PhotoPomKey,
+} from "./photo-only";
+
 export { snapToSize } from "./size-snap";
 export type { BodyRow, SizeGrid, SizeSnap } from "./size-snap";
