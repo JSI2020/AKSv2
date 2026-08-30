@@ -11,7 +11,7 @@ export const FIT_LABELS: Record<FitIntent, string> = {
   fitted: "Fitted", semi_fitted: "Regular", relaxed: "Relaxed", oversized: "Oversized",
 };
 export const POM_LABELS: Record<PomKey, string> = {
-  chest: "Chest", waist: "Waist", hip: "Hip", shoulder: "Shoulder",
-  sleeveLength: "Sleeve", garmentLength: "Length", hemWidth: "Hem", neckDrop: "Neck",
+  chest: "Chest", waist: "Waist", hip: "Hip", shoulder: "Shoulder width",
+  sleeveLength: "Sleeve", garmentLength: "Length", hemWidth: "Hem sweep", neckDrop: "Neck",
 };
 export const STATUS_LABELS: Record<StyleStatus, string> = { draft: "Draft", published: "Live" };

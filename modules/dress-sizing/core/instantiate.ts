@@ -2,7 +2,13 @@ import type { FitIntent, GarmentType, LengthBand, PomKey } from "../db/enums";
 import { DEFAULT_BASE_SIZE } from "../db/enums";
 import { inchesToHundredths } from "./units";
 import type { InstantiatedStyle, StylePomSpec } from "./types";
-import { applyStylePoints, resolvedLengthBand, type StylePoints } from "./style-points";
+import { resolveSilhouette } from "./silhouette";
+import {
+  applyStylePoints,
+  resolvedLengthBand,
+  type HemFullness,
+  type StylePoints,
+} from "./style-points";
 
 export const FIT_INTENT_EASE_HUNDREDTHS: Record<FitIntent, number> = {
   fitted: inchesToHundredths(2),
@@ -54,6 +60,13 @@ export function instantiateStyle(
     };
     return { ...pom };
   });
+  const silhouette = resolveSilhouette({
+    templateKey: template.key,
+    fitIntent: options.fitIntent,
+    points: options.points,
+  });
+  const hemFullness: HemFullness = options.points?.hem?.fullness ?? "regular";
+
   return {
     name: options.name ?? "Design",
     templateKey: template.key,
@@ -63,5 +76,7 @@ export function instantiateStyle(
     fitIntent: options.fitIntent,
     poms: applyStylePoints(mapped, template.key, options.points),
     fitWeights: template.fitWeights.map((weight) => ({ ...weight })),
+    silhouette,
+    hemFullness,
   };
 }

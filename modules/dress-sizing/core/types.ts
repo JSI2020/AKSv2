@@ -2,6 +2,8 @@ import type {
   BodyDimension, FitIntent, FitWeightDimension, GarmentType, LengthBand,
   PomKey, PomKind, StandardSize, StyleCategory,
 } from "../db/enums";
+import type { HemFullness } from "./style-points";
+import type { SilhouetteMode } from "./silhouette";
 
 /** All measurement values are integer hundredths of an inch. */
 export type BodyMeasurements = {
@@ -37,6 +39,8 @@ export type InstantiatedStyle = {
   fitIntent: FitIntent;
   poms: StylePomSpec[];
   fitWeights: FitWeight[];
+  silhouette: SilhouetteMode;
+  hemFullness: HemFullness;
 };
 export type ShopperBody = {
   bust: number;

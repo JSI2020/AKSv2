@@ -68,7 +68,16 @@ export function applyStylePoints(poms: StylePomSpec[], type: GarmentType, points
   if (points.shoulder?.width) next = alter(next, "shoulder", "ease", SHOULDER_EXTRA[points.shoulder.width], true);
   if (points.hem?.landmark) next = alter(next, "garmentLength", "baseValue", lengthHundredthsFromLandmark(type, points.hem.landmark));
   if (points.hem?.fullness) next = alter(next, "hemWidth", "baseValue", HEM_DELTA[points.hem.fullness], true);
-  if (points.sleeve?.style) next = alter(next, "sleeveLength", "baseValue", SLEEVE[points.sleeve.style]);
+  if (points.sleeve?.style) {
+    next = alter(next, "sleeveLength", "baseValue", SLEEVE[points.sleeve.style]);
+    if (points.sleeve.style === "sleeveless") {
+      next = next.map((pom) =>
+        pom.key === "sleeveLength"
+          ? { ...pom, baseValue: 0, gradeIncrement: 0 }
+          : pom,
+      );
+    }
+  }
   const neck = neckDropHundredths(points.neck?.shape, points.neck?.drop);
   return neck === null ? next : alter(next, "neckDrop", "baseValue", neck);
 }

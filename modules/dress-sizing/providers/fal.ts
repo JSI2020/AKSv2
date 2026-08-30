@@ -19,11 +19,19 @@ export async function uploadVisionFile(file: File): Promise<string> {
 export async function renderFalEdit(file: File, prompt: string): Promise<string | null> {
   configure();
   const sourceUrl = await fal.storage.upload(file);
+  return renderFalEditFromUrl(sourceUrl, prompt);
+}
+
+export async function renderFalEditFromUrl(
+  sourceUrl: string,
+  prompt: string,
+): Promise<string | null> {
+  configure();
   const result = await fal.subscribe("fal-ai/nano-banana-2/edit", {
     input: {
       prompt,
       image_urls: [sourceUrl],
-      aspect_ratio: "3:4",
+      aspect_ratio: "1:1",
       num_images: 1,
       output_format: "png",
       resolution: "1K",

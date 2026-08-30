@@ -30,13 +30,24 @@ import {
 } from "@/modules/garment-metrology";
 
 import { ghostMannequinPrompt } from "../core/ghost-prompt";
+import {
+  reconcileSilhouette,
+  resolveSilhouette,
+  type SilhouetteMode,
+} from "../core/silhouette";
 import type { FitIntent, GarmentType, LengthBand } from "../db/enums";
-import type { StylePoints } from "../core/style-points";
+import type { HemFullness, StylePoints } from "../core/style-points";
 import { renderFalEdit, uploadVisionFile } from "../providers/fal";
 import { detectLandmarks } from "../recognition/landmark-detect";
 import { createRecognitionAdapter } from "../recognition/pipeline";
 import { recognizeGarment } from "../recognition/recognize";
 import { buildStyleChart } from "../recognition/review";
+
+type SilhouetteReconcile = {
+  silhouette: SilhouetteMode;
+  hemFullness: HemFullness;
+  templateKey: GarmentType;
+};
 
 /** POM keys the photo pass can measure. */
 const MEASURABLE_POMS: Record<PhotoPomKey, true> = {
@@ -71,11 +82,17 @@ export type PhotoMeasurementSummary = {
  * therefore a clean gradeIncrement downstream) while landing on the real
  * garment. Fail-soft: any missing piece leaves the template untouched.
  */
+/** Charts live on the quarter-inch grid; a fused value must land on it too. */
+function snapQuarter(hundredths: number): number {
+  return Math.round(hundredths / 25) * 25;
+}
+
 async function applyPhotoMeasurements(input: {
   styleId: string;
   image: File;
   imageUrl: string;
   adapter: Parameters<typeof detectLandmarks>[1];
+  reconcile: SilhouetteReconcile;
 }): Promise<PhotoMeasurementSummary | null> {
   const size = await imageSizeFromFile(input.image);
   if (!size) return null;
@@ -122,29 +139,49 @@ async function applyPhotoMeasurements(input: {
   }
 
   const applied: PhotoMeasurementSummary["applied"] = [];
+  // Work in memory first, then reconcile, then persist — a per-POM shift alone
+  // would break the silhouette invariant (a column's chest/waist/hip must stay
+  // one circumference even after the photo moves one of them).
+  const corrected = chartRows.map((r) => ({
+    size: r.size,
+    pomKey: r.pomKey,
+    valueHundredths: r.valueHundredths,
+  }));
+
   for (const [pomKey, fused] of Object.entries(result.fused)) {
     const key = pomKey as PhotoPomKey;
     if (!result.measured[key]) continue; // template-only row, nothing to correct
     if (result.conflicts.includes(key)) continue;
     const base = priorBase.get(key);
     if (base == null) continue;
-    const delta = fused.value - base;
+    // Snap the measured base onto the chart grid so every size stays on it.
+    const delta = snapQuarter(fused.value) - base;
     if (delta === 0) continue;
 
-    for (const row of chartRows) {
-      if (row.pomKey !== key) continue;
+    for (const row of corrected) {
+      if (row.pomKey === key) row.valueHundredths += delta;
+    }
+    applied.push({ pomKey: key, deltaHundredths: delta });
+  }
+
+  if (applied.length > 0) {
+    const reconciled = reconcileSilhouette(corrected, input.reconcile);
+    for (const row of reconciled) {
+      const before = chartRows.find(
+        (r) => r.pomKey === row.pomKey && r.size === row.size,
+      );
+      if (!before || before.valueHundredths === row.valueHundredths) continue;
       await db
         .update(dressGeneratedChart)
-        .set({ valueHundredths: row.valueHundredths + delta })
+        .set({ valueHundredths: row.valueHundredths })
         .where(
           and(
             eq(dressGeneratedChart.styleId, input.styleId),
-            eq(dressGeneratedChart.pomKey, key),
+            eq(dressGeneratedChart.pomKey, row.pomKey),
             eq(dressGeneratedChart.size, row.size),
           ),
         );
     }
-    applied.push({ pomKey: key, deltaHundredths: delta });
   }
 
   return {
@@ -210,6 +247,15 @@ export async function measureGarmentFromPhoto(
       image: input.image,
       imageUrl,
       adapter,
+      reconcile: {
+        templateKey: proposal.templateKey,
+        hemFullness: proposal.points?.hem?.fullness ?? "regular",
+        silhouette: resolveSilhouette({
+          templateKey: proposal.templateKey,
+          fitIntent: proposal.fitIntent,
+          points: proposal.points,
+        }),
+      },
     });
   } catch {
     measurement = null;

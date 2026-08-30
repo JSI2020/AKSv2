@@ -2,6 +2,8 @@
 
 import { uuidv7 } from "@aks/shared";
 import { db, insertAuditLog } from "@aks/db";
+import type { GarmentChartRow } from "@/modules/sizing/garment-size-guide/types";
+import { pomKeyToMeasurementKey } from "@/modules/sizing/garment-size-guide/measurement-pom-map";
 
 import { getUsdPkrRate, usdToPkr } from "./currency";
 import { polishUserPrompt } from "./providers/deepseek";
@@ -33,6 +35,14 @@ import {
   type AppSettings,
 } from "./settings";
 import {
+  FABRIC_OUTPUT_LABELS,
+  fabricCataloguePrompt,
+  fabricPrompt,
+  HOUSE_FABRIC_COLORWAYS,
+  spiralDrapePrompt,
+  type FabricOutputKind,
+} from "./fabric-studio";
+import {
   getDesignWithVersions,
   getSettings,
   listDesigns,
@@ -40,6 +50,7 @@ import {
   upsertSettings,
   type SaveDesignInput,
 } from "./store";
+import { resolveStudioBackgroundPrompt } from "@/modules/designs/studio-backgrounds";
 
 type ActionError = { ok: false; error: string; modelId?: string };
 type ActionOk<T> = { ok: true } & T;
@@ -117,6 +128,9 @@ export type GeneratePhotorealPayload = {
   fabric?: string;
   houseModelId?: HouseModelSelection;
   sourceMode?: PromptMode;
+  poseId?: string | null;
+  backgroundPreset?: string | null;
+  backgroundCustom?: string | null;
 };
 
 export type PhotorealVersionDto = {
@@ -221,6 +235,11 @@ export async function generatePhotorealAction(
       inputMode: mode,
     });
 
+    const backgroundPrompt = resolveStudioBackgroundPrompt({
+      presetId: payload.backgroundPreset,
+      custom: payload.backgroundCustom,
+    });
+
     const built = buildPrompt({
       description: polished.description,
       shirtColour: polished.shirtColour,
@@ -228,6 +247,8 @@ export async function generatePhotorealAction(
       fabric: polished.fabric,
       persona,
       mode,
+      poseId: payload.poseId,
+      backgroundPrompt,
     });
 
     const result =
@@ -318,6 +339,9 @@ export type RefinePhotorealPayload = {
   previousTotalCost?: number;
   houseModelId?: string;
   promptMode?: PromptMode;
+  poseId?: string | null;
+  backgroundPreset?: string | null;
+  backgroundCustom?: string | null;
 };
 
 export type RefinePhotorealResult =
@@ -377,6 +401,11 @@ export async function refinePhotorealAction(
       inputMode: mode,
     });
 
+    const backgroundPrompt = resolveStudioBackgroundPrompt({
+      presetId: payload.backgroundPreset,
+      custom: payload.backgroundCustom,
+    });
+
     const settings = await getSettings();
     const built = buildPrompt({
       description: polished.description,
@@ -386,7 +415,10 @@ export async function refinePhotorealAction(
       feedback: polished.feedback,
       persona,
       mode,
-      keepPose: true,
+      poseId: payload.poseId,
+      backgroundPrompt,
+      keepPose:
+        !payload.poseId && !feedbackRequestsPose(polished.feedback ?? ""),
     });
 
     const referenceUrls =
@@ -764,6 +796,504 @@ export async function savePhotorealSettingsAction(
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to save settings.";
+    return { ok: false, error: message };
+  }
+}
+
+type FabricPhotoResult =
+  | ActionOk<{
+      images: Array<{
+        id: string;
+        kind: FabricOutputKind;
+        label: string;
+        imageUrl: string;
+      }>;
+      costUsd: number;
+    }>
+  | ActionError;
+
+/** One catalogue photograph — same colour and weave as the uploaded swatch. */
+export async function generateFabricPhotoAction(payload: {
+  swatchUrl: string;
+  lighting?: string;
+  background?: string;
+}): Promise<
+  | ActionOk<{ id: string; imageUrl: string; costUsd: number }>
+  | ActionError
+> {
+  try {
+    await requirePhotoreal("photoreal.generate");
+
+    if (!payload.swatchUrl?.trim()) {
+      return { ok: false, error: "Upload a fabric photo first." };
+    }
+
+    const {
+      describeFabricSwatch,
+      generateFabricCataloguePhoto,
+    } = await import("./providers/fabric-fal");
+
+    const swatchDescription = await describeFabricSwatch(payload.swatchUrl);
+
+    const prompt = fabricCataloguePrompt({
+      lighting: payload.lighting ?? "Even daylight",
+      background: payload.background ?? "Neutral grey",
+      swatchDescription,
+    });
+
+    const imageUrl = await generateFabricCataloguePhoto(
+      payload.swatchUrl,
+      prompt,
+    );
+    if (!imageUrl) {
+      return { ok: false, error: "Could not generate fabric photograph." };
+    }
+
+    return { ok: true, id: uuidv7(), imageUrl, costUsd: 0.04 };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Fabric generation failed.";
+    return { ok: false, error: message };
+  }
+}
+
+export async function generateFabricPhotosAction(payload: {
+  swatchUrl: string;
+  swatchFile?: File;
+  outputs: FabricOutputKind[];
+  garment: string;
+  lighting: string;
+  background: string;
+}): Promise<FabricPhotoResult> {
+  try {
+    await requirePhotoreal("photoreal.generate");
+
+    if (!payload.outputs.length) {
+      return { ok: false, error: "Pick at least one way to show it." };
+    }
+    if (!payload.swatchUrl && !payload.swatchFile) {
+      return { ok: false, error: "Upload a fabric photo first." };
+    }
+
+    const { renderFalEdit, renderFalEditFromUrl } = await import(
+      "@/modules/dress-sizing/providers/fal"
+    );
+
+    const file =
+      payload.swatchFile ??
+      (payload.swatchUrl
+        ? null
+        : await (async () => {
+            const res = await fetch(payload.swatchUrl);
+            const buf = await res.arrayBuffer();
+            return new File([buf], "swatch.png", { type: "image/png" });
+          })());
+
+    const images: Array<{
+      id: string;
+      kind: FabricOutputKind;
+      label: string;
+      imageUrl: string;
+    }> = [];
+    let costUsd = 0;
+
+    for (const kind of payload.outputs) {
+      const prompt = fabricPrompt(kind, {
+        garment: payload.garment,
+        lighting: payload.lighting,
+        background: payload.background,
+      });
+      const imageUrl = payload.swatchUrl
+        ? await renderFalEditFromUrl(payload.swatchUrl, prompt)
+        : file
+          ? await renderFalEdit(file, prompt)
+          : null;
+      if (!imageUrl) {
+        return { ok: false, error: `Could not generate ${kind} view.` };
+      }
+      images.push({
+        id: uuidv7(),
+        kind,
+        label: FABRIC_OUTPUT_LABELS[kind],
+        imageUrl,
+      });
+      costUsd += 0.04;
+    }
+
+    return { ok: true, images, costUsd };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Fabric generation failed.";
+    return { ok: false, error: message };
+  }
+}
+
+type FabricColourwaySheetResult =
+  | ActionOk<{
+      images: Array<{ id: string; label: string; imageUrl: string }>;
+      costUsd: number;
+    }>
+  | ActionError;
+
+export async function generateFabricColourwayTileAction(payload: {
+  swatchUrl: string;
+  colorwayId: string;
+  lighting: string;
+  background: string;
+}): Promise<
+  | ActionOk<{ image: { id: string; label: string; imageUrl: string }; costUsd: number }>
+  | ActionError
+> {
+  try {
+    await requirePhotoreal("photoreal.generate");
+
+    if (!payload.swatchUrl?.trim()) {
+      return { ok: false, error: "Upload a fabric photo first." };
+    }
+
+    const colorway = HOUSE_FABRIC_COLORWAYS.find((c) => c.id === payload.colorwayId);
+    if (!colorway) {
+      return { ok: false, error: "Unknown colourway." };
+    }
+
+    const { renderFalEditFromUrl } = await import(
+      "@/modules/dress-sizing/providers/fal"
+    );
+
+    const prompt = spiralDrapePrompt({
+      lighting: payload.lighting,
+      background: payload.background,
+      colorNote: colorway.prompt,
+    });
+
+    const imageUrl = await renderFalEditFromUrl(payload.swatchUrl, prompt);
+    if (!imageUrl) {
+      return { ok: false, error: `Could not generate ${colorway.label}.` };
+    }
+
+    return {
+      ok: true,
+      image: { id: uuidv7(), label: colorway.label, imageUrl },
+      costUsd: 0.04,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Generation failed.";
+    return { ok: false, error: message };
+  }
+}
+
+/** @deprecated Prefer progressive `generateFabricColourwayTileAction` calls from the client. */
+export async function generateFabricColourwaySheetAction(payload: {
+  swatchUrl: string;
+  swatchFile?: File;
+  lighting: string;
+  background: string;
+}): Promise<FabricColourwaySheetResult> {
+  try {
+    await requirePhotoreal("photoreal.generate");
+
+    if (!payload.swatchUrl && !payload.swatchFile) {
+      return { ok: false, error: "Upload a fabric photo first." };
+    }
+
+    let swatchUrl = payload.swatchUrl;
+    if (!swatchUrl && payload.swatchFile) {
+      const { uploadVisionFile } = await import(
+        "@/modules/dress-sizing/providers/fal"
+      );
+      swatchUrl = await uploadVisionFile(payload.swatchFile);
+    }
+
+    const images: Array<{ id: string; label: string; imageUrl: string }> = [];
+    let costUsd = 0;
+
+    for (const colorway of HOUSE_FABRIC_COLORWAYS) {
+      const tile = await generateFabricColourwayTileAction({
+        swatchUrl,
+        colorwayId: colorway.id,
+        lighting: payload.lighting,
+        background: payload.background,
+      });
+      if (!tile.ok) return { ok: false, error: tile.error };
+      images.push(tile.image);
+      costUsd += tile.costUsd;
+    }
+
+    return { ok: true, images, costUsd };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Colourway sheet failed.";
+    return { ok: false, error: message };
+  }
+}
+
+export type StudioChartRow = GarmentChartRow;
+
+export type StudioSizeChartResult =
+  | ActionOk<{
+      styleId: string;
+      styleName: string;
+      templateKey: string;
+      lengthBand: string;
+      fitIntent: string;
+      confidence: number | null;
+      rows: StudioChartRow[];
+      ghostUrl: string | null;
+      silhouette: import("@/modules/dress-sizing/core/silhouette").SilhouetteMode;
+      silhouetteLabel: string;
+      /** Set when the photo itself was measured; null = style template only. */
+      measured: {
+        captureContext: string;
+        anchor: string;
+        corrected: number;
+        flagged: number;
+      } | null;
+    }>
+  | ActionError;
+
+async function chartRowsForStyle(styleId: string): Promise<StudioChartRow[]> {
+  const { eq } = await import("drizzle-orm");
+  const { dressGeneratedChart } = await import("@/packages/db/schema");
+  const { POM_LABELS } = await import("@/modules/dress-sizing/ui/labels");
+  const { STANDARD_SIZES } = await import("@/modules/dress-sizing/db/enums");
+
+  const chart = await db
+    .select()
+    .from(dressGeneratedChart)
+    .where(eq(dressGeneratedChart.styleId, styleId));
+
+  const byPom = new Map<string, Record<string, number>>();
+  for (const cell of chart) {
+    const bucket = byPom.get(cell.pomKey) ?? {};
+    bucket[cell.size] = cell.valueHundredths;
+    byPom.set(cell.pomKey, bucket);
+  }
+
+  const pomOrder = [
+    "chest",
+    "waist",
+    "hip",
+    "shoulder",
+    "sleeveLength",
+    "garmentLength",
+    "hemWidth",
+    "neckDrop",
+  ] as const;
+
+  return pomOrder
+    .filter((key) => byPom.has(key))
+    .map((key) => ({
+      pomKey: key,
+      measurementKey: pomKeyToMeasurementKey(key) ?? key,
+      label:
+        POM_LABELS[key as keyof typeof POM_LABELS] ??
+        key.replace(/([A-Z])/g, " $1"),
+      values: STANDARD_SIZES.reduce(
+        (acc, size) => {
+          const val = byPom.get(key)?.[size];
+          if (val != null) acc[size] = val;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+    }));
+}
+
+export async function studioBuildSizeChartAction(
+  formData: FormData,
+): Promise<StudioSizeChartResult> {
+  try {
+    await requirePhotoreal("photoreal.generate");
+
+    const file = formData.get("photo");
+    if (!(file instanceof File) || file.size === 0) {
+      return { ok: false, error: "Choose a garment photo." };
+    }
+
+    const { ensureDressSizingSeeded } = await import(
+      "@/modules/dress-sizing/db/ensure"
+    );
+    const { buildStyleChart } = await import(
+      "@/modules/dress-sizing/recognition/review"
+    );
+    const { recognizeGarment } = await import(
+      "@/modules/dress-sizing/recognition/recognize"
+    );
+    const {
+      createRecognitionAdapter,
+      recognitionConfigured,
+    } = await import("@/modules/dress-sizing/recognition/pipeline");
+    const { uploadVisionFile } = await import(
+      "@/modules/dress-sizing/providers/fal"
+    );
+    const { GARMENT_LABELS, FIT_LABELS, LENGTH_LABELS } = await import(
+      "@/modules/dress-sizing/ui/labels"
+    );
+    const { eq } = await import("drizzle-orm");
+    const { dressStyle } = await import("@/packages/db/schema");
+
+    await ensureDressSizingSeeded(db);
+
+    let templateKey: import("@/modules/dress-sizing/db/enums").GarmentType =
+      "kurti";
+    let lengthBand: import("@/modules/dress-sizing/db/enums").LengthBand =
+      "knee";
+    let fitIntent: import("@/modules/dress-sizing/db/enums").FitIntent =
+      "semi_fitted";
+    let confidence: number | null = null;
+    let imageUrl: string | null = null;
+    let stylePoints:
+      | import("@/modules/dress-sizing/core/style-points").StylePoints
+      | undefined;
+    let styleId: string;
+    let ghostUrl: string | null = null;
+    let measured: {
+      captureContext: string;
+      anchor: string;
+      corrected: number;
+      flagged: number;
+    } | null = null;
+
+    if (recognitionConfigured()) {
+      // Shared garment-sizing engine: upload → classify → compose → measure the
+      // photo → correct the chart → ghost. Same engine the Designs sizing tab
+      // uses, so both surfaces produce identical numbers.
+      const { measureGarmentFromPhoto } = await import(
+        "@/modules/dress-sizing/service/measure-garment"
+      );
+      const sizing = await measureGarmentFromPhoto({ image: file });
+      templateKey = sizing.templateKey;
+      lengthBand = sizing.lengthBand;
+      fitIntent = sizing.fitIntent;
+      confidence = sizing.confidence;
+      stylePoints = sizing.points;
+      imageUrl = sizing.imageUrl;
+      styleId = sizing.styleId;
+      ghostUrl = sizing.ghostUrl;
+      const m = sizing.measurement;
+      measured = m
+        ? {
+            captureContext: m.landmarks.captureContext,
+            anchor: m.anchor,
+            corrected: m.applied.length,
+            flagged: m.conflicts.length,
+          }
+        : null;
+    } else {
+      // No vision provider configured — template-only, exactly as before.
+      const built = await buildStyleChart(db, {
+        templateKey,
+        lengthBand,
+        fitIntent,
+        name: "Studio garment",
+        imageUrl,
+        confidence,
+        status: "draft",
+        points: stylePoints,
+      });
+      styleId = built.styleId;
+    }
+
+    const [style] = await db
+      .select()
+      .from(dressStyle)
+      .where(eq(dressStyle.id, styleId))
+      .limit(1);
+
+    const styleName = [
+      GARMENT_LABELS[templateKey],
+      LENGTH_LABELS[lengthBand],
+      FIT_LABELS[fitIntent],
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const { resolveSilhouette, SILHOUETTE_LABELS } = await import(
+      "@/modules/dress-sizing/core/silhouette"
+    );
+    const silhouette = resolveSilhouette({
+      templateKey,
+      fitIntent,
+      points: stylePoints,
+    });
+
+    return {
+      ok: true,
+      styleId,
+      styleName: style?.name ?? styleName,
+      templateKey,
+      lengthBand,
+      fitIntent,
+      confidence,
+      rows: await chartRowsForStyle(styleId),
+      ghostUrl,
+      silhouette,
+      silhouetteLabel: SILHOUETTE_LABELS[silhouette],
+      measured,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Could not build size chart.";
+    return { ok: false, error: message };
+  }
+}
+
+export async function studioOverrideStyleAction(payload: {
+  styleId: string;
+  templateKey: import("@/modules/dress-sizing/db/enums").GarmentType;
+  lengthBand: import("@/modules/dress-sizing/db/enums").LengthBand;
+  fitIntent: import("@/modules/dress-sizing/db/enums").FitIntent;
+}): Promise<StudioSizeChartResult> {
+  try {
+    await requirePhotoreal("photoreal.generate");
+
+    const { rebuildStyleChart } = await import(
+      "@/modules/dress-sizing/recognition/review"
+    );
+    const { GARMENT_LABELS, FIT_LABELS, LENGTH_LABELS } = await import(
+      "@/modules/dress-sizing/ui/labels"
+    );
+
+    await rebuildStyleChart(db, payload.styleId, {
+      templateKey: payload.templateKey,
+      lengthBand: payload.lengthBand,
+      fitIntent: payload.fitIntent,
+    });
+
+    const styleName = [
+      GARMENT_LABELS[payload.templateKey],
+      LENGTH_LABELS[payload.lengthBand],
+      FIT_LABELS[payload.fitIntent],
+    ]
+      .filter(Boolean)
+      .join(" · ");
+
+    const { resolveSilhouette, SILHOUETTE_LABELS } = await import(
+      "@/modules/dress-sizing/core/silhouette"
+    );
+    const silhouette = resolveSilhouette({
+      templateKey: payload.templateKey,
+      fitIntent: payload.fitIntent,
+    });
+
+    return {
+      ok: true,
+      styleId: payload.styleId,
+      styleName,
+      templateKey: payload.templateKey,
+      lengthBand: payload.lengthBand,
+      fitIntent: payload.fitIntent,
+      confidence: null,
+      rows: await chartRowsForStyle(payload.styleId),
+      ghostUrl: null,
+      silhouette,
+      silhouetteLabel: SILHOUETTE_LABELS[silhouette],
+      measured: null,
+    };
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Could not change style.";
     return { ok: false, error: message };
   }
 }

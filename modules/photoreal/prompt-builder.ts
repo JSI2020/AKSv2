@@ -101,6 +101,8 @@ export type PromptBuilderInput = {
   poseId?: string | null;
   /** On refine, keep previous pose unless feedback asks for a pose change. */
   keepPose?: boolean;
+  /** Explicit scene / background prompt (from studio presets or custom). */
+  backgroundPrompt?: string | null;
 };
 
 export type BuiltPrompt = {
@@ -112,7 +114,7 @@ export type BuiltPrompt = {
   poseLabel?: string;
 };
 
-function trimOrEmpty(value?: string): string {
+function trimOrEmpty(value?: string | null): string {
   return value?.trim() ?? "";
 }
 
@@ -223,7 +225,7 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
 
   const sceneLine = wantsBg
     ? "The new background must look like a real photograph, compatible with the dress colour and occasion, with natural depth and lighting."
-    : REAL_SCENE;
+    : trimOrEmpty(input.backgroundPrompt) || REAL_SCENE;
 
   const poseLine = wantsPose
     ? null

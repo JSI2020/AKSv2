@@ -33,7 +33,7 @@ export function standardGarmentRows(): GeneratedRow[] {
   const template = STYLE_TEMPLATE_SEEDS.find((seed) => seed.key === STANDARD_TEMPLATE_KEY);
   if (!template) throw new Error("Standard template is missing");
   const style = instantiateStyle(template, { lengthBand: STANDARD_LENGTH_BAND, fitIntent: STANDARD_FIT_INTENT });
-  return composeChart(bodyGridFromRows(aksStandardV1RowsHundredths()), style);
+  return composeChart(bodyGridFromRows(aksStandardV1RowsHundredths()), style, style);
 }
 export type VsStandard = {
   pomKey: PomKey;

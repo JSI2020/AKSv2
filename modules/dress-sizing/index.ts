@@ -4,6 +4,7 @@ export * from "./core/generate";
 export * from "./core/ghost-prompt";
 export * from "./core/instantiate";
 export * from "./core/recommend";
+export * from "./core/silhouette";
 export * from "./core/standard";
 export * from "./core/style-points";
 export * from "./core/types";

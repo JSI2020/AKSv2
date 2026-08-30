@@ -9,9 +9,11 @@ import { instantiateStyle, type TemplateInput } from "../core/instantiate";
 import type { StylePoints } from "../core/style-points";
 import { generateChartForStyle, saveInstantiatedStyle } from "../core/generate";
 import type { FitIntent, GarmentType, LengthBand, StyleStatus } from "../db/enums";
+import { ensureDressSizingSeeded } from "../db/ensure";
 import { stylePointsFromRawJson } from "./schema";
 
 export async function loadTemplateInput(db: Database, key: GarmentType) {
+  await ensureDressSizingSeeded(db);
   const [row] = await db.select().from(dressStyleTemplate).where(eq(dressStyleTemplate.key, key)).limit(1);
   if (!row) throw new Error(`Template not found: ${key}`);
   const poms = await db.select().from(dressStyleTemplatePom).where(eq(dressStyleTemplatePom.templateId, row.id));
@@ -36,7 +38,7 @@ export async function buildStyleChart(db: Database, spec: {
     templateId, sourceImageUrl: spec.imageUrl, recognitionConfidence: spec.confidence,
     status: spec.status ?? "published",
   });
-  const chart = await generateChartForStyle(db, styleId);
+  const chart = await generateChartForStyle(db, styleId, instantiated);
   return { styleId, chartRows: chart.length };
 }
 
@@ -53,7 +55,7 @@ export async function rebuildStyleChart(db: Database, styleId: string, spec: {
   await db.delete(dressStyleFitWeight).where(eq(dressStyleFitWeight.styleId, styleId));
   await db.insert(dressStylePom).values(value.poms.map((pom) => ({ id: uuidv7(), styleId, ...pom })));
   await db.insert(dressStyleFitWeight).values(value.fitWeights.map((weight) => ({ id: uuidv7(), styleId, ...weight })));
-  await generateChartForStyle(db, styleId);
+  await generateChartForStyle(db, styleId, value);
 }
 
 export async function confirmProposal(db: Database, proposalId: string, overrides?: {

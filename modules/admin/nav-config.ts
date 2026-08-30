@@ -7,7 +7,6 @@ import {
   Package,
   Palette,
   Percent,
-  Ruler,
   Scissors,
   Settings,
   ShoppingBag,
@@ -98,12 +97,6 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     permission: "photoreal.view",
   },
   {
-    title: "Garment sizing",
-    href: "/admin/studio/sizing",
-    icon: Ruler,
-    permission: "designs.create",
-  },
-  {
     title: "Designs",
     href: "/admin/designs",
     icon: Palette,
@@ -180,7 +173,6 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     items: ADMIN_NAV_ITEMS.filter((i) =>
       [
         "/admin/photoreal",
-        "/admin/studio/sizing",
         "/admin/fabrics",
         "/admin/designs",
         "/admin/tryon",

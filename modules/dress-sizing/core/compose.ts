@@ -1,6 +1,8 @@
 import { SIZE_INDEX, STANDARD_SIZES } from "../db/enums";
 import type { BodyDimension, StandardSize } from "../db/enums";
+import { reconcileSilhouette } from "./silhouette";
 import type { BodyGrid, BodyMeasurements, ComposeStyle, GeneratedRow } from "./types";
+import type { InstantiatedStyle } from "./types";
 
 export function bodyGridFromRows(
   rows: Array<{ size: StandardSize } & BodyMeasurements>,
@@ -17,7 +19,11 @@ export function bodyGridFromRows(
   return grid;
 }
 
-export function composeChart(grid: BodyGrid, style: ComposeStyle): GeneratedRow[] {
+export function composeChart(
+  grid: BodyGrid,
+  style: ComposeStyle,
+  reconcile?: Pick<InstantiatedStyle, "silhouette" | "hemFullness" | "templateKey">,
+): GeneratedRow[] {
   const baseIndex = SIZE_INDEX[style.baseSize];
   const rows: GeneratedRow[] = [];
   for (const size of STANDARD_SIZES) {
@@ -40,5 +46,19 @@ export function composeChart(grid: BodyGrid, style: ComposeStyle): GeneratedRow[
       rows.push({ size, pomKey: pom.key, valueHundredths: Math.round(valueHundredths) });
     }
   }
-  return rows;
+  let result = rows.map((row) => {
+    if (row.pomKey === "sleeveLength" || row.pomKey === "neckDrop") {
+      return {
+        ...row,
+        valueHundredths: Math.max(0, row.valueHundredths),
+      };
+    }
+    return row;
+  });
+  if (!reconcile) return result;
+  return reconcileSilhouette(result, {
+    silhouette: reconcile.silhouette,
+    hemFullness: reconcile.hemFullness,
+    templateKey: reconcile.templateKey,
+  });
 }
