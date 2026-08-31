@@ -73,3 +73,6 @@ export {
   supportsGhostMannequin,
 } from "./garment-body-region";
 export type { BodyRegion } from "./garment-body-region";
+
+export { looksLikePlaceholderChart } from "./placeholder-chart";
+export type { ChartRowLike } from "./placeholder-chart";

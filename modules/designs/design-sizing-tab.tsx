@@ -24,6 +24,7 @@ import {
 } from "@/modules/sizing/measurement-report";
 
 import {
+  looksLikePlaceholderChart,
   supportsGhostMannequin,
   DEFAULT_SIZE_BLOCK_SEEDS,
   MEASUREMENT_KEY_DEFS,
@@ -620,6 +621,14 @@ function PieceSizeGuide({
    * The house standard chart for this piece's category, graded across the same
    * sizes as the design's own chart — the baseline the design departs from.
    */
+  /** The house chart behind this piece may still be seed filler. */
+  const standardIsPlaceholder = useMemo(() => {
+    const seed = DEFAULT_SIZE_BLOCK_SEEDS.find(
+      (x) => x.categoryKey === pieceKey.toUpperCase(),
+    );
+    return seed ? looksLikePlaceholderChart(seed.rows) : false;
+  }, [pieceKey]);
+
   const standardGrid = useMemo(() => {
     const seed = DEFAULT_SIZE_BLOCK_SEEDS.find(
       (x) => x.categoryKey === pieceKey.toUpperCase(),
@@ -759,7 +768,7 @@ function PieceSizeGuide({
             disabled={pending}
             className="underline underline-offset-2 hover:text-ink disabled:opacity-50"
           >
-            Reset to default
+            Reset to standard
           </button>
         ) : null}
       </div>
@@ -978,6 +987,15 @@ function PieceSizeGuide({
                 </p>
               ) : null}
             </div>
+          ) : null}
+
+          {standardIsPlaceholder ? (
+            <p className="mx-5 mt-4 border border-madder/30 bg-madder/[0.05] px-3 py-2 text-[11.5px] text-madder">
+              The {titleCasePiece(pieceKey)} house standard is still seed filler
+              — its chest, waist and hip are all the same number. Enter the real
+              block once under Settings · Sizing · Blocks and every{" "}
+              {titleCasePiece(pieceKey).toLowerCase()} design inherits it.
+            </p>
           ) : null}
 
           <div className="overflow-x-auto px-5 py-4">
