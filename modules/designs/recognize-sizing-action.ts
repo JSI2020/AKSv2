@@ -240,7 +240,10 @@ export async function recognizeDesignSizing(
     await requireSizingEdit(designId);
 
     // One shared engine does photo → measured chart → ghost.
-    const sizing = await measureGarmentFromPhoto({ image });
+    const sizing = await measureGarmentFromPhoto({
+      image,
+      categoryKey: pieceKey,
+    });
     const measurement = sizing.measurement;
 
     const fill = await fillBlockFromStyle(designId, pieceKey, blockId, sizing.styleId);

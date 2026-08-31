@@ -24,6 +24,7 @@ import {
 } from "@/modules/sizing/measurement-report";
 
 import {
+  supportsGhostMannequin,
   DEFAULT_SIZE_BLOCK_SEEDS,
   MEASUREMENT_KEY_DEFS,
   STANDARD_SIZE_LABELS,
@@ -578,7 +579,10 @@ function PieceSizeGuide({
     [previewRows, visibleMeasurementKeys],
   );
 
-  const displayImageUrl = ghostUrl ?? photoPreview;
+  // A ghost mannequin is an upper-body form; a trouser or skirt has no
+  // shoulder line to hang from, so the piece shows its photo instead.
+  const ghostSupported = supportsGhostMannequin(pieceKey);
+  const displayImageUrl = ghostSupported ? (ghostUrl ?? photoPreview) : photoPreview;
 
   const isFork = Boolean(block?.ownerDesignId === designId);
   const inheriting = Boolean(block && block.isDefault && !isFork);

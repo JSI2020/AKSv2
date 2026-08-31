@@ -35,6 +35,8 @@ import {
   resolveSilhouette,
   type SilhouetteMode,
 } from "../core/silhouette";
+import { supportsGhostMannequin } from "@aks/shared";
+
 import { STANDARD_SIZES } from "../db/enums";
 import type { FitIntent, GarmentType, LengthBand } from "../db/enums";
 import type { HemFullness, StylePoints } from "../core/style-points";
@@ -334,6 +336,12 @@ async function applyPhotoMeasurements(input: {
 
 export type MeasureGarmentInput = {
   image: File;
+  /**
+   * Garment category of the piece. A ghost mannequin is an upper-body form, so
+   * a lower-body piece (trouser, palazzo, skirt) skips the render entirely
+   * rather than producing a shape with nothing to hang from.
+   */
+  categoryKey?: string;
   /** Reuse an already-hosted URL instead of re-uploading. */
   imageUrl?: string;
   /** Render the ghost mannequin (one extra generation call). Default true. */
@@ -407,8 +415,10 @@ export async function measureGarmentFromPhoto(
 
   // Ghost FIRST: an isolated, straight-on garment render is a much cleaner
   // surface to measure than a photo containing a model and a background.
+  const ghostSupported =
+    !input.categoryKey || supportsGhostMannequin(input.categoryKey);
   let ghostUrl: string | null = null;
-  if (input.ghost !== false) {
+  if (input.ghost !== false && ghostSupported) {
     try {
       ghostUrl = await renderFalEdit(
         input.image,

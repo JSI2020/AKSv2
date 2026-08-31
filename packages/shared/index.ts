@@ -67,3 +67,9 @@ export {
   isFlatCapturedRow,
   isTorsoLoop,
 } from "./sizing-research/measurement-basis";
+
+export {
+  bodyRegionForCategory,
+  supportsGhostMannequin,
+} from "./garment-body-region";
+export type { BodyRegion } from "./garment-body-region";
