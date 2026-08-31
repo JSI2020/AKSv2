@@ -14,7 +14,14 @@ export type GarmentFrame = {
   ppi: number;
 };
 
-export type OverlayLineKind = "girth" | "width" | "vertical";
+export type OverlayLineKind = "girth" | "width" | "vertical" | "diagonal";
+
+/**
+ * How far a hanging sleeve falls away from vertical. Set-in sleeves on these
+ * cuts sit close to the body, so the line leans out only slightly — enough to
+ * follow the sleeve instead of cutting across the skirt.
+ */
+const SLEEVE_ANGLE_RAD = (11 * Math.PI) / 180;
 
 export type GarmentOverlayLine = {
   pomKey: string;
@@ -190,24 +197,36 @@ export function computeGarmentOverlayLines(input: {
   }
 
   if (sleeve != null && sleeve > 0) {
-    const end = frame.shoulderY + Math.round((sleeve / 100) * frame.ppi);
-    const cx = w * 0.72;
+    // A sleeve is measured from the shoulder POINT along the sleeve to the
+    // cuff, so the line starts at the outer end of the shoulder span and runs
+    // down the arm — never straight down through the body.
+    const shoulderSpan = horizontalSpan(w, "width", shoulder ?? refGirth, refGirth);
+    const startX = shoulderSpan.x2;
+    const lengthPx = (sleeve / 100) * frame.ppi;
+    const endX = Math.min(
+      w * 0.97,
+      startX + Math.sin(SLEEVE_ANGLE_RAD) * lengthPx,
+    );
+    const endY = Math.min(
+      frame.hemY,
+      frame.shoulderY + Math.cos(SLEEVE_ANGLE_RAD) * lengthPx,
+    );
     lines.push({
       pomKey: "sleeveLength",
       measurementKey:
         pomKeyToMeasurementKey("sleeveLength") ?? "sleeveLength",
       label: "Sleeve",
       displayLabel: formatValue(sleeve),
-      kind: "vertical",
+      kind: "diagonal",
       anchorYPx: frame.shoulderY,
-      yPx: end,
-      x1: cx,
-      x2: cx,
+      yPx: Math.round(endY),
+      x1: Math.round(startX),
+      x2: Math.round(endX),
     });
   }
 
   if (garmentLength != null) {
-    const cx = w * 0.78;
+    const cx = w * 0.9;
     lines.push({
       pomKey: "garmentLength",
       measurementKey:

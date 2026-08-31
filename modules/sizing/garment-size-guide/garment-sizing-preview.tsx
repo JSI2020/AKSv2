@@ -121,7 +121,60 @@ export function GarmentSizingPreview({
             const labelX =
               line.kind === "vertical" ? line.x1 + w / 28 : line.x2 + w / 48;
 
+            if (line.kind === "diagonal") {
+              // Runs along the sleeve, so the end tick is perpendicular to the
+              // line itself rather than horizontal.
+              const dx = line.x2 - line.x1;
+              const dy = line.yPx - line.anchorYPx;
+              const len = Math.hypot(dx, dy) || 1;
+              const tick = w / 56;
+              const nx = (-dy / len) * tick;
+              const ny = (dx / len) * tick;
+              return (
+                <g key={line.pomKey} opacity={active ? 1 : 0.45}>
+                  <line
+                    x1={line.x1}
+                    y1={line.anchorYPx}
+                    x2={line.x2}
+                    y2={line.yPx}
+                    stroke={stroke}
+                    strokeWidth={strokeW}
+                    strokeDasharray={`${w / 80} ${w / 160}`}
+                  />
+                  <line
+                    x1={line.x2 - nx}
+                    y1={line.yPx - ny}
+                    x2={line.x2 + nx}
+                    y2={line.yPx + ny}
+                    stroke={stroke}
+                    strokeWidth={Math.max(1, w / 500)}
+                  />
+                  <text
+                    x={line.x2 + w / 48}
+                    y={line.yPx - w / 120}
+                    fill={styles.valueLabel}
+                    fontSize={Math.max(10, w / 48)}
+                    fontFamily="var(--font-martian-mono), monospace"
+                  >
+                    {line.displayLabel}
+                  </text>
+                  <text
+                    x={line.x2 + w / 48}
+                    y={line.yPx + w / 36}
+                    fill={styles.nameLabel}
+                    fontSize={Math.max(8, w / 64)}
+                    fontFamily="var(--font-sans), sans-serif"
+                  >
+                    {line.label}
+                  </text>
+                </g>
+              );
+            }
+
             if (line.kind === "vertical") {
+              // Label at the midpoint — at the end it collides with whatever
+              // horizontal line shares that height (length vs hem sweep).
+              const midY = (line.anchorYPx + line.yPx) / 2;
               return (
                 <g key={line.pomKey} opacity={active ? 1 : 0.45}>
                   <line
@@ -143,7 +196,7 @@ export function GarmentSizingPreview({
                   />
                   <text
                     x={labelX}
-                    y={line.yPx - w / 120}
+                    y={midY - w / 120}
                     fill={styles.valueLabel}
                     fontSize={Math.max(10, w / 48)}
                     fontFamily="var(--font-martian-mono), monospace"
@@ -152,7 +205,7 @@ export function GarmentSizingPreview({
                   </text>
                   <text
                     x={labelX}
-                    y={line.yPx + w / 36}
+                    y={midY + w / 36}
                     fill={styles.nameLabel}
                     fontSize={Math.max(8, w / 64)}
                     fontFamily="var(--font-sans), sans-serif"
