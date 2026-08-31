@@ -26,6 +26,7 @@ export {
   DEFAULT_BASE_SIZE_LABEL,
   DEFAULT_SIZE_BLOCK_SEEDS,
   inches,
+  metres,
   resolveRowValues,
 } from "./size-block-seeds";
 export type {
@@ -60,3 +61,9 @@ export type {
   DesignStatus,
   RenderAngle,
 } from "./design-catalogue";
+
+export {
+  flatToFinished,
+  isFlatCapturedRow,
+  isTorsoLoop,
+} from "./sizing-research/measurement-basis";

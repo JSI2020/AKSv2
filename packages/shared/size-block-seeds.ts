@@ -1,7 +1,12 @@
 /**
- * Replaceable placeholder size-block numbers (×100 = hundredths of an inch).
- * Designer will replace these with real pattern-block values before production.
+ * Default size-block seeds — research-backed where measured, proposed placeholders otherwise.
+ * Regenerate research blocks: `npm run db:generate:sizing-research`
  */
+
+import type { CategorySeed } from "./sizing-catalogue";
+import { GARMENT_CATEGORY_SEEDS } from "./sizing-catalogue";
+import { RESEARCH_MEASURED_BLOCK_SEEDS } from "./sizing-research/research-measured-blocks";
+import { flatToFinished } from "./sizing-research/measurement-basis";
 
 export const STANDARD_SIZE_LABELS = [
   "XS",
@@ -18,11 +23,9 @@ export const DEFAULT_BASE_SIZE_LABEL: StandardSizeLabel = "M";
 
 export type SizeBlockRowSeed = {
   measurementKey: string;
-  /** Hundredths of an inch at base size (M). */
+  /** Hundredths of an inch (or metre for fabric-length keys) at base size. */
   baseValue: number;
-  /** Default step in hundredths. */
   gradeIncrement: number;
-  /** Per-label step override (hundredths), applied only on the step INTO that label. */
   gradeOverrides?: Record<string, number>;
   sortOrder: number;
 };
@@ -32,6 +35,9 @@ export type SizeBlockSeed = {
   name: string;
   notes: string;
   rows: readonly SizeBlockRowSeed[];
+  /** When set, overrides STANDARD_SIZE_LABELS (e.g. XS–7XL research charts). */
+  sizeLabels?: readonly string[];
+  baseSizeLabel?: string;
 };
 
 /** Inches → hundredths. */
@@ -39,10 +45,11 @@ export function inches(n: number): number {
   return Math.round(n * 100);
 }
 
-/**
- * Seed exit check — same accumulation rule as Step 15 `resolveChart`.
- * Kept here so Step 14 can assert without building the full engine module yet.
- */
+/** Metres → hundredths. */
+export function metres(n: number): number {
+  return Math.round(n * 100);
+}
+
 export function resolveRowValues(
   sizeLabels: readonly string[],
   baseSizeLabel: string,
@@ -68,217 +75,86 @@ export function resolveRowValues(
   });
 }
 
+const MEASURED_KEYS = new Set(
+  RESEARCH_MEASURED_BLOCK_SEEDS.map((b) => b.categoryKey),
+);
+
+function defaultBaseForKey(key: string, productType?: string): number {
+  if (productType === "fabric") {
+    if (key.includes("WIDTH")) return metres(1.1);
+    return metres(2.5);
+  }
+  if (/^(BUST|CHEST|HIP|WAIST|LOWER_WAIST|UPPER_WAIST)/.test(key)) {
+    return inches(36);
+  }
+  if (/^(SHOULDER|RISE|ARMHOLE|SLEEVE)/.test(key)) return inches(14);
+  if (/^(LENGTH|SWEEP|BOTTOM_OPENING|THIGH|KNEE)/.test(key)) return inches(38);
+  if (key === "WIDTH") return inches(36);
+  return inches(30);
+}
+
+function placeholderBlock(cat: CategorySeed): SizeBlockSeed {
+  const isFabric = cat.productType === "fabric";
+  const isAccessory = cat.productType === "accessory";
+  const status = cat.evidenceStatus ?? "Proposed";
+  return {
+    categoryKey: cat.key,
+    name: `${cat.key} default (${status.toLowerCase()})`,
+    notes:
+      status === "Measured"
+        ? "Category has research evidence but no default chart was derived yet — replace with house blocks."
+        : status === "Confirmed"
+          ? "Confirmed category — replace placeholder numbers with designer pattern blocks before production."
+          : "Proposed category — configure when the house adopts this silhouette.",
+    sizeLabels: isFabric || isAccessory ? ["One size"] : [...STANDARD_SIZE_LABELS],
+    baseSizeLabel: isFabric || isAccessory ? "One size" : DEFAULT_BASE_SIZE_LABEL,
+    rows: cat.measurementKeys.map((key, i) => ({
+      measurementKey: key,
+      baseValue: defaultBaseForKey(key, cat.productType),
+      gradeIncrement: isFabric || isAccessory ? 0 : inches(2),
+      sortOrder: (i + 1) * 10,
+    })),
+  };
+}
+
+const PLACEHOLDER_BLOCKS: SizeBlockSeed[] = GARMENT_CATEGORY_SEEDS.filter(
+  (c) => !MEASURED_KEYS.has(c.key),
+).map(placeholderBlock);
+
+/**
+ * The research blocks were captured on flat-laid garments, so every loop
+ * measurement in them is half its finished circumference. Charts store finished
+ * circumferences, so convert on the way in — base values, grade increments and
+ * per-size overrides alike, since all three are in the same units.
+ */
 export const DEFAULT_SIZE_BLOCK_SEEDS: readonly SizeBlockSeed[] = [
-  {
-    categoryKey: "KAMEEZ",
-    name: "KAMEEZ default (placeholder)",
-    notes:
-      "REPLACEABLE placeholder — replace with designer pattern-block numbers before real orders.",
-    rows: [
-      {
-        measurementKey: "BUST",
-        baseValue: inches(36),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 10,
-      },
-      {
-        measurementKey: "WAIST",
-        baseValue: inches(32),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 20,
-      },
-      {
-        measurementKey: "HIP",
-        baseValue: inches(38),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 30,
-      },
-      {
-        measurementKey: "SHOULDER",
-        baseValue: inches(14.5),
-        gradeIncrement: inches(0.5),
-        sortOrder: 40,
-      },
-      {
-        measurementKey: "SLEEVE_LENGTH",
-        baseValue: inches(23),
-        gradeIncrement: inches(0.5),
-        sortOrder: 50,
-      },
-      {
-        measurementKey: "ARMHOLE",
-        baseValue: inches(17),
-        gradeIncrement: inches(0.5),
-        sortOrder: 60,
-      },
-      {
-        measurementKey: "LENGTH",
-        baseValue: inches(30),
-        gradeIncrement: inches(1),
-        sortOrder: 70,
-      },
-    ],
-  },
-  {
-    categoryKey: "TROUSER",
-    name: "TROUSER default (placeholder)",
-    notes:
-      "REPLACEABLE placeholder — replace with designer pattern-block numbers before real orders.",
-    rows: [
-      {
-        measurementKey: "WAIST",
-        baseValue: inches(30),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 10,
-      },
-      {
-        measurementKey: "HIP",
-        baseValue: inches(38),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 20,
-      },
-      {
-        measurementKey: "THIGH",
-        baseValue: inches(22),
-        gradeIncrement: inches(1),
-        sortOrder: 30,
-      },
-      {
-        measurementKey: "RISE",
-        baseValue: inches(11),
-        gradeIncrement: inches(0.25),
-        sortOrder: 40,
-      },
-      {
-        measurementKey: "LENGTH",
-        baseValue: inches(38),
-        gradeIncrement: inches(0.5),
-        sortOrder: 50,
-      },
-      {
-        measurementKey: "BOTTOM_OPENING",
-        baseValue: inches(14),
-        gradeIncrement: inches(0.5),
-        sortOrder: 60,
-      },
-    ],
-  },
-  {
-    categoryKey: "GOWN",
-    name: "GOWN default (placeholder)",
-    notes:
-      "REPLACEABLE placeholder — replace with designer pattern-block numbers before real orders.",
-    rows: [
-      {
-        measurementKey: "BUST",
-        baseValue: inches(36),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 10,
-      },
-      {
-        measurementKey: "WAIST",
-        baseValue: inches(32),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 20,
-      },
-      {
-        measurementKey: "HIP",
-        baseValue: inches(38),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 30,
-      },
-      {
-        measurementKey: "SHOULDER",
-        baseValue: inches(14.5),
-        gradeIncrement: inches(0.5),
-        sortOrder: 40,
-      },
-      {
-        measurementKey: "SLEEVE_LENGTH",
-        baseValue: inches(23),
-        gradeIncrement: inches(0.5),
-        sortOrder: 50,
-      },
-      {
-        measurementKey: "ARMHOLE",
-        baseValue: inches(17),
-        gradeIncrement: inches(0.5),
-        sortOrder: 60,
-      },
-      {
-        measurementKey: "LENGTH",
-        baseValue: inches(52),
-        gradeIncrement: inches(1),
-        sortOrder: 70,
-      },
-      {
-        measurementKey: "SWEEP",
-        baseValue: inches(60),
-        gradeIncrement: inches(2),
-        sortOrder: 80,
-      },
-    ],
-  },
-  {
-    categoryKey: "SKIRT",
-    name: "SKIRT default (placeholder)",
-    notes:
-      "REPLACEABLE placeholder — replace with designer pattern-block numbers before real orders.",
-    rows: [
-      {
-        measurementKey: "WAIST",
-        baseValue: inches(30),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 10,
-      },
-      {
-        measurementKey: "HIP",
-        baseValue: inches(38),
-        gradeIncrement: inches(2),
-        gradeOverrides: { XL: inches(3), XXL: inches(3) },
-        sortOrder: 20,
-      },
-      {
-        measurementKey: "LENGTH",
-        baseValue: inches(36),
-        gradeIncrement: inches(1),
-        sortOrder: 30,
-      },
-      {
-        measurementKey: "SWEEP",
-        baseValue: inches(48),
-        gradeIncrement: inches(2),
-        sortOrder: 40,
-      },
-    ],
-  },
-  {
-    categoryKey: "DUPATTA",
-    name: "DUPATTA default (placeholder)",
-    notes:
-      "REPLACEABLE placeholder — length/width rarely grade; keep increments at 0 unless the house wants size steps.",
-    rows: [
-      {
-        measurementKey: "LENGTH",
-        baseValue: inches(90),
-        gradeIncrement: inches(0),
-        sortOrder: 10,
-      },
-      {
-        measurementKey: "WIDTH",
-        baseValue: inches(36),
-        gradeIncrement: inches(0),
-        sortOrder: 20,
-      },
-    ],
-  },
+  ...RESEARCH_MEASURED_BLOCK_SEEDS.map(
+    ({ sizeLabels, baseSizeLabel, rows, ...rest }) => ({
+      ...rest,
+      sizeLabels: [...sizeLabels],
+      baseSizeLabel,
+      rows: rows.map((row) => ({
+        ...row,
+        baseValue: flatToFinished(
+          row.measurementKey,
+          row.baseValue,
+          row.baseValue,
+        ),
+        gradeIncrement: flatToFinished(
+          row.measurementKey,
+          row.gradeIncrement,
+          row.baseValue,
+        ),
+        gradeOverrides: row.gradeOverrides
+          ? Object.fromEntries(
+              Object.entries(row.gradeOverrides).map(([size, step]) => [
+                size,
+                flatToFinished(row.measurementKey, step, row.baseValue),
+              ]),
+            )
+          : row.gradeOverrides,
+      })),
+    }),
+  ),
+  ...PLACEHOLDER_BLOCKS,
 ];
