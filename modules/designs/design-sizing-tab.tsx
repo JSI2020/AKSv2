@@ -585,6 +585,29 @@ function PieceSizeGuide({
     });
   }, [block, grid, previewRows, stdBaseByKey]);
 
+  /**
+   * The house standard chart for this piece's category, graded across the same
+   * sizes as the design's own chart — the baseline the design departs from.
+   */
+  const standardGrid = useMemo(() => {
+    const seed = DEFAULT_SIZE_BLOCK_SEEDS.find(
+      (x) => x.categoryKey === pieceKey.toUpperCase(),
+    );
+    if (!seed || !block) return null;
+    return resolveChart(
+      { sizeLabels: block.sizeLabels, baseSizeLabel: block.baseSizeLabel },
+      seed.rows.map(
+        (r): SizeBlockRowInput => ({
+          measurementKey: r.measurementKey,
+          baseValue: r.baseValue,
+          gradeIncrement: r.gradeIncrement,
+          gradeOverrides: r.gradeOverrides ?? {},
+        }),
+      ),
+      [],
+    );
+  }, [pieceKey, block]);
+
   const mByKey = useMemo(
     () => new Map(mSummary.map((s) => [s.key, s])),
     [mSummary],
@@ -962,6 +985,80 @@ function PieceSizeGuide({
               </tbody>
             </table>
           </div>
+
+          {standardGrid ? (
+            <details className="border-t border-ink/10 px-5 py-4">
+              <summary className="cursor-pointer text-[12.5px] text-ink">
+                House standard for {titleCasePiece(pieceKey)} — and how this
+                piece differs
+              </summary>
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[28rem] border-collapse text-[12.5px]">
+                  <thead>
+                    <tr>
+                      <th className="border-b border-ink/20 px-2.5 py-2 text-start font-sans text-[10px] font-normal uppercase tracking-[0.08em] text-ink/55">
+                        Measure
+                      </th>
+                      {displaySizes.map((sz) => (
+                        <th
+                          key={sz}
+                          className="border-b border-ink/20 px-2.5 py-2 text-center font-sans text-[10px] font-normal uppercase tracking-[0.08em] text-ink/55"
+                        >
+                          {sz}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableDisplayRows.map((row) => {
+                      const stdRow = standardGrid[row.measurementKey];
+                      if (!stdRow) return null;
+                      return (
+                        <tr key={`std-${row.id}`}>
+                          <td className="border-b border-ink/10 px-2.5 py-2 text-start text-ink/55">
+                            {MEASURE_LABEL.get(row.measurementKey) ??
+                              row.measurementKey}
+                          </td>
+                          {displaySizes.map((sz) => {
+                            const std = stdRow[sz]?.value;
+                            const mine =
+                              grid[row.measurementKey]?.[sz]?.value ??
+                              row.baseValue;
+                            const diff =
+                              std == null ? null : mine - std;
+                            return (
+                              <td
+                                key={sz}
+                                className="border-b border-ink/10 px-2.5 py-2 text-center font-data text-ink/70"
+                              >
+                                {std == null ? (
+                                  "—"
+                                ) : (
+                                  <>
+                                    <Measure value={std} />
+                                    {diff !== null && diff !== 0 ? (
+                                      <span className="ms-1 text-[11px] text-zari">
+                                        ({diff > 0 ? "+" : "−"}
+                                        {formatMeasure(Math.abs(diff), "in")})
+                                      </span>
+                                    ) : null}
+                                  </>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <p className="mt-2 text-[11.5px] text-ink/55">
+                Grey is the house standard for this garment type; gold in
+                brackets is how far this piece departs from it.
+              </p>
+            </details>
+          ) : null}
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-5">
             <p className="max-w-md text-[11.5px] text-ink/55">
