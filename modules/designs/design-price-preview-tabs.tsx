@@ -1,5 +1,6 @@
 "use client";
 
+import { isFabricSwatchRender } from "./fabric-swatch-render";
 import { useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 
@@ -408,7 +409,16 @@ export function PreviewPublishTab({
             <div>
               <Label>Shade</Label>
               <div className="mt-2 flex flex-wrap gap-2">
-                {detail.colourways.map((cw) => (
+                {detail.colourways.map((cw) => {
+                  // The fabric's inventory swatch IS the shade. Falling back to
+                  // a flat pale colour made every untinted colourway look blank.
+                  const swatch = detail.renders.find(
+                    (r) =>
+                      r.colourwayId === cw.id &&
+                      isFabricSwatchRender(r) &&
+                      r.previewUrl,
+                  )?.previewUrl;
+                  return (
                   <button
                     key={cw.id}
                     type="button"
@@ -424,14 +434,20 @@ export function PreviewPublishTab({
                     }
                   >
                     <span
-                      className="size-3 border border-ink/15"
-                      style={{
-                        backgroundColor: cw.hexApproximation ?? "#EAE1CF",
-                      }}
+                      className="size-3 border border-ink/15 bg-cover bg-center"
+                      style={
+                        swatch
+                          ? { backgroundImage: `url(${swatch})` }
+                          : {
+                              backgroundColor:
+                                cw.hexApproximation ?? "#EAE1CF",
+                            }
+                      }
                     />
                     {cw.name}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : null}
@@ -484,6 +500,19 @@ export function PreviewPublishTab({
                   Close
                 </button>
               </div>
+              {d.sizingGhostUrl ? (
+                <figure className="mt-2 flex flex-col items-center gap-1 border border-ink/10 bg-greige/20 p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={d.sizingGhostUrl}
+                    alt="Ghost mannequin with the measurement lines"
+                    className="max-h-[40dvh] w-auto object-contain"
+                  />
+                  <figcaption className="text-[10px] uppercase tracking-[0.1em] text-ink/45">
+                    Ghost mannequin · from the Sizing tab
+                  </figcaption>
+                </figure>
+              ) : null}
               {guideGrid ? (
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full min-w-[28rem] border-collapse text-[11px]">
