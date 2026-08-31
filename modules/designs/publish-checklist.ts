@@ -62,8 +62,5 @@ export function evaluatePublishChecklist(input: {
       "the size chart has no measurement rows — add sizing before publishing",
     );
   }
-  if (Object.keys(input.design.fitProfileIds ?? {}).length < 1) {
-    missing.push("fit profile");
-  }
   return missing;
 }

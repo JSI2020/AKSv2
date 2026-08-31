@@ -60,7 +60,12 @@ import {
 import type { DesignDetail } from "./actions";
 
 type FormOptions = {
-  categories: { id: string; key: string; name: string }[];
+  categories: {
+    id: string;
+    key: string;
+    name: string;
+    requiresGhostMannequin: boolean;
+  }[];
   blocks: { id: string; name: string; categoryId: string }[];
   profiles: { id: string; name: string; categoryId: string }[];
 };
@@ -102,10 +107,12 @@ export function DesignSizingTab({
 }) {
   const d = detail.design;
   const components = componentKeysOf(detail);
-  // Publish requires a fit profile, so this tab has to be able to set one.
-  const [fitProfiles, setFitProfiles] = useState<Record<string, string>>(
-    () => ({ ...(d.fitProfileIds ?? {}) }),
-  );
+  // Fit profiles carry made-to-measure ease. The house sells standard sizes to
+  // a finished-garment chart, so nothing sets them here — existing values are
+  // preserved on save rather than dropped.
+  const [fitProfiles] = useState<Record<string, string>>(() => ({
+    ...(d.fitProfileIds ?? {}),
+  }));
   const [pieceSizeBlocks, setPieceSizeBlocks] = useState<
     Record<string, string>
   >(() => ({ ...(d.pieceSizeBlocks ?? {}) }));
@@ -198,52 +205,6 @@ export function DesignSizingTab({
           the size guide below.
         </p>
 
-        <div className="mt-5 border-t border-ink/10 pt-4">
-          <h3 className="mb-3 font-sans text-[10px] uppercase tracking-[0.16em] text-ink/55">
-            Fit profile · required to publish
-          </h3>
-          <div className="flex flex-col gap-3">
-            {components.map((comp) => {
-              const category = options.categories.find((c) => c.key === comp);
-              const forPiece = options.profiles.filter(
-                (p) => !category || p.categoryId === category.id,
-              );
-              return (
-                <label key={comp} className="flex flex-col gap-1.5">
-                  <span className="text-[12px] text-ink/70">
-                    {titleCasePiece(comp)}
-                  </span>
-                  <select
-                    value={fitProfiles[comp] ?? ""}
-                    onChange={(e) =>
-                      setFitProfiles((prev) => {
-                        const next = { ...prev };
-                        if (e.target.value) next[comp] = e.target.value;
-                        else delete next[comp];
-                        return next;
-                      })
-                    }
-                    className="w-full max-w-sm border border-ink/15 bg-milk px-3 py-2 text-[13px] text-ink outline-none focus:border-ink"
-                  >
-                    <option value="">Choose a fit…</option>
-                    {forPiece.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name}
-                      </option>
-                    ))}
-                  </select>
-                  {forPiece.length === 0 ? (
-                    <span className="text-[11.5px] text-madder">
-                      No fit profile exists for {titleCasePiece(comp)} yet —
-                      create one under Settings · Sizing · Fit profiles, then
-                      reopen this tab.
-                    </span>
-                  ) : null}
-                </label>
-              );
-            })}
-          </div>
-        </div>
       </section>
 
       {components.length === 0 ? (
@@ -266,6 +227,10 @@ export function DesignSizingTab({
             defaultBlockId={defaultId}
             availableSizes={selectedSizes}
             initialGhostUrl={d.sizingGhostUrl ?? null}
+            ghostSupported={
+              options.categories.find((c) => c.key === comp)
+                ?.requiresGhostMannequin ?? supportsGhostMannequin(comp)
+            }
             initialOverlay={d.sizingOverlay ?? undefined}
             onForked={(forkId) => {
               setPieceSizeBlocks((prev) => ({ ...prev, [comp]: forkId }));
@@ -300,6 +265,7 @@ function PieceSizeGuide({
   availableSizes,
   initialGhostUrl,
   initialOverlay,
+  ghostSupported,
   onForked,
   onReverted,
 }: {
@@ -310,6 +276,7 @@ function PieceSizeGuide({
   availableSizes: string[];
   initialGhostUrl: string | null;
   initialOverlay?: OverlayPlacements;
+  ghostSupported: boolean;
   onForked: (forkId: string) => void;
   onReverted: () => void;
 }) {
@@ -628,7 +595,6 @@ function PieceSizeGuide({
 
   // A ghost mannequin is an upper-body form; a trouser or skirt has no
   // shoulder line to hang from, so the piece shows its photo instead.
-  const ghostSupported = supportsGhostMannequin(pieceKey);
   const displayImageUrl = ghostSupported ? (ghostUrl ?? photoPreview) : photoPreview;
 
   const isFork = Boolean(block?.ownerDesignId === designId);
@@ -798,7 +764,18 @@ function PieceSizeGuide({
         ) : null}
       </div>
 
-      {activeBlockId ? (
+      {activeBlockId && !ghostSupported ? (
+        <div className="border-b border-ink/12 bg-greige/20 px-5 py-3">
+          <p className="max-w-xl text-[11.5px] text-ink/55">
+            {titleCasePiece(pieceKey)} takes no ghost mannequin — there is no
+            shoulder line to hang one from — so this chart starts from the{" "}
+            {pieceKey} house standard and is edited below. Change that under
+            Settings · Sizing · Categories.
+          </p>
+        </div>
+      ) : null}
+
+      {activeBlockId && ghostSupported ? (
         <div className="border-b border-ink/12 bg-greige/20 px-5 py-4">
           <p className="mb-3 font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
             Build from garment photo
@@ -859,8 +836,7 @@ function PieceSizeGuide({
             <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2 border-t border-ink/10 pt-4">
               <div className="flex flex-col gap-1">
                 <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
-                  Or start from a standard {titleCasePiece(pieceKey).toLowerCase()}{" "}
-                  style
+                  Optional · cut this piece to a different standard
                 </span>
                 <select
                   value={styleKey}
