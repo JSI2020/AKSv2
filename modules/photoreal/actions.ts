@@ -1048,6 +1048,13 @@ export type StudioSizeChartResult =
         anchor: string;
         corrected: number;
         flagged: number;
+        detail: Array<{
+          pomKey: string;
+          measured: number | null;
+          prior: number;
+          delta: number;
+          flagged: boolean;
+        }>;
       } | null;
     }>
   | ActionError;
@@ -1146,6 +1153,13 @@ export async function studioBuildSizeChartAction(
       anchor: string;
       corrected: number;
       flagged: number;
+      detail: Array<{
+        pomKey: string;
+        measured: number | null;
+        prior: number;
+        delta: number;
+        flagged: boolean;
+      }>;
     } | null = null;
 
     if (recognitionConfigured()) {
@@ -1171,6 +1185,13 @@ export async function studioBuildSizeChartAction(
             anchor: m.anchor,
             corrected: m.applied.length,
             flagged: m.conflicts.length,
+            detail: m.detail.map((d) => ({
+              pomKey: d.pomKey,
+              measured: d.measured,
+              prior: d.prior,
+              delta: d.delta,
+              flagged: d.flagged,
+            })),
           }
         : null;
     } else {

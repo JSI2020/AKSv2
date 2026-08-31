@@ -62,8 +62,25 @@ const MEASURABLE_POMS: Record<PhotoPomKey, true> = {
   neckDrop: true,
 };
 
+/** Per-POM record of what the photo said, what the template said, and why. */
+export type PomMeasurementDetail = {
+  pomKey: string;
+  /** What the photo measured, hundredths of an inch (null = not measurable). */
+  measured: number | null;
+  /** The template's value before the photo. */
+  prior: number;
+  /** Result of fusing the two. */
+  fused: number;
+  /** Shift actually written to the chart (0 = none). */
+  delta: number;
+  /** Photo and template disagreed beyond 3σ — the template was kept. */
+  flagged: boolean;
+};
+
 export type PhotoMeasurementSummary = {
   landmarks: GarmentLandmarks;
+  /** Full per-POM trace — the answer to "why didn't the chest change?". */
+  detail: PomMeasurementDetail[];
   /** POM keys the photo actually moved, with the shift applied (hundredths). */
   applied: Array<{ pomKey: string; deltaHundredths: number }>;
   /** POM keys where photo and template disagreed beyond 3σ — template kept. */
@@ -186,6 +203,7 @@ async function applyPhotoMeasurements(input: {
   }
 
   const applied: PhotoMeasurementSummary["applied"] = [];
+  const detail: PomMeasurementDetail[] = [];
   // Work in memory first, then reconcile, then persist — a per-POM shift alone
   // would break the silhouette invariant (a column's chest/waist/hip must stay
   // one circumference even after the photo moves one of them).
@@ -197,14 +215,24 @@ async function applyPhotoMeasurements(input: {
 
   for (const [pomKey, fused] of Object.entries(result.fused)) {
     const key = pomKey as PhotoPomKey;
-    if (!result.measured[key]) continue; // template-only row, nothing to correct
-    if (result.conflicts.includes(key)) continue;
     const base = priorBase.get(key);
     if (base == null) continue;
+    const measuredValue = result.measured[key]?.value ?? null;
+    const flagged = result.conflicts.includes(key);
     // Snap the measured base onto the chart grid so every size stays on it.
-    const delta = snapQuarter(fused.value) - base;
-    if (delta === 0) continue;
+    const delta =
+      measuredValue == null || flagged ? 0 : snapQuarter(fused.value) - base;
 
+    detail.push({
+      pomKey: key,
+      measured: measuredValue,
+      prior: base,
+      fused: fused.value,
+      delta,
+      flagged,
+    });
+
+    if (delta === 0) continue;
     for (const row of corrected) {
       if (row.pomKey === key) row.valueHundredths += delta;
     }
@@ -242,6 +270,7 @@ async function applyPhotoMeasurements(input: {
 
   return {
     landmarks: detection.landmarks,
+    detail,
     applied,
     conflicts: result.conflicts,
     anchor: result.anchor.kind,
