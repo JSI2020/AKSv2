@@ -51,6 +51,7 @@ type ChartState = {
   silhouette: SilhouetteMode;
   silhouetteLabel: string;
   /** Set when the photo itself was measured; null = style template only. */
+  standardRows: StudioChartRow[];
   measured: {
     captureContext: string;
     anchor: string;
@@ -594,6 +595,78 @@ export function SizingTab() {
                     </tbody>
                   </table>
                 </div>
+                <details className="border-t border-indigo-lift px-4 py-3">
+                  <summary className="cursor-pointer text-[12px] text-greige">
+                    House standard for {GARMENT_LABELS[
+                      chart.templateKey as keyof typeof GARMENT_LABELS
+                    ] ?? chart.templateKey}{" "}
+                    — and how this piece differs
+                  </summary>
+                  <div className="mt-3 overflow-x-auto">
+                    <table className="w-full border-collapse font-mono text-[12px]">
+                      <thead>
+                        <tr className="border-b border-indigo-lift">
+                          <th className="p-2 text-start text-[10.5px] font-semibold uppercase tracking-wide text-chalk">
+                            Measure
+                          </th>
+                          {STANDARD_SIZES.map((sz) => (
+                            <th
+                              key={sz}
+                              className="p-2 text-end text-[10.5px] font-semibold uppercase tracking-wide text-chalk"
+                            >
+                              {sz}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {displayGarmentChartRows(
+                          chart.standardRows,
+                          chart.silhouette,
+                        ).map((row) => {
+                          const thisPiece = tableRows.find(
+                            (r) => r.pomKey === row.pomKey,
+                          );
+                          return (
+                            <tr
+                              key={row.pomKey}
+                              className="border-b border-indigo-lift last:border-b-0"
+                            >
+                              <td className="p-2 text-start font-sans text-chalk">
+                                {row.label}
+                              </td>
+                              {STANDARD_SIZES.map((size) => {
+                                const std = row.values[size];
+                                const mine = thisPiece?.values[size];
+                                const diff =
+                                  std != null && mine != null ? mine - std : null;
+                                return (
+                                  <td key={size} className="p-2 text-end">
+                                    <span className="text-chalk">
+                                      {std != null
+                                        ? hundredthsToDisplayNumber(std, unit)
+                                        : "—"}
+                                    </span>
+                                    {diff != null && diff !== 0 ? (
+                                      <span className="ms-1 text-zari">
+                                        ({diff > 0 ? "+" : ""}
+                                        {hundredthsToDisplayNumber(diff, unit)})
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="mt-2 text-[11.5px] text-chalk">
+                    Grey is the house standard for this garment type; gold in
+                    brackets is how far this piece departs from it.
+                  </p>
+                </details>
                 <p className="border-t border-indigo-lift bg-indigo px-4 py-3 text-[11.5px] text-chalk">
                   Girths follow the detected silhouette — column cuts keep one
                   body block circumference; hem sweep is never narrower than

@@ -294,6 +294,13 @@ export type MeasureGarmentInput = {
   adapter?: VisionAdapter;
 };
 
+/** One cell of a composed chart. */
+export type ChartCellRow = {
+  pomKey: string;
+  size: string;
+  valueHundredths: number;
+};
+
 export type MeasureGarmentResult = {
   imageUrl: string;
   /** Generated dress-sizing style holding the corrected XS–XXL chart. */
@@ -306,6 +313,12 @@ export type MeasureGarmentResult = {
   lowConfidence: boolean;
   measurement: PhotoMeasurementSummary | null;
   ghostUrl: string | null;
+  /**
+   * The house standard chart for this garment type and style, as composed from
+   * the body grid + template BEFORE any photo correction. Kept so the UI can
+   * show what the standard says next to what this sample actually measures.
+   */
+  standardChart: ChartCellRow[];
 };
 
 /**
@@ -329,6 +342,17 @@ export async function measureGarmentFromPhoto(
     status: "draft",
     points: proposal.points,
   });
+
+  // Snapshot the composed template chart before the photo touches it.
+  const standardRows = await db
+    .select()
+    .from(dressGeneratedChart)
+    .where(eq(dressGeneratedChart.styleId, styleId));
+  const standardChart: ChartCellRow[] = standardRows.map((r) => ({
+    pomKey: r.pomKey,
+    size: r.size,
+    valueHundredths: r.valueHundredths,
+  }));
 
   let measurement: PhotoMeasurementSummary | null = null;
   try {
@@ -385,5 +409,6 @@ export async function measureGarmentFromPhoto(
     lowConfidence: proposal.lowConfidence,
     measurement,
     ghostUrl,
+    standardChart,
   };
 }

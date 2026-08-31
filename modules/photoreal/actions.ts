@@ -1039,6 +1039,8 @@ export type StudioSizeChartResult =
       fitIntent: string;
       confidence: number | null;
       rows: StudioChartRow[];
+      /** House standard for this garment type, before any photo correction. */
+      standardRows: StudioChartRow[];
       ghostUrl: string | null;
       silhouette: import("@/modules/dress-sizing/core/silhouette").SilhouetteMode;
       silhouetteLabel: string;
@@ -1072,6 +1074,50 @@ async function chartRowsForStyle(styleId: string): Promise<StudioChartRow[]> {
 
   const byPom = new Map<string, Record<string, number>>();
   for (const cell of chart) {
+    const bucket = byPom.get(cell.pomKey) ?? {};
+    bucket[cell.size] = cell.valueHundredths;
+    byPom.set(cell.pomKey, bucket);
+  }
+
+  const pomOrder = [
+    "chest",
+    "waist",
+    "hip",
+    "shoulder",
+    "sleeveLength",
+    "garmentLength",
+    "hemWidth",
+    "neckDrop",
+  ] as const;
+
+  return pomOrder
+    .filter((key) => byPom.has(key))
+    .map((key) => ({
+      pomKey: key,
+      measurementKey: pomKeyToMeasurementKey(key) ?? key,
+      label:
+        POM_LABELS[key as keyof typeof POM_LABELS] ??
+        key.replace(/([A-Z])/g, " $1"),
+      values: STANDARD_SIZES.reduce(
+        (acc, size) => {
+          const val = byPom.get(key)?.[size];
+          if (val != null) acc[size] = val;
+          return acc;
+        },
+        {} as Record<string, number>,
+      ),
+    }));
+}
+
+/** Shape raw chart cells into display rows, same ordering as chartRowsForStyle. */
+async function shapeChartRows(
+  cells: Array<{ pomKey: string; size: string; valueHundredths: number }>,
+): Promise<StudioChartRow[]> {
+  const { POM_LABELS } = await import("@/modules/dress-sizing/ui/labels");
+  const { STANDARD_SIZES } = await import("@/modules/dress-sizing/db/enums");
+
+  const byPom = new Map<string, Record<string, number>>();
+  for (const cell of cells) {
     const bucket = byPom.get(cell.pomKey) ?? {};
     bucket[cell.size] = cell.valueHundredths;
     byPom.set(cell.pomKey, bucket);
@@ -1148,6 +1194,11 @@ export async function studioBuildSizeChartAction(
       | undefined;
     let styleId: string;
     let ghostUrl: string | null = null;
+    let standardCells: Array<{
+      pomKey: string;
+      size: string;
+      valueHundredths: number;
+    }> = [];
     let measured: {
       captureContext: string;
       anchor: string;
@@ -1178,6 +1229,7 @@ export async function studioBuildSizeChartAction(
       imageUrl = sizing.imageUrl;
       styleId = sizing.styleId;
       ghostUrl = sizing.ghostUrl;
+      standardCells = sizing.standardChart;
       const m = sizing.measurement;
       measured = m
         ? {
@@ -1241,6 +1293,9 @@ export async function studioBuildSizeChartAction(
       fitIntent,
       confidence,
       rows: await chartRowsForStyle(styleId),
+      standardRows: standardCells.length
+        ? await shapeChartRows(standardCells)
+        : await chartRowsForStyle(styleId),
       ghostUrl,
       silhouette,
       silhouetteLabel: SILHOUETTE_LABELS[silhouette],
@@ -1300,6 +1355,7 @@ export async function studioOverrideStyleAction(payload: {
       fitIntent: payload.fitIntent,
       confidence: null,
       rows: await chartRowsForStyle(payload.styleId),
+      standardRows: await chartRowsForStyle(payload.styleId),
       ghostUrl: null,
       silhouette,
       silhouetteLabel: SILHOUETTE_LABELS[silhouette],
