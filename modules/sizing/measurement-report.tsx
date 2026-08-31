@@ -21,6 +21,8 @@ export type MeasurementDetailRow = {
 };
 
 export type MeasurementReportData = {
+  /** Which image the spans were read from. */
+  measuredOn?: "ghost" | "photo";
   captureContext: string;
   anchor: string;
   corrected: number;
@@ -64,8 +66,12 @@ export function MeasurementReport({
   return (
     <div className={cn("flex flex-col gap-2", className)}>
       <p className={cn("border px-3 py-2 text-[12px]", line, muted)}>
-        <span className="text-zari">Measured from the photo</span> (
-        {data.captureContext.replace("_", " ")}, scaled on{" "}
+        <span className="text-zari">
+          {data.measuredOn === "ghost"
+            ? "Measured on the ghost mannequin"
+            : "Measured from the photo"}
+        </span>{" "}
+        ({data.captureContext.replace("_", " ")}, scaled on{" "}
         {data.anchor === "person_height" ? "model height" : "garment length"}) —{" "}
         {data.corrected} measurement{data.corrected === 1 ? "" : "s"} corrected
         against the house template

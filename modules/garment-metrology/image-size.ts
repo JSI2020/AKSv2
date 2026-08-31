@@ -88,3 +88,19 @@ export async function imageSizeFromFile(file: {
     return null;
   }
 }
+
+/**
+ * Dimensions of a hosted image. Only the header is needed, so this asks for the
+ * first 64KB and falls back to a full read when the host ignores Range.
+ */
+export async function imageSizeFromUrl(
+  url: string,
+): Promise<ImageSize | null> {
+  try {
+    const res = await fetch(url, { headers: { Range: "bytes=0-65535" } });
+    if (!res.ok && res.status !== 206) return null;
+    return imageSizeFromBytes(new Uint8Array(await res.arrayBuffer()));
+  } catch {
+    return null;
+  }
+}

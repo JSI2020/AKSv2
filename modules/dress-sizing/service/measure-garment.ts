@@ -21,8 +21,8 @@ import { db } from "@/packages/db/client";
 import { dressGeneratedChart, dressStyle } from "@/packages/db/schema";
 import {
   estimateFromPhoto,
-  ghostProportions,
   imageSizeFromFile,
+  imageSizeFromUrl,
   templatePrior,
   type Estimate,
   type GarmentLandmarks,
@@ -90,6 +90,8 @@ export type PhotoMeasurementSummary = {
   warnings: string[];
   imageWidthPx: number;
   imageHeightPx: number;
+  /** Which image the spans were read from. */
+  measuredOn: "ghost" | "photo";
 };
 
 /**
@@ -155,6 +157,8 @@ async function applyPhotoMeasurements(input: {
   styleId: string;
   image: File;
   imageUrl: string;
+  /** Isolated garment render — a cleaner surface to read spans from. */
+  ghostUrl: string | null;
   adapter: Parameters<typeof detectLandmarks>[1];
   reconcile: SilhouetteReconcile;
 }): Promise<PhotoMeasurementSummary | null> {
@@ -163,6 +167,25 @@ async function applyPhotoMeasurements(input: {
 
   const detection = await detectLandmarks(input.imageUrl, input.adapter);
   if (!detection) return null;
+
+  // The ghost isolates the garment — no body, no background, straight on — so
+  // its spans are far cleaner than the original photo's. But it contains no
+  // person, so it cannot establish absolute scale on its own. Read geometry
+  // from the ghost and carry the scale over from the photo, which does have a
+  // person to anchor on.
+  let ghost: {
+    detection: NonNullable<Awaited<ReturnType<typeof detectLandmarks>>>;
+    size: { width: number; height: number };
+  } | null = null;
+  if (input.ghostUrl) {
+    const [ghostSize, ghostDetection] = await Promise.all([
+      imageSizeFromUrl(input.ghostUrl),
+      detectLandmarks(input.ghostUrl, input.adapter),
+    ]);
+    if (ghostSize && ghostDetection) {
+      ghost = { detection: ghostDetection, size: ghostSize };
+    }
+  }
 
   const [style] = await db
     .select({ baseSize: dressStyle.baseSize })
@@ -191,6 +214,7 @@ async function applyPhotoMeasurements(input: {
   }
 
   let result;
+  let measuredOn: "ghost" | "photo" = "photo";
   try {
     result = estimateFromPhoto({
       landmarks: detection.landmarks,
@@ -198,6 +222,32 @@ async function applyPhotoMeasurements(input: {
       imageHeightPx: size.height,
       prior,
     });
+
+    if (ghost) {
+      // Anchor the ghost on the length the photo just established, so the
+      // ghost supplies proportions and the photo supplies scale.
+      const scaled = estimateFromPhoto({
+        landmarks: ghost.detection.landmarks,
+        imageWidthPx: ghost.size.width,
+        imageHeightPx: ghost.size.height,
+        prior: {
+          ...prior,
+          garmentLength: result.measured.garmentLength ?? prior.garmentLength,
+        },
+      });
+      // Length stays the photo's — on the ghost it IS the anchor, so reading it
+      // back would be circular. Everything else comes from the cleaner image.
+      result = {
+        ...scaled,
+        measured: {
+          ...scaled.measured,
+          garmentLength: result.measured.garmentLength,
+        },
+        fused: { ...scaled.fused, garmentLength: result.fused.garmentLength },
+        warnings: [...result.warnings, ...scaled.warnings],
+      };
+      measuredOn = "ghost";
+    }
   } catch {
     return null;
   }
@@ -278,6 +328,7 @@ async function applyPhotoMeasurements(input: {
     warnings: [...detection.warnings, ...result.warnings],
     imageWidthPx: size.width,
     imageHeightPx: size.height,
+    measuredOn,
   };
 }
 
@@ -354,12 +405,31 @@ export async function measureGarmentFromPhoto(
     valueHundredths: r.valueHundredths,
   }));
 
+  // Ghost FIRST: an isolated, straight-on garment render is a much cleaner
+  // surface to measure than a photo containing a model and a background.
+  let ghostUrl: string | null = null;
+  if (input.ghost !== false) {
+    try {
+      ghostUrl = await renderFalEdit(
+        input.image,
+        ghostMannequinPrompt({
+          garmentType: proposal.templateKey,
+          lengthBand: proposal.lengthBand,
+          points: proposal.points,
+        }),
+      );
+    } catch {
+      ghostUrl = null;
+    }
+  }
+
   let measurement: PhotoMeasurementSummary | null = null;
   try {
     measurement = await applyPhotoMeasurements({
       styleId,
       image: input.image,
       imageUrl,
+      ghostUrl,
       adapter,
       reconcile: {
         templateKey: proposal.templateKey,
@@ -373,29 +443,6 @@ export async function measureGarmentFromPhoto(
     });
   } catch {
     measurement = null;
-  }
-
-  let ghostUrl: string | null = null;
-  if (input.ghost !== false) {
-    try {
-      ghostUrl = await renderFalEdit(
-        input.image,
-        ghostMannequinPrompt({
-          garmentType: proposal.templateKey,
-          lengthBand: proposal.lengthBand,
-          points: proposal.points,
-          proportions: measurement
-            ? ghostProportions(
-                measurement.landmarks,
-                measurement.imageWidthPx,
-                measurement.imageHeightPx,
-              )
-            : undefined,
-        }),
-      );
-    } catch {
-      ghostUrl = null;
-    }
   }
 
   return {

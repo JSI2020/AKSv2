@@ -158,6 +158,17 @@ describe("garment sizing engine — end-to-end wiring", () => {
     }
   }, 60_000);
 
+  it("measures on the photo when no ghost is available", async () => {
+    const result = await measureGarmentFromPhoto({
+      image: pngFile(1000, 2000),
+      imageUrl: "https://example.test/garment.png",
+      ghost: false, // no ghost render at all
+      adapter: adapterFor(STYLE_JSON, LANDMARK_JSON),
+    });
+    expect(result.ghostUrl).toBeNull();
+    expect(result.measurement?.measuredOn).toBe("photo");
+  }, 60_000);
+
   it("falls back to the template when landmarks are unusable", async () => {
     const result = await measureGarmentFromPhoto({
       image: pngFile(1000, 2000),

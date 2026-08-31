@@ -1046,6 +1046,7 @@ export type StudioSizeChartResult =
       silhouetteLabel: string;
       /** Set when the photo itself was measured; null = style template only. */
       measured: {
+        measuredOn: "ghost" | "photo";
         captureContext: string;
         anchor: string;
         corrected: number;
@@ -1201,6 +1202,7 @@ export async function studioBuildSizeChartAction(
       valueHundredths: number;
     }> = [];
     let measured: {
+      measuredOn: "ghost" | "photo";
       captureContext: string;
       anchor: string;
       corrected: number;
@@ -1235,6 +1237,7 @@ export async function studioBuildSizeChartAction(
       const m = sizing.measurement;
       measured = m
         ? {
+            measuredOn: m.measuredOn,
             captureContext: m.landmarks.captureContext,
             anchor: m.anchor,
             corrected: m.applied.length,

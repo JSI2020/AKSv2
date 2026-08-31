@@ -52,7 +52,11 @@ export type {
   NormPoint,
 } from "./landmarks";
 
-export { imageSizeFromBytes, imageSizeFromFile } from "./image-size";
+export {
+  imageSizeFromBytes,
+  imageSizeFromFile,
+  imageSizeFromUrl,
+} from "./image-size";
 export type { ImageSize } from "./image-size";
 
 export {

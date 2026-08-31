@@ -55,6 +55,7 @@ type ChartState = {
   /** Set when the photo itself was measured; null = style template only. */
   standardRows: StudioChartRow[];
   measured: {
+    measuredOn: "ghost" | "photo";
     captureContext: string;
     anchor: string;
     corrected: number;
@@ -419,6 +420,7 @@ export function SizingTab() {
                   data={
                     chart.measured
                       ? {
+                          measuredOn: chart.measured.measuredOn,
                           captureContext: chart.measured.captureContext,
                           anchor: chart.measured.anchor,
                           corrected: chart.measured.corrected,

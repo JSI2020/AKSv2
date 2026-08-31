@@ -315,6 +315,7 @@ function PieceSizeGuide({
       setReport(
         m
           ? {
+              measuredOn: m.measuredOn,
               captureContext: m.landmarks.captureContext,
               anchor: m.anchor,
               corrected: m.applied.length,
