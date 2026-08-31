@@ -7,6 +7,10 @@ import type { CategorySeed } from "./sizing-catalogue";
 import { GARMENT_CATEGORY_SEEDS } from "./sizing-catalogue";
 import { RESEARCH_MEASURED_BLOCK_SEEDS } from "./sizing-research/research-measured-blocks";
 import { flatToFinished } from "./sizing-research/measurement-basis";
+import {
+  HOUSE_GRADE_BY_KEY,
+  HOUSE_STANDARD_BLOCKS,
+} from "./sizing-research/house-standard-blocks";
 
 export const STANDARD_SIZE_LABELS = [
   "XS",
@@ -93,6 +97,46 @@ function defaultBaseForKey(key: string, productType?: string): number {
   return inches(30);
 }
 
+/**
+ * A category with a house standard gets that block; anything still unspecified
+ * falls back to generic filler, which the placeholder detector then flags.
+ */
+function houseBlock(cat: CategorySeed): SizeBlockSeed {
+  const isFabric = cat.productType === "fabric";
+  const isAccessory = cat.productType === "accessory";
+  const spec = HOUSE_STANDARD_BLOCKS[cat.key];
+  const oneSize = isFabric || isAccessory;
+
+  if (!spec) return placeholderBlock(cat);
+
+  // Only the keys this category actually declares, so a trouser never grows a
+  // sleeve row just because the table lists one.
+  const rows = cat.measurementKeys
+    .map((key, i) => {
+      const value = spec.base[key];
+      if (value === undefined) return null;
+      const grade = oneSize ? 0 : (HOUSE_GRADE_BY_KEY[key] ?? 0.5);
+      return {
+        measurementKey: key,
+        baseValue: inches(value),
+        gradeIncrement: inches(grade),
+        sortOrder: (i + 1) * 10,
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (rows.length === 0) return placeholderBlock(cat);
+
+  return {
+    categoryKey: cat.key,
+    name: `${cat.key} house standard`,
+    notes: `${spec.note} Finished-garment measurements at base M — edit under Settings · Sizing · Blocks.`,
+    sizeLabels: oneSize ? ["One size"] : [...STANDARD_SIZE_LABELS],
+    baseSizeLabel: oneSize ? "One size" : DEFAULT_BASE_SIZE_LABEL,
+    rows,
+  };
+}
+
 function placeholderBlock(cat: CategorySeed): SizeBlockSeed {
   const isFabric = cat.productType === "fabric";
   const isAccessory = cat.productType === "accessory";
@@ -119,7 +163,7 @@ function placeholderBlock(cat: CategorySeed): SizeBlockSeed {
 
 const PLACEHOLDER_BLOCKS: SizeBlockSeed[] = GARMENT_CATEGORY_SEEDS.filter(
   (c) => !MEASURED_KEYS.has(c.key),
-).map(placeholderBlock);
+).map(houseBlock);
 
 /**
  * The research blocks were captured on flat-laid garments, so every loop

@@ -784,68 +784,15 @@ function PieceSizeGuide({
         </div>
       ) : null}
 
-      {activeBlockId && ghostSupported ? (
+      {activeBlockId ? (
         <div className="border-b border-ink/12 bg-greige/20 px-5 py-4">
-          <p className="mb-3 font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
-            Build from garment photo
-          </p>
-          <div className="mb-3 flex flex-wrap items-end gap-3">
-            <input
-              ref={photoRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => onPhotoSelected(e.target.files)}
-            />
-            <button
-              type="button"
-              disabled={recognizing}
-              onClick={() => photoRef.current?.click()}
-              className="border border-ink/15 px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-ink/70 hover:border-ink hover:text-ink disabled:opacity-40"
-            >
-              Choose photo
-            </button>
-            <button
-              type="button"
-              disabled={recognizing || !photoFile}
-              onClick={() => void onRecognizeFromPhoto()}
-              className="border border-zari bg-zari px-3 py-2 text-[11px] uppercase tracking-[0.06em] text-indigo disabled:opacity-40"
-            >
-              {recognizing ? "Building…" : "Build size chart"}
-            </button>
-            {photoFile ? (
-              <button
-                type="button"
-                disabled={recognizing}
-                onClick={() => {
-                  if (photoPreview) URL.revokeObjectURL(photoPreview);
-                  setPhotoPreview(null);
-                  setPhotoFile(null);
-                  setRecognizeMsg(null);
-                }}
-                className="text-[11px] text-ink/45 underline underline-offset-2 hover:text-ink"
-              >
-                Clear photo
-              </button>
-            ) : null}
-          </div>
-          <p className="mb-3 max-w-xl text-[11.5px] text-ink/55">
-            Front-on photo → AI recognises the cut, fills XS–XXL, and saves a
-            ghost mannequin with the design. Edit M below to adjust; grading
-            stays on the house step.
-          </p>
-          {reportReady ? (
-            <MeasurementReport data={report} tone="light" className="mb-2" />
-          ) : null}
-          {recognizeMsg ? (
-            <p className="mb-2 text-[11.5px] text-ink/60">{recognizeMsg}</p>
-          ) : null}
-
           {styleGroups.length > 0 ? (
-            <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2 border-t border-ink/10 pt-4">
+            <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
               <div className="flex flex-col gap-1">
                 <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
-                  Optional · cut this piece to a different standard
+                  This chart is a copy of the {titleCasePiece(pieceKey)} house
+                  standard — edit any value below. Optional: copy a different
+                  standard instead.
                 </span>
                 <select
                   value={styleKey}
