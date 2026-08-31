@@ -33,7 +33,7 @@ Report the image position of each visible point as integer PERCENTAGES of the im
 Definitions — be precise, these become real measurements:
 - captureContext: "flat_lay" if the garment lies flat on a surface; "on_model" if worn by a person; "on_mannequin" if on a dress form or ghost mannequin; "hanging" if on a hanger.
 - shoulderL/shoulderR: the outer ends of the shoulder seam, left then right as seen in the image.
-- pitL/pitR: the underarm points where the sleeve meets the body — the widest chest line.
+- pitL/pitR: the ARMHOLE SEAM where the sleeve joins the body, just under the armpit — the chest line. Critical: if the sleeves hang down alongside the body, do NOT use the outer edge of the sleeve. Follow the seam line inward to where the sleeve is stitched to the body and mark THAT point. The distance between pitL and pitR should be only slightly wider than the distance between shoulderL and shoulderR — never close to twice it.
 - waistL/waistR: the garment's narrowest points between pit and hem. Omit if the garment is a straight column with no narrowing.
 - hemL/hemR: the bottom corners of the garment's lower edge.
 - neckTop: the highest point of the neckline at the centre back or shoulder line. neckFront: the lowest point of the front neckline.

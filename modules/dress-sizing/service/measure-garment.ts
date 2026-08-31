@@ -275,7 +275,7 @@ async function applyPhotoMeasurements(input: {
     conflicts: result.conflicts,
     anchor: result.anchor.kind,
     landmarkConfidence: detection.confidence,
-    warnings: detection.warnings,
+    warnings: [...detection.warnings, ...result.warnings],
     imageWidthPx: size.width,
     imageHeightPx: size.height,
   };

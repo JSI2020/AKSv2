@@ -18,8 +18,8 @@ import type { Estimate } from "./fuse";
  */
 const FLAT_LAY: GarmentLandmarks = {
   captureContext: "flat_lay",
-  shoulderL: { x: 0.35, y: 0.1 },
-  shoulderR: { x: 0.65, y: 0.1 },
+  shoulderL: { x: 0.3, y: 0.1 },
+  shoulderR: { x: 0.7, y: 0.1 },
   pitL: { x: 0.25, y: 0.22 },
   pitR: { x: 0.75, y: 0.22 },
   hemL: { x: 0.25, y: 0.9 },
@@ -178,6 +178,48 @@ describe("photo-only estimation — scale anchored on priors", () => {
     expect(result.measured.sleeveLength).toBeUndefined();
     expect(result.measured.waist).toBeUndefined();
     expect(result.measured.neckDrop).toBeUndefined();
+  });
+
+  it("drops girths when the pit points land on the sleeve edge, keeping lengths", () => {
+    // shoulder span 0.20 of frame; pits reported at 0.44 = 2.2x — impossible
+    // for an armhole seam, and exactly what happens when sleeves hang alongside.
+    const sleeveEdge: GarmentLandmarks = {
+      ...FLAT_LAY,
+      shoulderL: { x: 0.4, y: 0.1 },
+      shoulderR: { x: 0.6, y: 0.1 },
+      pitL: { x: 0.28, y: 0.22 },
+      pitR: { x: 0.72, y: 0.22 },
+    };
+    const result = estimateFromPhoto({
+      landmarks: sleeveEdge,
+      imageWidthPx: 1000,
+      imageHeightPx: 1000,
+      prior: { garmentLength: LENGTH_PRIOR },
+    });
+    expect(result.measured.chest).toBeUndefined();
+    expect(result.measured.hemWidth).toBeUndefined();
+    // Lengths are unaffected by a bad pit reading.
+    expect(result.measured.garmentLength).toBeDefined();
+    expect(result.measured.shoulder).toBeDefined();
+    expect(result.warnings.join(" ")).toMatch(/shoulder width/);
+  });
+
+  it("keeps girths when the pit line is anatomically plausible", () => {
+    const ok: GarmentLandmarks = {
+      ...FLAT_LAY,
+      shoulderL: { x: 0.38, y: 0.1 },
+      shoulderR: { x: 0.62, y: 0.1 },
+      pitL: { x: 0.35, y: 0.22 },
+      pitR: { x: 0.65, y: 0.22 },
+    };
+    const result = estimateFromPhoto({
+      landmarks: ok,
+      imageWidthPx: 1000,
+      imageHeightPx: 1000,
+      prior: { garmentLength: LENGTH_PRIOR },
+    });
+    expect(result.measured.chest).toBeDefined();
+    expect(result.warnings).toEqual([]);
   });
 
   it("refuses to guess when there is neither a person nor a length prior", () => {

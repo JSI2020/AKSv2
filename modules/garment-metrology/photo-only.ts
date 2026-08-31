@@ -49,6 +49,23 @@ export type PhotoEstimateInput = {
   personHeight?: Estimate;
 };
 
+/**
+ * A garment's chest line sits only a little wider than its shoulder seam.
+ * When the reported pit points are far wider, they are almost certainly on the
+ * outer silhouette of sleeves hanging alongside the body rather than on the
+ * armhole seam — which inflates every girth enough to be rejected downstream.
+ * Outside this band the girths are dropped and the lengths kept.
+ */
+const PIT_TO_SHOULDER_BAND: Record<CaptureContext, [number, number]> = {
+  // Laid flat, the chest reads as HALF the girth — wider than the shoulder seam.
+  flat_lay: [0.95, 1.65],
+  // Worn, the visible chest is the ellipse's major axis, which on a human torso
+  // is close to the shoulder width. Anything much wider is sleeve, not body.
+  on_model: [0.8, 1.35],
+  on_mannequin: [0.8, 1.35],
+  hanging: [0.8, 1.5],
+};
+
 export type PhotoEstimateResult = {
   /** Prior ⊕ photo, per POM key — the values to write. */
   fused: Partial<Record<PhotoPomKey, Estimate>>;
@@ -56,6 +73,8 @@ export type PhotoEstimateResult = {
   measured: Partial<Record<PhotoPomKey, Estimate>>;
   /** POM keys where photo and prior tell irreconcilable stories. */
   conflicts: PhotoPomKey[];
+  /** Geometry problems that made some measurements untrustworthy. */
+  warnings: string[];
   anchor: { kind: "person_height" | "garment_length_prior"; relativeSd: number };
 };
 
@@ -181,19 +200,31 @@ export function estimateFromPhoto(
       ? flatLayGirthIn(widthIn)
       : onBodyGirthIn(widthIn, landmark);
 
-  const chestWidthIn = dist(lm.pitL, lm.pitR, w, h) / ppi;
-  record("chest", widthToGirth(chestWidthIn, "bust"), girthSd, anchorRelSd);
-
-  if (lm.waistL && lm.waistR) {
-    const waistWidthIn = dist(lm.waistL, lm.waistR, w, h) / ppi;
-    record("waist", widthToGirth(waistWidthIn, "waist"), girthSd, anchorRelSd);
-  }
-
-  const hemWidthIn = dist(lm.hemL, lm.hemR, w, h) / ppi;
-  record("hemWidth", widthToGirth(hemWidthIn, "hem"), girthSd, anchorRelSd);
+  const warnings: string[] = [];
 
   const shoulderIn = dist(lm.shoulderL, lm.shoulderR, w, h) / ppi;
   record("shoulder", shoulderIn, lengthSd, anchorRelSd);
+
+  const chestWidthIn = dist(lm.pitL, lm.pitR, w, h) / ppi;
+  const pitRatio = shoulderIn > 0 ? chestWidthIn / shoulderIn : 0;
+  const [pitMin, pitMax] = PIT_TO_SHOULDER_BAND[ctx];
+  const pitsTrustworthy = pitRatio >= pitMin && pitRatio <= pitMax;
+
+  if (pitsTrustworthy) {
+    record("chest", widthToGirth(chestWidthIn, "bust"), girthSd, anchorRelSd);
+
+    if (lm.waistL && lm.waistR) {
+      const waistWidthIn = dist(lm.waistL, lm.waistR, w, h) / ppi;
+      record("waist", widthToGirth(waistWidthIn, "waist"), girthSd, anchorRelSd);
+    }
+
+    const hemWidthIn = dist(lm.hemL, lm.hemR, w, h) / ppi;
+    record("hemWidth", widthToGirth(hemWidthIn, "hem"), girthSd, anchorRelSd);
+  } else {
+    warnings.push(
+      `Chest line reads ${pitRatio.toFixed(2)}× the shoulder width (expected ${pitMin}–${pitMax} for a ${ctx.replace("_", " ")} photo) — the pit points look like they landed on the sleeve edge rather than the armhole seam, so girths were taken from the house template instead.`,
+    );
+  }
 
   // Length is exact when it IS the anchor; ratio-derived otherwise.
   const lengthIn = dist(shoulderMid, hemMid, w, h) / ppi;
@@ -242,6 +273,7 @@ export function estimateFromPhoto(
     fused,
     measured,
     conflicts,
+    warnings,
     anchor: { kind: anchorKind, relativeSd: anchorRelSd },
   };
 }
