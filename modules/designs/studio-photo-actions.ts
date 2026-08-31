@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq, max } from "drizzle-orm";
+import { and, asc, eq, inArray, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -214,10 +214,13 @@ export async function syncStudioColourways(
     }
 
     for (let i = 0; i < rows.length; i++) {
-      await upsertFabricSwatchForColourway(
+      await upsertFabricSwatchesForColourway(
         designId,
         keptIds[i]!,
-        rows[i]!.fabricId,
+        [
+          rows[i]!.fabricId,
+          ...Object.values(rows[i]!.pieceFabrics ?? {}),
+        ],
         session,
       );
     }
@@ -427,18 +430,25 @@ export async function attachReferencePhoto(
 }
 
 /** Attach or refresh the inventory fabric swatch as the last photo for a colourway. */
-async function upsertFabricSwatchForColourway(
+/**
+ * Keep one inventory swatch photo per DISTINCT fabric in a colour set.
+ *
+ * A set can dress its pieces in different cloth — an aubergine kameez over a
+ * blush trouser — and a single swatch would show only one of them. Every
+ * distinct fabric that has an inventory photo gets its own render, so the
+ * customer sees both. Duplicates collapse: pieces sharing a fabric produce one
+ * photo, not two identical ones.
+ */
+async function upsertFabricSwatchesForColourway(
   designId: string,
   colourwayId: string,
-  fabricId: string,
+  fabricIds: readonly string[],
   actor: { user: { id: string; role: string } },
 ): Promise<void> {
-  const [fabric] = await db
-    .select({ swatchAssetId: fabrics.swatchAssetId })
-    .from(fabrics)
-    .where(eq(fabrics.id, fabricId))
-    .limit(1);
+  const distinct = [...new Set(fabricIds.filter(Boolean))];
 
+  // Replace the whole swatch set for this colourway — a fabric swapped out
+  // must not leave its photo behind.
   await db
     .delete(designRenders)
     .where(
@@ -449,7 +459,21 @@ async function upsertFabricSwatchForColourway(
       ),
     );
 
-  if (!fabric?.swatchAssetId) return;
+  if (distinct.length === 0) return;
+
+  const rows = await db
+    .select({ id: fabrics.id, swatchAssetId: fabrics.swatchAssetId })
+    .from(fabrics)
+    .where(inArray(fabrics.id, distinct));
+
+  // Preserve the order the pieces were given in, not the database's.
+  const withSwatch = distinct
+    .map((id) => rows.find((r) => r.id === id))
+    .filter(
+      (r): r is { id: string; swatchAssetId: string } =>
+        Boolean(r?.swatchAssetId),
+    );
+  if (withSwatch.length === 0) return;
 
   const [maxRow] = await db
     .select({ n: max(designRenders.sortOrder) })
@@ -461,28 +485,35 @@ async function upsertFabricSwatchForColourway(
       ),
     );
 
-  const id = uuidv7();
-  await db.insert(designRenders).values({
-    id,
-    designId,
-    colourwayId,
-    angle: "DETAIL",
-    assetId: fabric.swatchAssetId,
-    altText: FABRIC_SWATCH_ALT,
-    isAiGenerated: false,
-    sortOrder: (maxRow?.n ?? -1) + 1,
-  });
+  let sortOrder = (maxRow?.n ?? -1) + 1;
+  for (const fabric of withSwatch) {
+    const id = uuidv7();
+    await db.insert(designRenders).values({
+      id,
+      designId,
+      colourwayId,
+      angle: "DETAIL",
+      assetId: fabric.swatchAssetId,
+      altText: FABRIC_SWATCH_ALT,
+      isAiGenerated: false,
+      sortOrder: sortOrder++,
+    });
 
-  await insertAuditLog(db, {
-    id: uuidv7(),
-    actorId: actor.user.id,
-    actorRole: actor.user.role,
-    action: "design.render.fabric_swatch.sync",
-    entityType: "design_render",
-    entityId: id,
-    before: null,
-    after: { colourwayId, fabricId, assetId: fabric.swatchAssetId },
-  });
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: actor.user.id,
+      actorRole: actor.user.role,
+      action: "design.render.fabric_swatch.sync",
+      entityType: "design_render",
+      entityId: id,
+      before: null,
+      after: {
+        colourwayId,
+        fabricId: fabric.id,
+        assetId: fabric.swatchAssetId,
+      },
+    });
+  }
 }
 
 export async function syncFabricSwatchRender(
@@ -507,10 +538,10 @@ export async function syncFabricSwatchRender(
       return { ok: false, error: "Fabric not found" };
     }
 
-    await upsertFabricSwatchForColourway(
+    await upsertFabricSwatchesForColourway(
       designId,
       colourwayId,
-      fabricId,
+      [fabricId],
       session,
     );
 

@@ -470,7 +470,7 @@ export function DesignPhotosTab({
                             </div>
                             {autoSwatch ? (
                               <p className="text-[11px] text-ink/45">
-                                From inventory · updates when you change fabric
+                                From inventory · one per fabric, updates when you change them
                               </p>
                             ) : (
                               <>
