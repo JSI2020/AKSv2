@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -23,6 +23,7 @@ import {
 } from "@/modules/photoreal/commercial-poses";
 import { resolveStudioBackgroundPrompt } from "@/modules/designs/studio-backgrounds";
 import { processManualStudioGenerations } from "@/modules/designs/process-manual-studio-generations";
+import { FABRIC_SWATCH_ALT } from "@/modules/designs/fabric-swatch-render";
 
 type DesignActionResult =
   | { ok: true; id?: string; colourwayIds?: string[] }
@@ -210,6 +211,15 @@ export async function syncStudioColourways(
       if (!keptIds.includes(ex.id)) {
         await db.delete(colourways).where(eq(colourways.id, ex.id));
       }
+    }
+
+    for (let i = 0; i < rows.length; i++) {
+      await upsertFabricSwatchForColourway(
+        designId,
+        keptIds[i]!,
+        rows[i]!.fabricId,
+        session,
+      );
     }
 
     await insertAuditLog(db, {
@@ -413,5 +423,100 @@ export async function attachReferencePhoto(
       ok: false,
       error: e instanceof Error ? e.message : "Attach failed",
     };
+  }
+}
+
+/** Attach or refresh the inventory fabric swatch as the last photo for a colourway. */
+async function upsertFabricSwatchForColourway(
+  designId: string,
+  colourwayId: string,
+  fabricId: string,
+  actor: { user: { id: string; role: string } },
+): Promise<void> {
+  const [fabric] = await db
+    .select({ swatchAssetId: fabrics.swatchAssetId })
+    .from(fabrics)
+    .where(eq(fabrics.id, fabricId))
+    .limit(1);
+
+  await db
+    .delete(designRenders)
+    .where(
+      and(
+        eq(designRenders.designId, designId),
+        eq(designRenders.colourwayId, colourwayId),
+        eq(designRenders.altText, FABRIC_SWATCH_ALT),
+      ),
+    );
+
+  if (!fabric?.swatchAssetId) return;
+
+  const [maxRow] = await db
+    .select({ n: max(designRenders.sortOrder) })
+    .from(designRenders)
+    .where(
+      and(
+        eq(designRenders.designId, designId),
+        eq(designRenders.colourwayId, colourwayId),
+      ),
+    );
+
+  const id = uuidv7();
+  await db.insert(designRenders).values({
+    id,
+    designId,
+    colourwayId,
+    angle: "DETAIL",
+    assetId: fabric.swatchAssetId,
+    altText: FABRIC_SWATCH_ALT,
+    isAiGenerated: false,
+    sortOrder: (maxRow?.n ?? -1) + 1,
+  });
+
+  await insertAuditLog(db, {
+    id: uuidv7(),
+    actorId: actor.user.id,
+    actorRole: actor.user.role,
+    action: "design.render.fabric_swatch.sync",
+    entityType: "design_render",
+    entityId: id,
+    before: null,
+    after: { colourwayId, fabricId, assetId: fabric.swatchAssetId },
+  });
+}
+
+export async function syncFabricSwatchRender(
+  formData: FormData,
+): Promise<DesignActionResult> {
+  try {
+    const session = await requirePermission("designs.edit");
+    const designId = String(formData.get("designId") ?? "");
+    const colourwayId = String(formData.get("colourwayId") ?? "");
+    const fabricId = String(formData.get("fabricId") ?? "");
+
+    if (!designId || !colourwayId || !fabricId) {
+      return { ok: false, error: "Invalid fabric swatch sync" };
+    }
+
+    const [fabric] = await db
+      .select({ id: fabrics.id })
+      .from(fabrics)
+      .where(eq(fabrics.id, fabricId))
+      .limit(1);
+    if (!fabric) {
+      return { ok: false, error: "Fabric not found" };
+    }
+
+    await upsertFabricSwatchForColourway(
+      designId,
+      colourwayId,
+      fabricId,
+      session,
+    );
+
+    revalidatePath(`/admin/designs/${designId}`);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: formatActionError(e) };
   }
 }

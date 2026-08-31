@@ -3,6 +3,7 @@
 import { useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import type { RenderAngle } from "@aks/shared";
 import {
@@ -10,6 +11,8 @@ import {
   upsertDesignRender,
 } from "./actions";
 import type { DesignDetail } from "./actions";
+import { isFabricSwatchRender } from "./fabric-swatch-render";
+import { photosForColourway } from "./design-render-helpers";
 import { syncStudioColourways } from "./studio-photo-actions";
 
 type FormOptions = {
@@ -73,19 +76,12 @@ function allFabricsChosen(sets: ColourSet[], components: string[]): boolean {
   );
 }
 
-function photosForColourway(
-  renders: DesignRender[],
-  colourwayId: string,
-): DesignRender[] {
-  return renders
-    .filter((r) => r.colourwayId === colourwayId && !r.isAiGenerated)
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.angle.localeCompare(b.angle));
-}
-
 /** First slots map to storefront gallery angles; extras are DETAIL. */
 function suggestAngle(renders: DesignRender[], colourwayId: string): RenderAngle {
   const used = new Set(
-    photosForColourway(renders, colourwayId).map((r) => r.angle),
+    photosForColourway(renders, colourwayId)
+      .filter((r) => !isFabricSwatchRender(r))
+      .map((r) => r.angle),
   );
   if (!used.has("FRONT")) return "FRONT";
   if (!used.has("THREE_QUARTER")) return "THREE_QUARTER";
@@ -130,6 +126,8 @@ export function DesignPhotosTab({
 
   const fabricsReady = allFabricsChosen(sets, components);
 
+  const router = useRouter();
+
   const fabricById = useMemo(() => {
     return new Map(options.fabrics.map((f) => [f.id, f]));
   }, [options.fabrics]);
@@ -146,20 +144,11 @@ export function DesignPhotosTab({
     });
   }
 
-  function updateSetFabric(setIdx: number, comp: string, fabricId: string) {
-    setSets((prev) =>
-      prev.map((s, i) =>
-        i === setIdx
-          ? { ...s, fabrics: { ...s.fabrics, [comp]: fabricId } }
-          : s,
-      ),
-    );
-  }
 
-  function buildColourwayRows() {
+  function buildColourwayRows(fromSets: ColourSet[] = sets) {
     const primary = components[0];
-    if (!primary || !fabricsReady) return [];
-    return sets.map((set, i) => {
+    if (!primary || !allFabricsChosen(fromSets, components)) return [];
+    return fromSets.map((set, i) => {
       const primaryFabric = set.fabrics[primary] ?? "";
       const name = fabricById.get(primaryFabric)?.name ?? `Set ${i + 1}`;
       return {
@@ -181,8 +170,8 @@ export function DesignPhotosTab({
     return parts.join(" — ");
   }
 
-  async function syncColourways(): Promise<string[] | null> {
-    const rows = buildColourwayRows();
+  async function syncColourways(fromSets: ColourSet[] = sets): Promise<string[] | null> {
+    const rows = buildColourwayRows(fromSets);
     const syncFd = new FormData();
     syncFd.set("designId", detail.design.id);
     syncFd.set("colourwaysJson", JSON.stringify(rows));
@@ -198,6 +187,35 @@ export function DesignPhotosTab({
       );
     }
     return ids;
+  }
+
+  async function onFabricSelected(
+    setIdx: number,
+    comp: string,
+    fabricId: string,
+  ): Promise<void> {
+    const nextSets = sets.map((set, index) =>
+      index === setIdx
+        ? { ...set, fabrics: { ...set.fabrics, [comp]: fabricId } }
+        : set,
+    );
+    setSets(nextSets);
+
+    if (!allFabricsChosen(nextSets, components)) {
+      return;
+    }
+
+    setUploadingSetIdx(setIdx);
+    setUploadError(null);
+    try {
+      const colourwayIds = await syncColourways(nextSets);
+      if (!colourwayIds) return;
+      router.refresh();
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Fabric swatch failed");
+    } finally {
+      setUploadingSetIdx(null);
+    }
   }
 
   async function uploadAsset(file: File): Promise<string> {
@@ -325,8 +343,9 @@ export function DesignPhotosTab({
               Colour sets · fabric per piece
             </p>
             <p className="mt-1 text-[12px] text-ink/45">
-              Each set is one storefront colourway. Add as many photos as you
-              need — one is enough to publish.
+              Each set is one storefront colourway. Choosing a fabric adds its
+              inventory photo last. Add garment shots with Add photo — one is
+              enough to publish.
             </p>
           </div>
           <label className="flex items-center gap-2 text-[13px] text-ink">
@@ -371,7 +390,7 @@ export function DesignPhotosTab({
                       <select
                         value={set.fabrics[comp] ?? ""}
                         onChange={(e) =>
-                          updateSetFabric(setIdx, comp, e.target.value)
+                          void onFabricSelected(setIdx, comp, e.target.value)
                         }
                         className={fieldClass()}
                       >
@@ -417,7 +436,17 @@ export function DesignPhotosTab({
 
                     {photos.length > 0 ? (
                       <ul className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                        {photos.map((render, photoIdx) => (
+                        {photos.map((render, photoIdx) => {
+                          const autoSwatch = isFabricSwatchRender(render);
+                          const primaryFabricId =
+                            primary && set.fabrics[primary]
+                              ? set.fabrics[primary]
+                              : null;
+                          const swatchName = primaryFabricId
+                            ? fabricById.get(primaryFabricId)?.name
+                            : null;
+
+                          return (
                           <li
                             key={render.id}
                             className="flex flex-col gap-2 border border-ink/10 bg-greige/20 p-3"
@@ -427,9 +456,11 @@ export function DesignPhotosTab({
                                 <Image
                                   src={render.previewUrl}
                                   alt={
-                                    altByRenderId[render.id] ??
-                                    render.altText ??
-                                    `Photo ${photoIdx + 1}`
+                                    autoSwatch
+                                      ? (swatchName ?? "Fabric swatch")
+                                      : (altByRenderId[render.id] ??
+                                        render.altText ??
+                                        `Photo ${photoIdx + 1}`)
                                   }
                                   fill
                                   unoptimized
@@ -437,6 +468,12 @@ export function DesignPhotosTab({
                                 />
                               ) : null}
                             </div>
+                            {autoSwatch ? (
+                              <p className="text-[11px] text-ink/45">
+                                From inventory · updates when you change fabric
+                              </p>
+                            ) : (
+                              <>
                             <label className="flex flex-col gap-1">
                               <span className="text-[10px] uppercase tracking-[0.1em] text-ink/40">
                                 Alt text
@@ -471,8 +508,11 @@ export function DesignPhotosTab({
                             >
                               Remove
                             </button>
+                              </>
+                            )}
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     ) : (
                       <label className="relative mt-4 flex min-h-[160px] cursor-pointer flex-col items-center justify-center gap-2 border border-dashed border-ink/15 bg-greige/30 p-6 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-50">
