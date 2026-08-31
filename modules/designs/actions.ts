@@ -1291,6 +1291,7 @@ export async function getDesignFormOptions() {
           id: garmentCategories.id,
           key: garmentCategories.key,
           name: garmentCategories.name,
+          requiresGhostMannequin: garmentCategories.requiresGhostMannequin,
         })
         .from(garmentCategories)
         .where(eq(garmentCategories.active, true))

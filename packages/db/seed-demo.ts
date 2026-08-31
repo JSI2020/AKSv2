@@ -359,8 +359,9 @@ async function seedDemo() {
     console.log(`created size block for ${cat}`);
   }
 
-  // --- fabric lots ---
-  if (existingDemoLots.length === 0) {
+  // --- fabric lots (opt-in — pollutes manual step-by-step admin workflows) ---
+  const seedDemoLots = process.env.SEED_DEMO_FABRIC_LOTS === "1";
+  if (seedDemoLots && existingDemoLots.length === 0) {
     for (const [i, fabric] of fabricRows.entries()) {
       // Hundredths of a metre — keep ample AVAILABLE stock for order transitions
       const meters = 50_000;
@@ -379,12 +380,9 @@ async function seedDemo() {
       });
     }
     console.log(`seeded ${fabricRows.length} fabric lots`);
+  } else if (!seedDemoLots) {
+    console.log("skip fabric lots (set SEED_DEMO_FABRIC_LOTS=1 to seed 500m DEMO lots)");
   }
-  // Always ensure DEMO lots can satisfy reservation/cutting during order transitions
-  await db
-    .update(fabricLots)
-    .set({ metersOnHand: 50_000, metersReserved: 0, status: "AVAILABLE" })
-    .where(like(fabricLots.lotCode, "DEMO-%"));
 
   type SeededPiece = {
     designId: string;

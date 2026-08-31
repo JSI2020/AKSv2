@@ -65,8 +65,5 @@ export function evaluatePublishChecklist(input: {
   if (Object.keys(input.design.fitProfileIds ?? {}).length < 1) {
     missing.push("fit profile");
   }
-  if (!input.tags.some((t) => t.kind === "OCCASION")) {
-    missing.push("≥1 occasion tag");
-  }
   return missing;
 }

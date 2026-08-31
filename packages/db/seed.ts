@@ -89,9 +89,9 @@ async function seed() {
   }
 
   const ownerEmail = process.env.OWNER_EMAIL?.trim().toLowerCase();
-  const ownerName = process.env.OWNER_NAME?.trim();
+  const ownerName = process.env.OWNER_NAME?.trim() || "Demo Owner";
 
-  if (ownerEmail && ownerName) {
+  if (ownerEmail) {
     const existing = await db
       .select({ id: users.id, role: users.role })
       .from(users)
@@ -104,7 +104,11 @@ async function seed() {
           `OWNER_EMAIL ${ownerEmail} already exists as ${existing[0].role} — not promoting`,
         );
       } else {
-        console.log(`OWNER already present: ${ownerEmail}`);
+        await db
+          .update(users)
+          .set({ name: ownerName, updatedAt: new Date() })
+          .where(eq(users.id, existing[0].id));
+        console.log(`OWNER already present: ${ownerEmail} (${ownerName})`);
       }
     } else {
       const ownerCount = await db
@@ -131,7 +135,7 @@ async function seed() {
       }
     }
   } else {
-    console.log("OWNER_EMAIL / OWNER_NAME not set — skipping owner bootstrap");
+    console.log("OWNER_EMAIL not set — skipping owner bootstrap");
   }
 
   // --- Sizing: measurement keys + garment categories ---

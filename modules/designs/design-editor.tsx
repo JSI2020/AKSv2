@@ -28,7 +28,12 @@ import {
 import { tabReadiness } from "./tab-readiness";
 
 type FormOptions = {
-  categories: { id: string; key: string; name: string }[];
+  categories: {
+    id: string;
+    key: string;
+    name: string;
+    requiresGhostMannequin: boolean;
+  }[];
   fabrics: { id: string; name: string; swatchAssetId?: string | null }[];
   blocks: { id: string; name: string; categoryId: string }[];
   profiles: { id: string; name: string; categoryId: string }[];
@@ -108,6 +113,50 @@ function Field({
 
 function savedComponentKeys(detail: DesignDetail): string[] {
   return detail.design.components ?? [];
+}
+
+/** Group the house categories so a 38-item list stays readable. */
+const PIECE_GROUPS: { label: string; match: (key: string) => boolean }[] = [
+  {
+    label: "Upper body",
+    match: (k) =>
+      /^(KAMEEZ|KURTA|KURTI|SHIRT|STRAIGHT_SHIRT|A_LINE_SHIRT|ANGRAKHA|BLOUSE_CHOLI|WAISTCOAT|JACKET|CAPE)$/.test(
+        k,
+      ),
+  },
+  {
+    label: "Full length",
+    match: (k) =>
+      /^(GOWN|ABAYA|ANARKALI|KAFTAN|MAXI_DRESS|FROCK|PESHWAAS)$/.test(k),
+  },
+  {
+    label: "Lower body",
+    match: (k) =>
+      /^(TROUSER|PANT|PALAZZO|SHALWAR|CAPRI|CULOTTE|SHARARA|GHARARA|SKIRT|LEHENGA)$/.test(
+        k,
+      ),
+  },
+  {
+    label: "Drapes & sets",
+    match: (k) =>
+      /^(DUPATTA|SHAWL|SAREE|CO_ORD_SET|UNSTITCHED_1PC|UNSTITCHED_2PC|UNSTITCHED_3PC)$/.test(
+        k,
+      ),
+  },
+  { label: "Other", match: () => true },
+];
+
+function titleCaseKey(key: string): string {
+  return key
+    .toLowerCase()
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/** Categories left behind by prove-* scripts are not house pieces. */
+function isTestArtifactCategory(key: string): boolean {
+  return /^prove-/i.test(key);
 }
 
 function componentKeysOf(detail: DesignDetail): string[] {
@@ -648,6 +697,10 @@ function DetailsTab({
     : componentKeysOf(detail);
   const [components, setComponents] = useState<string[]>(initialComponents);
   const doorTags = new Set(options.houseDoors.map((d) => d.tag.toUpperCase()));
+  // prove-* rows are leftovers from a test script, not house pieces.
+  const selectableCategories = options.categories.filter(
+    (c) => !isTestArtifactCategory(c.key),
+  );
   const [occasionTags, setOccasionTags] = useState<string[]>(() =>
     detail.tags.filter((t) => t.kind === "OCCASION").map((t) => t.value),
   );
@@ -697,28 +750,69 @@ function DetailsTab({
       </Panel>
 
       <Panel title="Pieces">
-        <div className="flex flex-wrap gap-2">
-          {options.categories.map((c) => {
-            const on = components.includes(c.key);
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleComponent(c.key)}
-                className={
-                  on
-                    ? "bg-zari px-2.5 py-1.5 font-data text-[10.5px] text-indigo"
-                    : "border border-ink/12 px-2.5 py-1.5 font-data text-[10.5px] text-ink/55"
-                }
-              >
-                {c.key}
-              </button>
-            );
-          })}
+        <div className="flex flex-col gap-2">
+          <select
+            value=""
+            onChange={(e) => {
+              if (e.target.value) toggleComponent(e.target.value);
+            }}
+            className={fieldClass()}
+          >
+            <option value="">Add a piece…</option>
+            {PIECE_GROUPS.map((group) => {
+              const available = selectableCategories.filter(
+                (c) =>
+                  group.match(c.key) && !components.includes(c.key),
+              );
+              if (available.length === 0) return null;
+              return (
+                <optgroup key={group.label} label={group.label}>
+                  {available.map((c) => (
+                    <option key={c.id} value={c.key}>
+                      {titleCaseKey(c.key)}
+                      {c.requiresGhostMannequin ? "" : " · no ghost"}
+                    </option>
+                  ))}
+                </optgroup>
+              );
+            })}
+          </select>
+
+          {components.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {components.map((key) => {
+                const cat = selectableCategories.find((c) => c.key === key);
+                return (
+                  <span
+                    key={key}
+                    className="inline-flex items-center gap-2 bg-zari px-2.5 py-1.5 text-[11.5px] text-indigo"
+                  >
+                    {titleCaseKey(key)}
+                    {cat && !cat.requiresGhostMannequin ? (
+                      <span className="text-[10px] text-indigo/70">no ghost</span>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => toggleComponent(key)}
+                      aria-label={`Remove ${key}`}
+                      className="leading-none text-indigo/70 hover:text-madder"
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-[12px] text-madder">
+              Pick at least one piece — publishing needs it, and the Sizing tab
+              builds one chart per piece.
+            </p>
+          )}
         </div>
         <p className="mt-3 text-[12px] text-ink/45">
           One, two, or three pieces — the Sizing tab builds one table per piece
-          selected here.
+          selected here, starting from that category&apos;s standard chart.
         </p>
       </Panel>
 
@@ -739,7 +833,7 @@ function DetailsTab({
           </select>
         </label>
         <div className="mb-4 flex flex-col gap-1.5">
-          <Label>Occasion · at least one is required to publish</Label>
+          <Label>Occasion · optional, used for storefront filtering</Label>
           <div className="flex flex-wrap gap-1.5">
             {DESIGN_TAG_VALUES.OCCASION.map((value) => {
               const on = occasionTags.includes(value);
@@ -767,8 +861,9 @@ function DetailsTab({
             })}
           </div>
           {occasionTags.length === 0 ? (
-            <p className="text-[11.5px] text-madder">
-              Pick when this piece is worn — the storefront filters by it.
+            <p className="text-[11.5px] text-ink/45">
+              Optional — tag when this piece is worn and the storefront can
+              filter by it.
             </p>
           ) : null}
         </div>

@@ -243,3 +243,35 @@ export const navItems = pgTable("nav_items", {
     .notNull()
     .defaultNow(),
 });
+
+/** Storefront house doors — Essentials, Tailored, etc. Admin-managed. */
+export const houseCollections = pgTable(
+  "house_collections",
+  {
+    id: uuid("id").primaryKey(),
+    /** FREE design tag value, e.g. ESSENTIALS */
+    tag: text("tag").notNull(),
+    /** URL slug under /collections/[slug] */
+    slug: text("slug").notNull(),
+    /** Item number middle code, e.g. es */
+    itemCode: text("item_code").notNull(),
+    navLabel: text("nav_label").notNull(),
+    title: text("title").notNull(),
+    tagline: text("tagline").notNull().default(""),
+    card: text("card").notNull().default(""),
+    intro: text("intro").notNull().default(""),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("house_collections_tag_uidx").on(t.tag),
+    uniqueIndex("house_collections_slug_uidx").on(t.slug),
+    uniqueIndex("house_collections_item_code_uidx").on(t.itemCode),
+  ],
+);

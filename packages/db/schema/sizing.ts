@@ -50,4 +50,13 @@ export const garmentCategories = pgTable("garment_categories", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
+  /**
+   * Whether a ghost-mannequin render suits this category. The ghost is an
+   * upper-body form, so bottoms and flat drapes take none. Editable from
+   * Settings so the house can change it without a deploy.
+   */
+  requiresGhostMannequin: boolean("requires_ghost_mannequin")
+    .notNull()
+    .default(true),
+
 });

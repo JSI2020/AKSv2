@@ -288,6 +288,13 @@
       "when": 1787840001000,
       "tag": "0040_design_sizing_overlay",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1787840002000,
+      "tag": "0041_category_ghost_mannequin",
+      "breakpoints": true
     }
   ]
 }
