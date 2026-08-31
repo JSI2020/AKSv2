@@ -9,6 +9,7 @@ import { getSizeBlock } from "@/modules/sizing/block-actions";
 import { resolveChart } from "@/modules/sizing/engine";
 import type { DesignCostingData } from "@/modules/money/queries";
 import type { DesignDetail } from "./actions";
+import { photosForColourway } from "./design-render-helpers";
 
 function Label({ children }: { children: ReactNode }) {
   return (
@@ -274,9 +275,7 @@ export function PreviewPublishTab({
       detail.colourways[0]?.id ??
       "",
   );
-  const [angle, setAngle] = useState<"FRONT" | "THREE_QUARTER" | "BACK">(
-    "FRONT",
-  );
+  const [activePhotoIdx, setActivePhotoIdx] = useState(0);
   const [sizeLabel, setSizeLabel] = useState(sizes[2] ?? sizes[0] ?? "M");
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideRows, setGuideRows] = useState<
@@ -296,22 +295,12 @@ export function PreviewPublishTab({
     detail.colourways.find((c) => c.id === colourwayId) ??
     detail.colourways[0];
 
-  const imagesForCw = useMemo(() => {
-    const shots = detail.renders.filter(
-      (r) => !selectedCw || r.colourwayId === selectedCw.id || !r.isAiGenerated,
-    );
-    const byAngle = {
-      FRONT: shots.find((r) => r.angle === "FRONT"),
-      THREE_QUARTER: shots.find((r) => r.angle === "THREE_QUARTER"),
-      BACK: shots.find((r) => r.angle === "BACK"),
-    };
-    return byAngle;
+  const previewPhotos = useMemo(() => {
+    if (!selectedCw) return [];
+    return photosForColourway(detail.renders, selectedCw.id);
   }, [detail.renders, selectedCw]);
 
-  const activeImage =
-    imagesForCw[angle] ??
-    imagesForCw.FRONT ??
-    detail.renders.find((r) => r.previewUrl);
+  const activePhoto = previewPhotos[activePhotoIdx] ?? previewPhotos[0];
 
   async function openGuide() {
     setGuideOpen(true);
@@ -351,10 +340,10 @@ export function PreviewPublishTab({
       <div className="grid gap-8 border border-ink/12 bg-milk p-5 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-3">
           <div className="relative aspect-[3/4] max-h-[28rem] border border-ink/10 bg-greige/40">
-            {activeImage?.previewUrl ? (
+            {activePhoto?.previewUrl ? (
               <Image
-                src={activeImage.previewUrl}
-                alt={activeImage.altText || d.name}
+                src={activePhoto.previewUrl}
+                alt={activePhoto.altText || d.name}
                 fill
                 unoptimized
                 className="object-cover"
@@ -365,28 +354,34 @@ export function PreviewPublishTab({
               </div>
             )}
           </div>
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["FRONT", "Front"],
-                ["THREE_QUARTER", "Three-quarter"],
-                ["BACK", "Back"],
-              ] as const
-            ).map(([a, label]) => (
-              <button
-                key={a}
-                type="button"
-                onClick={() => setAngle(a)}
-                className={
-                  angle === a
-                    ? "border-b-2 border-ink px-2 py-1 text-[12px] text-ink"
-                    : "border-b-2 border-transparent px-2 py-1 text-[12px] text-ink/45 hover:text-ink"
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {previewPhotos.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {previewPhotos.map((photo, idx) => (
+                <button
+                  key={photo.id}
+                  type="button"
+                  onClick={() => setActivePhotoIdx(idx)}
+                  className={
+                    activePhotoIdx === idx
+                      ? "relative aspect-[3/4] w-16 border border-ink"
+                      : "relative aspect-[3/4] w-16 border border-ink/15"
+                  }
+                  aria-label={photo.altText || d.name}
+                  aria-current={activePhotoIdx === idx ? "true" : undefined}
+                >
+                  {photo.previewUrl ? (
+                    <Image
+                      src={photo.previewUrl}
+                      alt=""
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-4">
@@ -418,7 +413,10 @@ export function PreviewPublishTab({
                     key={cw.id}
                     type="button"
                     title={cw.name}
-                    onClick={() => setColourwayId(cw.id)}
+                    onClick={() => {
+                      setColourwayId(cw.id);
+                      setActivePhotoIdx(0);
+                    }}
                     className={
                       colourwayId === cw.id
                         ? "flex items-center gap-2 border border-ink px-2 py-1.5 text-[12px] text-ink"

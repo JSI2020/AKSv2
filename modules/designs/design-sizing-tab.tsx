@@ -44,6 +44,7 @@ import {
   updateDesignPieceBaseSizes,
 } from "@/modules/sizing/fork-actions";
 import {
+  deleteSizeChartRow,
   saveSizingOverlay,
 } from "./sizing-overlay-actions";
 import type { OverlayPlacements } from "@/modules/sizing/garment-size-guide";
@@ -282,6 +283,7 @@ function PieceSizeGuide({
   );
   const [adjusting, setAdjusting] = useState(false);
   const [overlayMsg, setOverlayMsg] = useState<string | null>(null);
+  const [removingKey, setRemovingKey] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recognizing, setRecognizing] = useState(false);
@@ -971,6 +973,9 @@ function PieceSizeGuide({
                       {s === block.baseSizeLabel ? " · base" : ""}
                     </th>
                   ))}
+                  <th className="border-b border-ink px-2 py-2 text-end font-sans text-[10px] font-normal uppercase tracking-[0.08em] text-ink/40">
+                    Remove
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1047,6 +1052,41 @@ function PieceSizeGuide({
                         </td>
                       );
                     })}
+                    <td className="border-b border-ink/10 px-2 py-2 text-end">
+                      <button
+                        type="button"
+                        title={`Remove ${
+                          MEASURE_LABEL.get(row.measurementKey) ??
+                          row.measurementKey
+                        } from this design's chart`}
+                        disabled={pending || removingKey === row.measurementKey}
+                        onClick={() => {
+                          void (async () => {
+                            setRemovingKey(row.measurementKey);
+                            const res = await deleteSizeChartRow({
+                              designId,
+                              blockId: activeBlockId ?? "",
+                              measurementKey: row.measurementKey,
+                            });
+                            setRemovingKey(null);
+                            if (!res.ok) {
+                              setError(res.error);
+                              return;
+                            }
+                            if (res.blockId !== activeBlockId) {
+                              setActiveBlockId(res.blockId);
+                              onForked(res.blockId);
+                            }
+                            setLoadKey((k) => k + 1);
+                            router.refresh();
+                          })();
+                        }}
+                        className="px-1.5 text-[13px] leading-none text-ink/30 hover:text-madder disabled:opacity-40"
+                        aria-label={`Remove ${row.measurementKey}`}
+                      >
+                        ×
+                      </button>
+                    </td>
                   </tr>
                   );
                 })}

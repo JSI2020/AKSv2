@@ -1,12 +1,14 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+import { revalidatePath } from "next/cache";
 
 import { db } from "@/packages/db/client";
 import {
   designs,
   dressGeneratedChart,
   sizeBlockRows,
+  sizeBlockCells,
 } from "@/packages/db/schema";
 import {
   measureGarmentFromPhoto,
@@ -298,26 +300,53 @@ export async function applyStandardStyle(
 
     await requireSizingEdit(designId);
 
-    const { styleId: generatedStyleId } = await buildStyleChart(db, {
-      templateKey: preset.key,
-      lengthBand: preset.lengthBand,
-      fitIntent: preset.fitIntent,
-      name: `standard ${preset.id}`,
-      status: "draft",
+    // Straight from the house standard table for the chosen style's category —
+    // no recognition, no engine composition. The selector value is qualified
+    // "CATEGORY:id", so picking an abaya style on a kameez piece applies the
+    // abaya standard.
+    const category = (
+      styleId.includes(":") ? (styleId.split(":")[0] ?? pieceKey) : pieceKey
+    ).toUpperCase();
+    const seed =
+      DEFAULT_SIZE_BLOCK_SEEDS.find((x) => x.categoryKey === category) ??
+      DEFAULT_SIZE_BLOCK_SEEDS.find(
+        (x) => x.categoryKey === pieceKey.toUpperCase(),
+      );
+    if (!seed || seed.rows.length === 0) {
+      return {
+        ok: false,
+        error: `No standard chart exists for ${category}.`,
+      };
+    }
+
+    // Edit the design's own copy, never the shared house block.
+    const resolved = await resolveEditableBlockId(blockId, designId);
+    const editBlockId = resolved.blockId;
+
+    await db.transaction(async (tx) => {
+      // Replace the chart wholesale: a standard is a complete chart, and
+      // leftover rows from a previous style would silently survive.
+      await tx.delete(sizeBlockCells).where(eq(sizeBlockCells.blockId, editBlockId));
+      await tx.delete(sizeBlockRows).where(eq(sizeBlockRows.blockId, editBlockId));
+      await tx.insert(sizeBlockRows).values(
+        seed.rows.map((row) => ({
+          id: uuidv7(),
+          blockId: editBlockId,
+          measurementKey: row.measurementKey,
+          baseValue: row.baseValue,
+          gradeIncrement: row.gradeIncrement,
+          gradeOverrides: row.gradeOverrides ?? {},
+          sortOrder: row.sortOrder,
+        })),
+      );
     });
 
-    const fill = await fillBlockFromStyle(
-      designId,
-      pieceKey,
-      blockId,
-      generatedStyleId,
-    );
-    if (!fill.ok) return { ok: false, error: fill.error };
+    revalidatePath(`/admin/designs/${designId}`);
 
     return {
       ok: true,
-      blockId: fill.blockId,
-      filled: fill.filled,
+      blockId: editBlockId,
+      filled: seed.rows.map((r) => r.measurementKey),
       label: preset.label,
     };
   } catch (e) {
@@ -327,3 +356,4 @@ export async function applyStandardStyle(
     };
   }
 }
+

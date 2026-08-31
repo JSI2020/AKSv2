@@ -73,3 +73,77 @@ export async function resetSizingOverlay(
 ): Promise<SaveOverlayResult> {
   return saveSizingOverlay(designId, {});
 }
+
+export type DeleteRowResult =
+  | { ok: true; blockId: string }
+  | { ok: false; error: string };
+
+/**
+ * Remove one measurement from this design's chart — a sleeveless piece has no
+ * sleeve row to grade, and a row that does not apply is worse than no row: it
+ * grades, prints on the size guide, and draws a line across the ghost.
+ *
+ * Always edits the design's own copy, so deleting here never touches the house
+ * standard or another design.
+ */
+export async function deleteSizeChartRow(input: {
+  designId: string;
+  blockId: string;
+  measurementKey: string;
+}): Promise<DeleteRowResult> {
+  try {
+    const { designId, blockId, measurementKey } = input;
+    if (!designId || !blockId || !measurementKey) {
+      return { ok: false, error: "Missing design, chart or measurement." };
+    }
+    await requireSizingEdit(designId);
+
+    const { resolveEditableBlockId } = await import(
+      "@/modules/sizing/fork-actions"
+    );
+    const { sizeBlockCells, sizeBlockRows } = await import(
+      "@/packages/db/schema"
+    );
+    const { and, eq } = await import("drizzle-orm");
+
+    const resolved = await resolveEditableBlockId(blockId, designId);
+    const editBlockId = resolved.blockId;
+
+    const remaining = await db
+      .select({ measurementKey: sizeBlockRows.measurementKey })
+      .from(sizeBlockRows)
+      .where(eq(sizeBlockRows.blockId, editBlockId));
+    if (remaining.length <= 1) {
+      return {
+        ok: false,
+        error: "A chart needs at least one measurement — add another first.",
+      };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(sizeBlockCells)
+        .where(
+          and(
+            eq(sizeBlockCells.blockId, editBlockId),
+            eq(sizeBlockCells.measurementKey, measurementKey),
+          ),
+        );
+      await tx
+        .delete(sizeBlockRows)
+        .where(
+          and(
+            eq(sizeBlockRows.blockId, editBlockId),
+            eq(sizeBlockRows.measurementKey, measurementKey),
+          ),
+        );
+    });
+
+    return { ok: true, blockId: editBlockId };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not remove the row.",
+    };
+  }
+}
