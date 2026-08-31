@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  blockGridToGarmentChartRows,
+  GarmentSizingPreview,
+  inferSilhouetteFromChartRows,
+} from "@/modules/sizing/garment-size-guide";
 import { isFabricSwatchRender } from "./fabric-swatch-render";
 import { useMemo, useState, type ReactNode } from "react";
 import Image from "next/image";
@@ -329,6 +334,22 @@ export function PreviewPublishTab({
         )
       : null;
 
+  /** The same rows the Sizing tab draws its lines from. */
+  const guideChartRows = useMemo(() => {
+    if (!guideGrid) return [];
+    return blockGridToGarmentChartRows({
+      grid: guideGrid,
+      measurementKeys: guideRows.map((r) => r.measurementKey),
+      sizeLabels: guideLabels,
+      labelFor: (mk) => mk,
+    });
+  }, [guideGrid, guideRows, guideLabels]);
+
+  const guideSilhouette = useMemo(
+    () => inferSilhouetteFromChartRows(guideChartRows, guideBase),
+    [guideChartRows, guideBase],
+  );
+
   const offPct =
     d.compareAtPriceMinor != null &&
     d.compareAtPriceMinor > d.basePriceMinor &&
@@ -500,18 +521,18 @@ export function PreviewPublishTab({
                   Close
                 </button>
               </div>
-              {d.sizingGhostUrl ? (
-                <figure className="mt-2 flex flex-col items-center gap-1 border border-ink/10 bg-greige/20 p-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={d.sizingGhostUrl}
-                    alt="Ghost mannequin with the measurement lines"
-                    className="max-h-[40dvh] w-auto object-contain"
+              {d.sizingGhostUrl && guideChartRows.length > 0 ? (
+                <div className="mt-2">
+                  <GarmentSizingPreview
+                    imageUrl={d.sizingGhostUrl}
+                    rows={guideChartRows}
+                    unit="in"
+                    silhouette={guideSilhouette.mode}
+                    baseSize={guideBase}
+                    theme="design"
+                    placements={d.sizingOverlay ?? undefined}
                   />
-                  <figcaption className="text-[10px] uppercase tracking-[0.1em] text-ink/45">
-                    Ghost mannequin · from the Sizing tab
-                  </figcaption>
-                </figure>
+                </div>
               ) : null}
               {guideGrid ? (
                 <div className="mt-2 overflow-x-auto">
