@@ -106,6 +106,15 @@ export const designs = pgTable(
   /** Ghost-mannequin image built from the sizing recognition; shown on the PDP. */
   sizingGhostUrl: text("sizing_ghost_url"),
   /**
+   * Hand-placed measurement lines over the ghost, keyed by POM. Coordinates are
+   * normalized (0-1) against the ghost image, so they hold at any render size.
+   * Position only — moving a line never changes what it measures.
+   */
+  sizingOverlay: jsonb("sizing_overlay").$type<Record<
+    string,
+    { x1: number; y1: number; x2: number; y2: number }
+  > | null>(),
+  /**
    * Standard size labels offered on PDP (subset of the size block).
    * Empty = offer all labels from the linked size block.
    */

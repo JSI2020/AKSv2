@@ -44,6 +44,10 @@ import {
   updateDesignPieceBaseSizes,
 } from "@/modules/sizing/fork-actions";
 import {
+  saveSizingOverlay,
+} from "./sizing-overlay-actions";
+import type { OverlayPlacements } from "@/modules/sizing/garment-size-guide";
+import {
   blockGridToGarmentChartRows,
   displayGarmentChartRows,
   GarmentSizingPreview,
@@ -213,6 +217,7 @@ export function DesignSizingTab({
             defaultBlockId={defaultId}
             availableSizes={selectedSizes}
             initialGhostUrl={d.sizingGhostUrl ?? null}
+            initialOverlay={d.sizingOverlay ?? undefined}
             onForked={(forkId) => {
               setPieceSizeBlocks((prev) => ({ ...prev, [comp]: forkId }));
             }}
@@ -245,6 +250,7 @@ function PieceSizeGuide({
   defaultBlockId,
   availableSizes,
   initialGhostUrl,
+  initialOverlay,
   onForked,
   onReverted,
 }: {
@@ -254,6 +260,7 @@ function PieceSizeGuide({
   defaultBlockId: string | null;
   availableSizes: string[];
   initialGhostUrl: string | null;
+  initialOverlay?: OverlayPlacements;
   onForked: (forkId: string) => void;
   onReverted: () => void;
 }) {
@@ -270,6 +277,11 @@ function PieceSizeGuide({
   const [pending, startTransition] = useTransition();
   const [loadKey, setLoadKey] = useState(0);
   const [ghostUrl, setGhostUrl] = useState<string | null>(initialGhostUrl);
+  const [placements, setPlacements] = useState<OverlayPlacements>(
+    initialOverlay ?? {},
+  );
+  const [adjusting, setAdjusting] = useState(false);
+  const [overlayMsg, setOverlayMsg] = useState<string | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recognizing, setRecognizing] = useState(false);
@@ -873,7 +885,63 @@ function PieceSizeGuide({
                 highlightKey={highlightKey}
                 baseSize={block.baseSizeLabel}
                 theme="design"
+                placements={placements}
+                editable={adjusting}
+                onPlacementsChange={setPlacements}
               />
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdjusting((on) => !on);
+                    setOverlayMsg(null);
+                  }}
+                  className="border border-ink/15 px-3 py-1.5 text-[12px] text-ink/70 hover:border-ink hover:text-ink"
+                >
+                  {adjusting ? "Done adjusting" : "Adjust lines"}
+                </button>
+                {adjusting ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void (async () => {
+                          const res = await saveSizingOverlay(
+                            designId,
+                            placements,
+                          );
+                          setOverlayMsg(
+                            res.ok
+                              ? "Line positions saved."
+                              : res.error,
+                          );
+                        })();
+                      }}
+                      className="bg-ink px-3 py-1.5 text-[12px] uppercase tracking-[0.08em] text-milk"
+                    >
+                      Save positions
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPlacements({});
+                        void saveSizingOverlay(designId, {});
+                        setOverlayMsg("Back to computed positions.");
+                      }}
+                      className="border border-ink/15 px-3 py-1.5 text-[12px] text-ink/55 hover:border-ink"
+                    >
+                      Reset
+                    </button>
+                    <span className="text-[11.5px] text-ink/55">
+                      Drag a line to move it, or an end dot to re-angle it. The
+                      measurements do not change.
+                    </span>
+                  </>
+                ) : null}
+                {overlayMsg ? (
+                  <span className="text-[11.5px] text-ink/70">{overlayMsg}</span>
+                ) : null}
+              </div>
               {!ghostUrl && photoPreview ? (
                 <p className="mt-2 text-[11px] text-ink/45">
                   Ghost generation unavailable — overlay on your upload. Save the

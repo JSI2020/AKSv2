@@ -16,3 +16,12 @@ export {
   type OverlayLineKind,
 } from "./garment-overlay-math";
 export { GarmentSizingPreview } from "./garment-sizing-preview";
+
+export {
+  applyPlacements,
+  placementFromLine,
+} from "./garment-overlay-math";
+export type {
+  OverlayPlacement,
+  OverlayPlacements,
+} from "./garment-overlay-math";

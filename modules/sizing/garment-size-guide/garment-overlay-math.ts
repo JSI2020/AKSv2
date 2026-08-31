@@ -23,7 +23,22 @@ export type OverlayLineKind = "girth" | "width" | "vertical" | "diagonal";
  */
 const SLEEVE_ANGLE_RAD = (11 * Math.PI) / 180;
 
+/**
+ * A hand-placed line, normalized (0-1) against the ghost image. Position only —
+ * a moved line still reports the measurement it came from.
+ */
+export type OverlayPlacement = {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+};
+
+export type OverlayPlacements = Record<string, OverlayPlacement>;
+
 export type GarmentOverlayLine = {
+  /** True when this line sits where someone put it, not where the formula did. */
+  placed?: boolean;
   pomKey: string;
   measurementKey: string;
   label: string;
@@ -105,6 +120,8 @@ export function computeGarmentOverlayLines(input: {
   imageHeightPx: number;
   silhouette: SilhouetteMode;
   formatValue: (hundredths: number) => string;
+  /** Hand placements, normalized 0-1; override the formula for those POMs. */
+  placements?: OverlayPlacements;
 }): GarmentOverlayLine[] {
   const { rows, sizeLabel: size, silhouette, formatValue } = input;
   const w = input.imageWidthPx;
@@ -269,7 +286,47 @@ export function computeGarmentOverlayLines(input: {
     });
   }
 
-  return lines;
+  return applyPlacements(lines, input.placements, w, h);
+}
+
+/**
+ * Replace computed coordinates with hand-placed ones. Kept as a final pass so
+ * every line is still derived from the chart first — a placement moves a line,
+ * it never invents one or changes what it reports.
+ */
+export function applyPlacements(
+  lines: GarmentOverlayLine[],
+  placements: OverlayPlacements | undefined,
+  imageWidthPx: number,
+  imageHeightPx: number,
+): GarmentOverlayLine[] {
+  if (!placements) return lines;
+  return lines.map((line) => {
+    const p = placements[line.pomKey];
+    if (!p) return line;
+    return {
+      ...line,
+      placed: true,
+      x1: p.x1 * imageWidthPx,
+      x2: p.x2 * imageWidthPx,
+      anchorYPx: p.y1 * imageHeightPx,
+      yPx: p.y2 * imageHeightPx,
+    };
+  });
+}
+
+/** Normalize a line's current pixel coordinates into a stored placement. */
+export function placementFromLine(
+  line: GarmentOverlayLine,
+  imageWidthPx: number,
+  imageHeightPx: number,
+): OverlayPlacement {
+  return {
+    x1: line.x1 / imageWidthPx,
+    y1: line.anchorYPx / imageHeightPx,
+    x2: line.x2 / imageWidthPx,
+    y2: line.yPx / imageHeightPx,
+  };
 }
 
 export { pomKeyToMeasurementKey } from "./measurement-pom-map";

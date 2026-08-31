@@ -1,12 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { formatMeasure } from "@/modules/ui";
 import type { DisplayUnit } from "@/modules/dress-sizing/core/units";
 import type { SilhouetteMode } from "@/modules/dress-sizing/core/silhouette";
 
-import { computeGarmentOverlayLines } from "./garment-overlay-math";
+import {
+  computeGarmentOverlayLines,
+  placementFromLine,
+  type GarmentOverlayLine,
+  type OverlayPlacements,
+} from "./garment-overlay-math";
 import type { GarmentChartRow } from "./types";
 
 type Theme = "admin" | "design" | "shop";
@@ -60,6 +65,11 @@ type Props = {
   highlightKey?: string | null;
   baseSize?: string;
   theme?: Theme;
+  /** Hand placements, normalized 0-1 against the ghost. */
+  placements?: OverlayPlacements;
+  /** Enable dragging. Moving a line changes where it sits, never its value. */
+  editable?: boolean;
+  onPlacementsChange?: (next: OverlayPlacements) => void;
 };
 
 export function GarmentSizingPreview({
@@ -70,8 +80,18 @@ export function GarmentSizingPreview({
   highlightKey = null,
   baseSize = "M",
   theme = "admin",
+  placements,
+  editable = false,
+  onPlacementsChange,
 }: Props) {
   const [dims, setDims] = useState({ w: 1024, h: 1024 });
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const dragRef = useRef<{
+    pomKey: string;
+    grab: "whole" | "start" | "end";
+    origin: { x: number; y: number };
+    line: GarmentOverlayLine;
+  } | null>(null);
   const measureUnit = unit === "cm" ? "cm" : "in";
   const styles = THEME_STYLES[theme];
 
@@ -83,8 +103,67 @@ export function GarmentSizingPreview({
       imageHeightPx: dims.h,
       silhouette,
       formatValue: (v) => formatMeasure(v, measureUnit),
+      placements,
     });
-  }, [rows, baseSize, dims.h, dims.w, silhouette, measureUnit]);
+  }, [rows, baseSize, dims.h, dims.w, silhouette, measureUnit, placements]);
+
+  /** Pointer position in the SVG's own coordinate space. */
+  function svgPoint(e: { clientX: number; clientY: number }) {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const box = svg.getBoundingClientRect();
+    // The SVG uses preserveAspectRatio="xMidYMid meet", so the drawn area is
+    // letterboxed inside the element; map through that scale, not the box.
+    const scale = Math.min(box.width / w, box.height / h);
+    const offsetX = (box.width - w * scale) / 2;
+    const offsetY = (box.height - h * scale) / 2;
+    return {
+      x: (e.clientX - box.left - offsetX) / scale,
+      y: (e.clientY - box.top - offsetY) / scale,
+    };
+  }
+
+  function beginDrag(
+    e: React.PointerEvent,
+    line: GarmentOverlayLine,
+    grab: "whole" | "start" | "end",
+  ) {
+    if (!editable) return;
+    e.preventDefault();
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    dragRef.current = { pomKey: line.pomKey, grab, origin: svgPoint(e), line };
+  }
+
+  function onDragMove(e: React.PointerEvent) {
+    const drag = dragRef.current;
+    if (!drag || !onPlacementsChange) return;
+    const at = svgPoint(e);
+    const dx = at.x - drag.origin.x;
+    const dy = at.y - drag.origin.y;
+    const src = drag.line;
+
+    const moved: GarmentOverlayLine =
+      drag.grab === "whole"
+        ? {
+            ...src,
+            x1: src.x1 + dx,
+            x2: src.x2 + dx,
+            anchorYPx: src.anchorYPx + dy,
+            yPx: src.yPx + dy,
+          }
+        : drag.grab === "start"
+          ? { ...src, x1: src.x1 + dx, anchorYPx: src.anchorYPx + dy }
+          : { ...src, x2: src.x2 + dx, yPx: src.yPx + dy };
+
+    onPlacementsChange({
+      ...(placements ?? {}),
+      [drag.pomKey]: placementFromLine(moved, w, h),
+    });
+  }
+
+  function endDrag() {
+    dragRef.current = null;
+  }
 
   const w = dims.w > 0 ? dims.w : 1024;
   const h = dims.h > 0 ? dims.h : 1024;
@@ -109,9 +188,17 @@ export function GarmentSizingPreview({
           }}
         />
         <svg
-          className="pointer-events-none absolute inset-0 size-full"
+          ref={svgRef}
+          className={
+            editable
+              ? "absolute inset-0 size-full touch-none"
+              : "pointer-events-none absolute inset-0 size-full"
+          }
           viewBox={`0 0 ${w} ${h}`}
           preserveAspectRatio="xMidYMid meet"
+          onPointerMove={editable ? onDragMove : undefined}
+          onPointerUp={editable ? endDrag : undefined}
+          onPointerLeave={editable ? endDrag : undefined}
         >
           {lines.map((line) => {
             const active =
@@ -167,6 +254,36 @@ export function GarmentSizingPreview({
                   >
                     {line.label}
                   </text>
+                  {editable ? (
+                    <>
+                      <line
+                        x1={line.x1}
+                        y1={line.anchorYPx}
+                        x2={line.x2}
+                        y2={line.yPx}
+                        stroke="transparent"
+                        strokeWidth={Math.max(14, w / 45)}
+                        style={{ cursor: "move" }}
+                        onPointerDown={(e) => beginDrag(e, line, "whole")}
+                      />
+                      <circle
+                        cx={line.x1}
+                        cy={line.anchorYPx}
+                        r={Math.max(7, w / 110)}
+                        fill={stroke}
+                        style={{ cursor: "grab" }}
+                        onPointerDown={(e) => beginDrag(e, line, "start")}
+                      />
+                      <circle
+                        cx={line.x2}
+                        cy={line.yPx}
+                        r={Math.max(7, w / 110)}
+                        fill={stroke}
+                        style={{ cursor: "grab" }}
+                        onPointerDown={(e) => beginDrag(e, line, "end")}
+                      />
+                    </>
+                  ) : null}
                 </g>
               );
             }
@@ -212,6 +329,36 @@ export function GarmentSizingPreview({
                   >
                     {line.label}
                   </text>
+                  {editable ? (
+                    <>
+                      <line
+                        x1={line.x1}
+                        y1={line.anchorYPx}
+                        x2={line.x2}
+                        y2={line.yPx}
+                        stroke="transparent"
+                        strokeWidth={Math.max(14, w / 45)}
+                        style={{ cursor: "move" }}
+                        onPointerDown={(e) => beginDrag(e, line, "whole")}
+                      />
+                      <circle
+                        cx={line.x1}
+                        cy={line.anchorYPx}
+                        r={Math.max(7, w / 110)}
+                        fill={stroke}
+                        style={{ cursor: "grab" }}
+                        onPointerDown={(e) => beginDrag(e, line, "start")}
+                      />
+                      <circle
+                        cx={line.x2}
+                        cy={line.yPx}
+                        r={Math.max(7, w / 110)}
+                        fill={stroke}
+                        style={{ cursor: "grab" }}
+                        onPointerDown={(e) => beginDrag(e, line, "end")}
+                      />
+                    </>
+                  ) : null}
                 </g>
               );
             }
@@ -251,6 +398,36 @@ export function GarmentSizingPreview({
                 >
                   {line.label}
                 </text>
+                {editable ? (
+                  <>
+                    <line
+                      x1={line.x1}
+                      y1={line.anchorYPx}
+                      x2={line.x2}
+                      y2={line.yPx}
+                      stroke="transparent"
+                      strokeWidth={Math.max(14, w / 45)}
+                      style={{ cursor: "move" }}
+                      onPointerDown={(e) => beginDrag(e, line, "whole")}
+                    />
+                    <circle
+                      cx={line.x1}
+                      cy={line.anchorYPx}
+                      r={Math.max(7, w / 110)}
+                      fill={stroke}
+                      style={{ cursor: "grab" }}
+                      onPointerDown={(e) => beginDrag(e, line, "start")}
+                    />
+                    <circle
+                      cx={line.x2}
+                      cy={line.yPx}
+                      r={Math.max(7, w / 110)}
+                      fill={stroke}
+                      style={{ cursor: "grab" }}
+                      onPointerDown={(e) => beginDrag(e, line, "end")}
+                    />
+                  </>
+                ) : null}
               </g>
             );
           })}
