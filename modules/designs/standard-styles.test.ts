@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { CATEGORY_STYLES, findStylePreset, stylesForCategory } from "./standard-styles";
+import {
+  CATEGORY_STYLES,
+  findStylePreset,
+  groupedStylePresets,
+  resolveStylePreset,
+  stylePresetValue,
+  stylesForCategory,
+} from "./standard-styles";
 
 /**
  * Every garment category a design can be built in should offer standard styles,
@@ -54,6 +61,30 @@ describe("standard style presets", () => {
         expect(findStylePreset(category, preset.id)?.label).toBe(preset.label);
       }
     }
+  });
+
+  it("offers the whole house range, with the piece's own category first", () => {
+    const groups = groupedStylePresets("KAMEEZ");
+    expect(groups[0]?.category).toBe("KAMEEZ");
+    // Not just kameez — an angrakha or abaya cut stays reachable.
+    const categories = groups.map((g) => g.category);
+    expect(categories).toContain("ABAYA");
+    expect(categories).toContain("PALAZZO");
+    expect(groups.length).toBeGreaterThan(20);
+  });
+
+  it("resolves a preset from another category via its qualified value", () => {
+    const value = stylePresetValue("ABAYA", "abaya_flared");
+    // The piece is a KAMEEZ, but the chosen style is an abaya.
+    const preset = resolveStylePreset(value, "KAMEEZ");
+    expect(preset?.label).toBe("Abaya — flared");
+    expect(preset?.key).toBe("long_gown");
+  });
+
+  it("still resolves a bare id inside the piece's own category", () => {
+    expect(resolveStylePreset("angrakha", "KAMEEZ")?.label).toBe(
+      "Angrakha / fitted",
+    );
   });
 
   it("only uses garment templates the sizing engine actually seeds", () => {

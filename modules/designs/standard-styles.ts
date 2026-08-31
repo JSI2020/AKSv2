@@ -163,3 +163,58 @@ export function findStylePreset(
 ): StylePreset | undefined {
   return stylesForCategory(pieceKey).find((s) => s.id === styleId);
 }
+
+/** Stable selector value — preset ids repeat across categories (e.g. palazzo). */
+export function stylePresetValue(category: string, styleId: string): string {
+  return `${category.toUpperCase()}:${styleId}`;
+}
+
+/**
+ * Resolve a preset from a selector value. Accepts the qualified
+ * "CATEGORY:id" form and, for older saved values, a bare id looked up inside
+ * the piece's own category.
+ */
+export function resolveStylePreset(
+  value: string,
+  fallbackCategory: string,
+): StylePreset | undefined {
+  const [maybeCategory, maybeId] = value.split(":");
+  if (maybeId) return findStylePreset(maybeCategory ?? "", maybeId);
+  return findStylePreset(fallbackCategory, value);
+}
+
+export type StylePresetGroup = {
+  category: string;
+  label: string;
+  presets: StylePreset[];
+};
+
+function titleCase(key: string): string {
+  return key
+    .toLowerCase()
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * Every house style, grouped by category with the piece's own category first.
+ * A piece recorded as KAMEEZ is often cut as an angrakha, a kurti or an A-line
+ * shirt, so the whole range stays reachable instead of only its own group.
+ */
+export function groupedStylePresets(pieceKey: string): StylePresetGroup[] {
+  const own = pieceKey.toUpperCase();
+  const groups = Object.entries(CATEGORY_STYLES)
+    .filter(([, presets]) => presets.length > 0)
+    .map(([category, presets]) => ({
+      category,
+      label: titleCase(category),
+      presets,
+    }));
+  groups.sort((a, b) => {
+    if (a.category === own) return -1;
+    if (b.category === own) return 1;
+    return a.label.localeCompare(b.label);
+  });
+  return groups;
+}

@@ -15,7 +15,7 @@ import {
 } from "@/modules/dress-sizing/service/measure-garment";
 import { DEFAULT_SIZE_BLOCK_SEEDS, uuidv7 } from "@aks/shared";
 import { requireSizingEdit } from "@/modules/sizing/require-sizing-permission";
-import { findStylePreset } from "./standard-styles";
+import { resolveStylePreset } from "./standard-styles";
 import {
   pinSizeBlockCell,
   resolveEditableBlockId,
@@ -293,7 +293,7 @@ export async function applyStandardStyle(
     if (!designId || !blockId) {
       return { ok: false, error: "Missing design or size chart." };
     }
-    const preset = findStylePreset(pieceKey, styleId);
+    const preset = resolveStylePreset(styleId, pieceKey);
     if (!preset) return { ok: false, error: "Choose a standard style." };
 
     await requireSizingEdit(designId);

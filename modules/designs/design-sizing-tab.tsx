@@ -13,7 +13,11 @@ import {
   applyStandardStyle,
   recognizeDesignSizing,
 } from "./recognize-sizing-action";
-import { stylesForCategory } from "./standard-styles";
+import {
+  groupedStylePresets,
+  stylePresetValue,
+  stylesForCategory,
+} from "./standard-styles";
 import {
   MeasurementReport,
   type MeasurementReportData,
@@ -278,6 +282,7 @@ function PieceSizeGuide({
   const [styleKey, setStyleKey] = useState("");
   const [applying, setApplying] = useState(false);
   const pieceStyles = stylesForCategory(pieceKey);
+  const styleGroups = groupedStylePresets(pieceKey);
 
   useEffect(() => {
     setGhostUrl(initialGhostUrl);
@@ -762,7 +767,7 @@ function PieceSizeGuide({
             <p className="mb-2 text-[11.5px] text-ink/60">{recognizeMsg}</p>
           ) : null}
 
-          {pieceStyles.length > 0 ? (
+          {styleGroups.length > 0 ? (
             <div className="mt-4 flex flex-wrap items-end gap-x-3 gap-y-2 border-t border-ink/10 pt-4">
               <div className="flex flex-col gap-1">
                 <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/55">
@@ -776,10 +781,17 @@ function PieceSizeGuide({
                   className="border border-ink/12 bg-milk px-2.5 py-1.5 text-[12px] text-ink outline-none focus:border-ink"
                 >
                   <option value="">Choose a standard style…</option>
-                  {pieceStyles.map((o) => (
-                    <option key={o.id} value={o.id}>
-                      {o.label}
-                    </option>
+                  {styleGroups.map((group) => (
+                    <optgroup key={group.category} label={group.label}>
+                      {group.presets.map((o) => (
+                        <option
+                          key={`${group.category}:${o.id}`}
+                          value={stylePresetValue(group.category, o.id)}
+                        >
+                          {o.label}
+                        </option>
+                      ))}
+                    </optgroup>
                   ))}
                 </select>
               </div>
