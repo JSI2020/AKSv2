@@ -102,10 +102,10 @@ export function DesignSizingTab({
 }) {
   const d = detail.design;
   const components = componentKeysOf(detail);
-  // Fit profiles are preserved on save but no longer edited from this tab.
-  const [fitProfiles] = useState<Record<string, string>>(() => ({
-    ...(d.fitProfileIds ?? {}),
-  }));
+  // Publish requires a fit profile, so this tab has to be able to set one.
+  const [fitProfiles, setFitProfiles] = useState<Record<string, string>>(
+    () => ({ ...(d.fitProfileIds ?? {}) }),
+  );
   const [pieceSizeBlocks, setPieceSizeBlocks] = useState<
     Record<string, string>
   >(() => ({ ...(d.pieceSizeBlocks ?? {}) }));
@@ -197,6 +197,53 @@ export function DesignSizingTab({
           Only sizes selected here appear on the storefront — and as columns in
           the size guide below.
         </p>
+
+        <div className="mt-5 border-t border-ink/10 pt-4">
+          <h3 className="mb-3 font-sans text-[10px] uppercase tracking-[0.16em] text-ink/55">
+            Fit profile · required to publish
+          </h3>
+          <div className="flex flex-col gap-3">
+            {components.map((comp) => {
+              const category = options.categories.find((c) => c.key === comp);
+              const forPiece = options.profiles.filter(
+                (p) => !category || p.categoryId === category.id,
+              );
+              return (
+                <label key={comp} className="flex flex-col gap-1.5">
+                  <span className="text-[12px] text-ink/70">
+                    {titleCasePiece(comp)}
+                  </span>
+                  <select
+                    value={fitProfiles[comp] ?? ""}
+                    onChange={(e) =>
+                      setFitProfiles((prev) => {
+                        const next = { ...prev };
+                        if (e.target.value) next[comp] = e.target.value;
+                        else delete next[comp];
+                        return next;
+                      })
+                    }
+                    className="w-full max-w-sm border border-ink/15 bg-milk px-3 py-2 text-[13px] text-ink outline-none focus:border-ink"
+                  >
+                    <option value="">Choose a fit…</option>
+                    {forPiece.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name}
+                      </option>
+                    ))}
+                  </select>
+                  {forPiece.length === 0 ? (
+                    <span className="text-[11.5px] text-madder">
+                      No fit profile exists for {titleCasePiece(comp)} yet —
+                      create one under Settings · Sizing · Fit profiles, then
+                      reopen this tab.
+                    </span>
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
+        </div>
       </section>
 
       {components.length === 0 ? (

@@ -1,5 +1,6 @@
 "use client";
 
+import { DESIGN_TAG_VALUES } from "@aks/shared";
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -647,6 +648,9 @@ function DetailsTab({
     : componentKeysOf(detail);
   const [components, setComponents] = useState<string[]>(initialComponents);
   const doorTags = new Set(options.houseDoors.map((d) => d.tag.toUpperCase()));
+  const [occasionTags, setOccasionTags] = useState<string[]>(() =>
+    detail.tags.filter((t) => t.kind === "OCCASION").map((t) => t.value),
+  );
   const [houseDoorTag, setHouseDoorTag] = useState(
     houseDoorFromTags(detail.tags, doorTags),
   );
@@ -670,6 +674,7 @@ function DetailsTab({
         fd.set("id", d.id);
         fd.set("componentsJson", JSON.stringify(components));
         fd.set("houseDoorTag", houseDoorTag);
+        fd.set("occasionTagsJson", JSON.stringify(occasionTags));
         onSave(fd);
       }}
     >
@@ -733,6 +738,41 @@ function DetailsTab({
             ))}
           </select>
         </label>
+        <div className="mb-4 flex flex-col gap-1.5">
+          <Label>Occasion · at least one is required to publish</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {DESIGN_TAG_VALUES.OCCASION.map((value) => {
+              const on = occasionTags.includes(value);
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() =>
+                    setOccasionTags((prev) =>
+                      prev.includes(value)
+                        ? prev.filter((v) => v !== value)
+                        : [...prev, value],
+                    )
+                  }
+                  className={
+                    on
+                      ? "border border-ink bg-ink px-2.5 py-1 text-[11.5px] text-milk"
+                      : "border border-ink/15 px-2.5 py-1 text-[11.5px] text-ink/60 hover:border-ink hover:text-ink"
+                  }
+                >
+                  {value.replaceAll("_", " ").toLowerCase()}
+                </button>
+              );
+            })}
+          </div>
+          {occasionTags.length === 0 ? (
+            <p className="text-[11.5px] text-madder">
+              Pick when this piece is worn — the storefront filters by it.
+            </p>
+          ) : null}
+        </div>
+
         <div className="flex flex-col gap-1.5">
           <Label>Item number</Label>
           <p className="border border-ink/12 bg-greige/40 px-3 py-2.5 font-data text-[13px] text-ink/55">

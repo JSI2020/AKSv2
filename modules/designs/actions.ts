@@ -261,6 +261,22 @@ export async function updateDesignDetails(
     const seoDescription =
       String(formData.get("seoDescription") ?? "").trim() || null;
     const houseDoorTag = String(formData.get("houseDoorTag") ?? "").trim();
+    const occasionRaw = String(formData.get("occasionTagsJson") ?? "");
+    let occasionTags: string[] | null = null;
+    if (occasionRaw) {
+      try {
+        const parsed = JSON.parse(occasionRaw) as unknown;
+        if (!Array.isArray(parsed)) throw new Error("not an array");
+        occasionTags = parsed.map((v) => String(v).trim()).filter(Boolean);
+        for (const value of occasionTags) {
+          if (!isValidDesignTag("OCCASION", value)) {
+            return { ok: false, error: `Invalid occasion tag ${value}` };
+          }
+        }
+      } catch {
+        return { ok: false, error: "Invalid occasion tags" };
+      }
+    }
     const componentsRaw = String(formData.get("componentsJson") ?? "[]");
 
     let componentKeys: string[] = [];
@@ -368,7 +384,7 @@ export async function updateDesignDetails(
       })
       .where(eq(designs.id, id));
 
-    if (houseDoorTag) {
+    if (houseDoorTag || occasionTags) {
       const doorTags = new Set(
         (await listHouseCollections({ activeOnly: false })).map((c) => c.tag),
       );
@@ -376,9 +392,18 @@ export async function updateDesignDetails(
         .select()
         .from(designTags)
         .where(eq(designTags.designId, id));
-      const keep = existingTags.filter(
-        (t) => !(t.kind === "FREE" && doorTags.has(t.value.toUpperCase())),
-      );
+
+      // Rewrite only what this form owns: the house door (a FREE tag) and, when
+      // the field was submitted, the OCCASION set. Season and work tags set
+      // elsewhere survive untouched.
+      const keep = existingTags.filter((t) => {
+        if (houseDoorTag && t.kind === "FREE" && doorTags.has(t.value.toUpperCase())) {
+          return false;
+        }
+        if (occasionTags && t.kind === "OCCASION") return false;
+        return true;
+      });
+
       await db.delete(designTags).where(eq(designTags.designId, id));
       for (const t of keep) {
         await db.insert(designTags).values({
@@ -387,11 +412,20 @@ export async function updateDesignDetails(
           value: t.value,
         });
       }
-      await db.insert(designTags).values({
-        designId: id,
-        kind: "FREE",
-        value: houseDoorTag,
-      });
+      if (houseDoorTag) {
+        await db.insert(designTags).values({
+          designId: id,
+          kind: "FREE",
+          value: houseDoorTag,
+        });
+      }
+      for (const value of occasionTags ?? []) {
+        await db.insert(designTags).values({
+          designId: id,
+          kind: "OCCASION",
+          value,
+        });
+      }
     }
 
     await insertAuditLog(db, {
