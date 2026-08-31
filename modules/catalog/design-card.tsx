@@ -6,7 +6,6 @@ import {
   ImageSlotPlaceholder,
   type SilhouetteId,
 } from "@/modules/shop/home/silhouette-svg";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
 
 import {
   resolveDisplayPrice,
@@ -24,14 +23,13 @@ const SILHOUETTE_CYCLE: SilhouetteId[] = [
   "angrakha",
 ];
 
-function houseLabel(design: PublishedDesignCard): string | null {
-  for (const c of HOUSE_COLLECTIONS) {
-    if (design.freeTags.some((t) => t.toUpperCase() === c.tag)) {
-      return c.navLabel;
-    }
-  }
-  if (design.freeTags.some((t) => t.toUpperCase() === "WHITE_COLLECTION")) {
-    return "Signature";
+function houseLabel(
+  design: PublishedDesignCard,
+  doorLabels: Record<string, string>,
+): string | null {
+  for (const tag of design.freeTags) {
+    const upper = tag.toUpperCase();
+    if (doorLabels[upper]) return doorLabels[upper]!;
   }
   return null;
 }
@@ -43,8 +41,14 @@ function silhouetteFor(design: PublishedDesignCard): SilhouetteId {
   return SILHOUETTE_CYCLE[idx % SILHOUETTE_CYCLE.length]!;
 }
 
-export function DesignCard({ design }: { design: PublishedDesignCard }) {
-  const house = houseLabel(design);
+export function DesignCard({
+  design,
+  doorLabels = {},
+}: {
+  design: PublishedDesignCard;
+  doorLabels?: Record<string, string>;
+}) {
+  const house = houseLabel(design, doorLabels);
   const silLine =
     design.silhouetteLabel ||
     (house

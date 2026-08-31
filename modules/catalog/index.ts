@@ -35,5 +35,11 @@ export type {
   ResolvedRenderImage,
   SizeMode,
 } from "./types";
-export { HOUSE_COLLECTIONS, COLLECTIONS_HUB_INTRO } from "./house-collections";
+export {
+  listHouseCollections,
+  getHouseCollectionBySlug,
+  getHouseCollectionByTag,
+} from "./house-collections-queries";
+export type { HouseCollectionPublic } from "./house-collections-queries";
+export { COLLECTIONS_HUB_INTRO } from "./house-collections";
 export { CollectionsHubPage } from "./collections-hub";

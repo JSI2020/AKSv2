@@ -7,8 +7,8 @@ import type { GalleryAngle, ResolvedImageTriple } from "./types";
 import { GALLERY_ANGLES } from "./design-detail-search-params";
 import {
   ImageSlotPlaceholder,
-  type SilhouetteId,
 } from "@/modules/shop/home/silhouette-svg";
+import { silhouetteForCategory } from "./category-silhouette";
 
 const ANGLE_LABELS: Record<GalleryAngle, string> = {
   FRONT: "Front",
@@ -20,6 +20,7 @@ type Props = {
   images: ResolvedImageTriple;
   angle: GalleryAngle;
   designName: string;
+  categoryKey: string;
   onAngleChange: (angle: GalleryAngle) => void;
 };
 
@@ -33,10 +34,11 @@ export function DesignGallery({
   images,
   angle,
   designName,
+  categoryKey,
   onAngleChange,
 }: Props) {
   const touchStartX = useRef<number | null>(null);
-  const sil: SilhouetteId = "kurta";
+  const sil = silhouetteForCategory(categoryKey);
 
   useEffect(() => {
     for (const a of GALLERY_ANGLES) {

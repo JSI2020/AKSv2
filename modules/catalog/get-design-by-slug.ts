@@ -16,6 +16,8 @@ import {
 import { formatModelDisclosure } from "@aks/shared";
 
 import { createPresignedReadUrl } from "@/modules/platform/assets/r2";
+import { getRtwStockMapForDesign } from "@/modules/inventory/rtw-stock";
+import { STANDARD_SIZE_LABELS } from "./types";
 
 import type { DesignDetailPublic } from "./types";
 import { tagValueToCollectionSlug, titleFromTagValue } from "./types";
@@ -44,37 +46,45 @@ export async function getDesignBySlug(
   if (!row) return null;
 
   const designId = row.design.id;
+  const availableSizeLabels =
+    row.design.availableSizeLabels?.length > 0
+      ? row.design.availableSizeLabels
+      : [...STANDARD_SIZE_LABELS];
 
-  const [tags, cwRows, opts, renderArchetypes] = await Promise.all([
-    db.select().from(designTags).where(eq(designTags.designId, designId)),
-    db
-      .select({
-        colourway: colourways,
-        fabricName: fabrics.name,
-        fabricId: fabrics.id,
-        swatchAssetId: fabrics.swatchAssetId,
-        swatchR2Key: assets.r2Key,
-      })
-      .from(colourways)
-      .innerJoin(fabrics, eq(colourways.fabricId, fabrics.id))
-      .leftJoin(assets, eq(fabrics.swatchAssetId, assets.id))
-      .where(and(eq(colourways.designId, designId), eq(colourways.active, true)))
-      .orderBy(asc(colourways.sortOrder)),
-    db
-      .select()
-      .from(customizationOptions)
-      .where(eq(customizationOptions.designId, designId))
-      .orderBy(asc(customizationOptions.sortOrder)),
-    db
-      .selectDistinct({ archetypeId: designRenders.archetypeId })
-      .from(designRenders)
-      .where(
-        and(
-          eq(designRenders.designId, designId),
-          isNotNull(designRenders.archetypeId),
+  const [tags, cwRows, opts, renderArchetypes, rtwAvailability] =
+    await Promise.all([
+      db.select().from(designTags).where(eq(designTags.designId, designId)),
+      db
+        .select({
+          colourway: colourways,
+          fabricName: fabrics.name,
+          fabricId: fabrics.id,
+          swatchAssetId: fabrics.swatchAssetId,
+          swatchR2Key: assets.r2Key,
+        })
+        .from(colourways)
+        .innerJoin(fabrics, eq(colourways.fabricId, fabrics.id))
+        .leftJoin(assets, eq(fabrics.swatchAssetId, assets.id))
+        .where(
+          and(eq(colourways.designId, designId), eq(colourways.active, true)),
+        )
+        .orderBy(asc(colourways.sortOrder)),
+      db
+        .select()
+        .from(customizationOptions)
+        .where(eq(customizationOptions.designId, designId))
+        .orderBy(asc(customizationOptions.sortOrder)),
+      db
+        .selectDistinct({ archetypeId: designRenders.archetypeId })
+        .from(designRenders)
+        .where(
+          and(
+            eq(designRenders.designId, designId),
+            isNotNull(designRenders.archetypeId),
+          ),
         ),
-      ),
-  ]);
+      getRtwStockMapForDesign(designId),
+    ]);
 
   const optionValues = await Promise.all(
     opts.map(async (option) => {
@@ -161,7 +171,11 @@ export async function getDesignBySlug(
     leadTimeDaysOverride: row.design.leadTimeDaysOverride,
     components: row.design.components ?? [],
     sizeBlockId: row.design.sizeBlockId,
+    pieceSizeBlocks: row.design.pieceSizeBlocks ?? {},
     sizingGhostUrl: row.design.sizingGhostUrl ?? null,
+    sizingOverlay: row.design.sizingOverlay ?? null,
+    availableSizeLabels,
+    rtwAvailability,
     garmentCategory: row.garmentCategory,
     defaultColourwayId: defaultColourway.id,
     colourways: colourwaysPublic,

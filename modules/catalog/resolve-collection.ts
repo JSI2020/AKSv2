@@ -7,7 +7,7 @@ import {
   titleFromTagValue,
   type ResolvedCollection,
 } from "./types";
-import { getHouseCollectionBySlug } from "./house-collections";
+import { getHouseCollectionBySlug } from "./house-collections-queries";
 import { getPaidSalesRanking } from "./sales-ranking";
 
 const NEW_ARRIVAL_DAYS = 30;
@@ -22,22 +22,27 @@ export async function resolveCollection(
   const normalized = slug.trim().toLowerCase();
   if (!normalized) return null;
 
-  const house = getHouseCollectionBySlug(normalized);
+  const house = await getHouseCollectionBySlug(normalized);
   if (house) {
+    const freeTags = [house.tag];
+    if (house.slug === "signature") {
+      freeTags.push("WHITE_COLLECTION");
+    }
     return {
       kind: "attribute",
       slug: house.slug,
       title: house.title,
       tagline: house.tagline,
       description: house.intro,
-      baseFilters: { freeTags: [house.tag] },
+      baseFilters: { freeTags },
       defaultSort: "newest",
     };
   }
 
   // Alias: former White Collection → Signature
   if (normalized === "white-collection") {
-    const signature = getHouseCollectionBySlug("signature")!;
+    const signature = await getHouseCollectionBySlug("signature");
+    if (!signature) return null;
     return {
       kind: "attribute",
       slug: signature.slug,

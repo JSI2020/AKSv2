@@ -161,8 +161,19 @@ export type DesignDetailPublic = {
   /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */
   components: string[];
   sizeBlockId: string | null;
+  /** Per-piece forked size blocks from admin sizing tab. */
+  pieceSizeBlocks: Record<string, string>;
   /** Ghost-mannequin image from the sizing recognition (nullable). */
   sizingGhostUrl: string | null;
+  /** Hand-placed measurement lines, normalized 0-1 against the ghost. */
+  sizingOverlay: Record<
+    string,
+    { x1: number; y1: number; x2: number; y2: number }
+  > | null;
+  /** Standard sizes offered for this design (from studio sizing tab). */
+  availableSizeLabels: string[];
+  /** colourwayId → sizeLabel → units available (on hand minus reserved). */
+  rtwAvailability: Record<string, Record<string, number>>;
   garmentCategory: {
     id: string;
     key: string;

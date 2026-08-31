@@ -10,17 +10,23 @@ import {
 import {
   GARMENT_CATEGORY_SEEDS,
   MEASUREMENT_KEY_DEFS,
-  type BodyOrGarment,
   type MeasurementKeyCode,
 } from "@aks/shared";
+import type { SilhouetteMode } from "@/modules/dress-sizing/core/silhouette";
 
 import { resolveChart } from "@/modules/sizing/engine";
+import type { GarmentChartRow } from "@/modules/sizing/garment-size-guide/types";
+import { displayGarmentChartRows } from "@/modules/sizing/garment-size-guide";
+
+import {
+  filterStorefrontChartRows,
+  toGarmentChartRows,
+} from "./filter-storefront-chart-rows";
 
 export type SizeChartRowPublic = {
   measurementKey: string;
   label: string;
-  bodyOrGarment: BodyOrGarment;
-  /** sizeLabel → hundredths of an inch */
+  /** Finished garment measurements for RTW — all rows shown in one table. */
   valuesBySize: Record<string, number>;
   sortOrder: number;
 };
@@ -36,6 +42,14 @@ export type DesignSizeChartPublic = {
   baseSizeLabel: string;
   notes: string | null;
   components: SizeChartComponentPublic[];
+  /** True when showing house default because the design chart is empty. */
+  isHouseDefault: boolean;
+  /** Primary-piece overlay for ghost mannequin (when available). */
+  overlay: {
+    rows: GarmentChartRow[];
+    silhouette: SilhouetteMode;
+    silhouetteLabel: string;
+  } | null;
 };
 
 const MEASUREMENT_DEF_BY_KEY = new Map(
@@ -109,6 +123,7 @@ type BlockMeta = {
   sizeLabels: string[];
   baseSizeLabel: string;
   notes: string | null;
+  isDefault: boolean;
 };
 
 const BLOCK_COLUMNS = {
@@ -116,6 +131,7 @@ const BLOCK_COLUMNS = {
   sizeLabels: sizeBlocks.sizeLabels,
   baseSizeLabel: sizeBlocks.baseSizeLabel,
   notes: sizeBlocks.notes,
+  isDefault: sizeBlocks.isDefault,
 } as const;
 
 async function loadActiveBlock(blockId: string): Promise<BlockMeta | null> {
@@ -175,31 +191,85 @@ function loadPinnedCells(blockId: string) {
     );
 }
 
-export async function resolveDesignSizeChart(input: {
-  sizeBlockId: string | null;
-  components: readonly string[];
-  primaryCategoryKey: string;
-}): Promise<DesignSizeChartPublic | null> {
-  // Prefer the design's own block. When it has no rows (not yet forked/sized)
-  // or no block is set, fall back to the category's active default block so the
-  // storefront still shows a complete, correct size chart instead of nothing.
-  let block = input.sizeBlockId
-    ? await loadActiveBlock(input.sizeBlockId)
-    : null;
-  let rows = block ? await loadBlockRows(block.id) : [];
+function filterSizeLabels(
+  blockLabels: readonly string[],
+  availableSizeLabels?: readonly string[],
+): string[] {
+  if (!availableSizeLabels?.length) return [...blockLabels];
+  const allowed = new Set(availableSizeLabels);
+  return blockLabels.filter((label) => allowed.has(label));
+}
+
+async function resolveBlockForComponent(
+  componentKey: string,
+  input: {
+    sizeBlockId: string | null;
+    pieceSizeBlocks?: Record<string, string>;
+    primaryCategoryKey: string;
+  },
+): Promise<{ block: BlockMeta; fromDesign: boolean } | null> {
+  const pieceId = input.pieceSizeBlocks?.[componentKey];
+  if (pieceId) {
+    const block = await loadActiveBlock(pieceId);
+    if (block) return { block, fromDesign: true };
+  }
+
+  if (
+    componentKey === input.primaryCategoryKey &&
+    input.sizeBlockId
+  ) {
+    const block = await loadActiveBlock(input.sizeBlockId);
+    if (block) return { block, fromDesign: !block.isDefault };
+  }
+
+  const fallback = await loadDefaultBlockForCategory(componentKey);
+  if (fallback) return { block: fallback, fromDesign: false };
+  return null;
+}
+
+type LoadedSection = {
+  componentKey: string;
+  componentName: string;
+  rows: SizeChartRowPublic[];
+  garmentRows: GarmentChartRow[];
+  block: BlockMeta;
+  fromDesign: boolean;
+  silhouette: SilhouetteMode;
+  silhouetteLabel: string;
+};
+
+async function loadComponentSection(
+  componentKey: string,
+  componentKeys: readonly string[],
+  primaryCategoryKey: string,
+  input: {
+    sizeBlockId: string | null;
+    pieceSizeBlocks?: Record<string, string>;
+    availableSizeLabels?: readonly string[];
+  },
+): Promise<LoadedSection | null> {
+  const resolved = await resolveBlockForComponent(componentKey, {
+    sizeBlockId: input.sizeBlockId,
+    pieceSizeBlocks: input.pieceSizeBlocks,
+    primaryCategoryKey,
+  });
+  if (!resolved) return null;
+
+  let { block, fromDesign } = resolved;
+  let rows = await loadBlockRows(block.id);
 
   if (rows.length === 0) {
-    const fallback = await loadDefaultBlockForCategory(input.primaryCategoryKey);
+    const fallback = await loadDefaultBlockForCategory(componentKey);
     if (fallback) {
       block = fallback;
+      fromDesign = false;
       rows = await loadBlockRows(fallback.id);
     }
   }
 
-  if (!block || rows.length === 0) return null;
+  if (rows.length === 0) return null;
 
   const pinned = await loadPinnedCells(block.id);
-
   const grid = resolveChart(
     {
       sizeLabels: block.sizeLabels,
@@ -218,63 +288,129 @@ export async function resolveDesignSizeChart(input: {
     })),
   );
 
-  const componentKeys = effectiveComponents(
-    input.components,
-    input.primaryCategoryKey,
+  const sizeLabels = filterSizeLabels(
+    block.sizeLabels,
+    input.availableSizeLabels,
   );
+  if (sizeLabels.length === 0) return null;
 
-  const grouped = new Map<string, SizeChartRowPublic[]>();
-  for (const componentKey of componentKeys) {
-    grouped.set(componentKey, []);
-  }
+  const rawRows: SizeChartRowPublic[] = [];
 
   for (const row of rows) {
-    const componentKey = resolveRowComponent(
+    const rowComponent = resolveRowComponent(
       row.measurementKey,
       componentKeys,
-      input.primaryCategoryKey,
+      primaryCategoryKey,
     );
+    if (rowComponent !== componentKey) continue;
+
     const bareKey = resolveBareKey(row.measurementKey, componentKeys);
     const def = MEASUREMENT_DEF_BY_KEY.get(bareKey);
     if (!def) continue;
 
     const valuesBySize: Record<string, number> = {};
-    for (const sizeLabel of block.sizeLabels) {
+    for (const sizeLabel of sizeLabels) {
       valuesBySize[sizeLabel] =
         grid[row.measurementKey]?.[sizeLabel]?.value ?? row.baseValue;
     }
 
-    grouped.get(componentKey)?.push({
+    rawRows.push({
       measurementKey: bareKey,
       label: def.label,
-      bodyOrGarment: def.bodyOrGarment,
       valuesBySize,
       sortOrder: row.sortOrder,
     });
   }
 
-  const components: SizeChartComponentPublic[] = componentKeys
-    .map((componentKey) => ({
-      componentKey,
-      componentName:
-        CATEGORY_NAME_BY_KEY.get(componentKey) ??
-        componentKey
-          .toLowerCase()
-          .split("_")
-          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-          .join(" "),
-      rows: (grouped.get(componentKey) ?? []).sort(
-        (a, b) => a.sortOrder - b.sortOrder,
-      ),
-    }))
-    .filter((section) => section.rows.length > 0);
+  if (rawRows.length === 0) return null;
 
-  if (components.length === 0) return null;
+  const sorted = rawRows.sort((a, b) => a.sortOrder - b.sortOrder);
+  const garmentRows = toGarmentChartRows(sorted);
+  const filtered = filterStorefrontChartRows(sorted, block.baseSizeLabel);
 
   return {
-    sizeLabels: block.sizeLabels,
-    baseSizeLabel: block.baseSizeLabel,
-    notes: block.notes,
-    components,
+    componentKey,
+    componentName:
+      CATEGORY_NAME_BY_KEY.get(componentKey) ??
+      componentKey
+        .toLowerCase()
+        .split("_")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" "),
+    rows: filtered.rows,
+    garmentRows,
+    block,
+    fromDesign,
+    silhouette: filtered.silhouette,
+    silhouetteLabel: filtered.silhouetteLabel,
+  };
+}
+
+export async function resolveDesignSizeChart(input: {
+  sizeBlockId: string | null;
+  pieceSizeBlocks?: Record<string, string>;
+  components: readonly string[];
+  primaryCategoryKey: string;
+  availableSizeLabels?: readonly string[];
+}): Promise<DesignSizeChartPublic | null> {
+  const componentKeys = effectiveComponents(
+    input.components,
+    input.primaryCategoryKey,
+  );
+
+  const sections: LoadedSection[] = [];
+  for (const componentKey of componentKeys) {
+    const section = await loadComponentSection(
+      componentKey,
+      componentKeys,
+      input.primaryCategoryKey,
+      input,
+    );
+    if (section) sections.push(section);
+  }
+
+  if (sections.length === 0) return null;
+
+  const primary =
+    sections.find((s) => s.componentKey === input.primaryCategoryKey) ??
+    sections[0]!;
+
+  const sizeLabels = filterSizeLabels(
+    primary.block.sizeLabels,
+    input.availableSizeLabels,
+  );
+  if (sizeLabels.length === 0) return null;
+
+  const isHouseDefault = sections.every((s) => !s.fromDesign);
+
+  const overlayRows = displayGarmentChartRows(
+    primary.garmentRows,
+    primary.silhouette,
+    primary.block.baseSizeLabel,
+  );
+
+  return {
+    sizeLabels,
+    baseSizeLabel: primary.block.baseSizeLabel,
+    notes: primary.block.notes,
+    isHouseDefault,
+    overlay:
+      overlayRows.length > 0
+        ? {
+            rows: overlayRows,
+            silhouette: primary.silhouette,
+            silhouetteLabel: primary.silhouetteLabel,
+          }
+        : null,
+    components: sections.map((section) => ({
+      componentKey: section.componentKey,
+      componentName: section.componentName,
+      rows: section.rows.map((row) => ({
+        ...row,
+        valuesBySize: Object.fromEntries(
+          sizeLabels.map((label) => [label, row.valuesBySize[label]!]),
+        ),
+      })),
+    })),
   };
 }

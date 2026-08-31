@@ -2,7 +2,6 @@
 
 import { useQueryStates } from "nuqs";
 import { useCallback, useMemo, useState } from "react";
-import type { BodyOrGarment } from "@aks/shared";
 
 import { Money } from "@/modules/ui";
 
@@ -12,7 +11,8 @@ import { DesignGallery } from "./design-gallery";
 import { DesignSizeGuideModal } from "./design-size-guide-modal";
 import { DesignSizePicker } from "./design-size-picker";
 import { AddToCartButton } from "@/modules/cart/add-to-cart-button";
-import { ReflectionPanel } from "@/modules/tryon/reflection-panel";
+import { DesignSizingPanel } from "./design-sizing-panel";
+import { resolveDisplayPrice } from "./pricing";
 import type {
   ConfiguratorState,
   DesignDetailPublic,
@@ -36,15 +36,15 @@ type Props = {
   initialSizeMode: SizeMode;
   initialSizeLabel: string | null;
   initialQuantity: number;
-  measurementProfileId: string | null;
   leadTimePromise?: string;
 };
 
 function leadLine(
-  _daysOverride: number | null,
+  daysOverride: number | null,
   promise?: string,
 ): string {
-  return promise ?? "Ready to wear · ships in 3–5 days";
+  if (promise) return promise;
+  return formatLeadTime(daysOverride);
 }
 
 export function DesignConfigurator({
@@ -56,7 +56,6 @@ export function DesignConfigurator({
   initialSizeMode,
   initialSizeLabel,
   initialQuantity,
-  measurementProfileId,
   leadTimePromise,
 }: Props) {
   const [urlState, setUrlState] = useQueryStates(designDetailParsers, {
@@ -72,8 +71,6 @@ export function DesignConfigurator({
 
   const [measurements, setMeasurements] = useState<Record<string, number>>({});
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
-  const [measurementView, setMeasurementView] =
-    useState<BodyOrGarment>("BODY");
 
   const colourwayId = resolveColourwayId(
     urlState.colourway ?? initialColourwayParam,
@@ -85,7 +82,7 @@ export function DesignConfigurator({
     () => ({
       angle: urlState.angle ?? initialAngle,
       colourwayId,
-      sizeMode: urlState.sizeMode ?? initialSizeMode,
+      sizeMode: "STANDARD",
       sizeLabel: urlState.sizeLabel ?? initialSizeLabel,
       measurements,
       quantity: urlState.qty ?? initialQuantity,
@@ -108,12 +105,32 @@ export function DesignConfigurator({
     design.colourways.find((c) => c.id === state.colourwayId) ??
     design.colourways[0]!;
 
+  const availabilityBySize = useMemo(() => {
+    const byColourway = design.rtwAvailability[state.colourwayId] ?? {};
+    const map: Record<string, number> = {};
+    for (const label of design.availableSizeLabels) {
+      map[label] = byColourway[label] ?? 0;
+    }
+    return map;
+  }, [design.availableSizeLabels, design.rtwAvailability, state.colourwayId]);
+
+  const selectedAvailable =
+    state.sizeLabel != null ? (availabilityBySize[state.sizeLabel] ?? 0) : 0;
+
+  const displayPrice = useMemo(
+    () =>
+      resolveDisplayPrice({
+        basePriceMinor: design.basePriceMinor,
+        compareAtPriceMinor: design.compareAtPriceMinor,
+        compareAtStartsAt: design.compareAtStartsAt,
+        compareAtEndsAt: design.compareAtEndsAt,
+      }),
+    [design],
+  );
+
   const displayPriceMinor =
-    design.basePriceMinor +
-    selectedColourway.priceDeltaMinor +
-    (state.sizeMode === "MADE_TO_MEASURE"
-      ? design.madeToMeasureSurchargeMinor
-      : 0);
+    displayPrice.priceMinor +
+    selectedColourway.priceDeltaMinor;
 
   const images =
     imagesByColourway[state.colourwayId] ??
@@ -165,15 +182,24 @@ export function DesignConfigurator({
         images={images}
         angle={state.angle}
         designName={design.name}
+        categoryKey={design.garmentCategory.key}
         onAngleChange={(angle) => patchState({ angle })}
       />
 
       <div className="pdp-info">
         <span className="eyebrow">Ready to wear</span>
         <h1 className="serif">{design.name}</h1>
+        {design.subtitle ? (
+          <p className="pdp-sub">{design.subtitle}</p>
+        ) : null}
         <div className="pdp-sil">{silLine}</div>
         <div className="pdp-price">
           <Money value={displayPriceMinor} />
+          {displayPrice.compareAtMinor != null ? (
+            <span className="pdp-compare">
+              <Money value={displayPrice.compareAtMinor + selectedColourway.priceDeltaMinor} />
+            </span>
+          ) : null}
         </div>
         <div className="pdp-lead">
           {leadLine(design.leadTimeDaysOverride, leadTimePromise)}
@@ -192,6 +218,8 @@ export function DesignConfigurator({
         <DesignSizePicker
           sizeMode={state.sizeMode}
           sizeLabel={state.sizeLabel}
+          sizes={design.availableSizeLabels}
+          availabilityBySize={availabilityBySize}
           onSizeModeChange={(sizeMode) => patchState({ sizeMode })}
           onSizeLabelChange={(sizeLabel) => patchState({ sizeLabel })}
           onOpenSizeGuide={() => setSizeGuideOpen(true)}
@@ -202,21 +230,19 @@ export function DesignConfigurator({
           onClose={() => setSizeGuideOpen(false)}
           chart={sizeChart}
           ghostUrl={design.sizingGhostUrl}
+          placements={design.sizingOverlay ?? undefined}
+          availableSizeLabels={design.availableSizeLabels}
           selectedSizeLabel={state.sizeLabel}
-          measurementView={measurementView}
-          onMeasurementViewChange={setMeasurementView}
           onSelectSize={handleSelectSizeFromGuide}
         />
 
         <AddToCartButton
           design={design}
           colourwayId={state.colourwayId}
-          sizeMode={state.sizeMode}
+          sizeMode="STANDARD"
           sizeLabel={state.sizeLabel}
           quantity={state.quantity}
-          measurementProfileId={
-            state.sizeMode === "MADE_TO_MEASURE" ? measurementProfileId : null
-          }
+          availableUnits={selectedAvailable}
           customizationSelections={{}}
           displayPriceMinor={displayPriceMinor}
           images={images}
@@ -233,7 +259,7 @@ export function DesignConfigurator({
           </div>
           <div className="drow">
             <span className="k">Lead time</span>
-            <span>{formatLeadTime(design.leadTimeDaysOverride)}</span>
+            <span>{leadLine(design.leadTimeDaysOverride, leadTimePromise)}</span>
           </div>
           {design.modelDisclosure ? (
             <div className="drow">
@@ -243,19 +269,16 @@ export function DesignConfigurator({
           ) : null}
         </div>
 
-        <div style={{ marginTop: "2rem" }}>
-          <ReflectionPanel
-            designId={design.id}
-            designName={design.name}
-            colourwayId={state.colourwayId}
-            archetypeId={design.archetypeId ?? null}
-            colourways={design.colourways.map((c) => ({
-              id: c.id,
-              name: c.name,
-            }))}
-            onColourwayChange={(id) => patchState({ colourwayId: id })}
-          />
-        </div>
+        <DesignSizingPanel
+          chart={sizeChart}
+          ghostUrl={design.sizingGhostUrl}
+          placements={design.sizingOverlay ?? undefined}
+          availableSizeLabels={design.availableSizeLabels}
+          selectedSizeLabel={state.sizeLabel}
+          onSelectSize={(sizeLabel) =>
+            patchState({ sizeMode: "STANDARD", sizeLabel })
+          }
+        />
 
         {design.storyCopy ? (
           <p className="pdp-desc" style={{ marginTop: "1.5rem" }}>

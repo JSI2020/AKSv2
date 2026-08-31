@@ -56,7 +56,7 @@ export function CollectionFilters({ facets }: { facets: FacetOptions }) {
             aria-expanded={open}
             aria-controls="collection-filter-panel"
             onClick={() => setOpen((v) => !v)}
-            className="inline-flex items-center gap-2 border border-[var(--line)] px-3.5 py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--espresso)]"
+            className="collection-filter-toggle inline-flex items-center gap-2 border border-[var(--line)] px-3.5 py-2 text-[11px] uppercase tracking-[0.12em] text-[var(--espresso)]"
             style={{ borderRadius: "var(--r)" }}
           >
             {open ? "Hide filters" : "Filter"}
@@ -73,7 +73,7 @@ export function CollectionFilters({ facets }: { facets: FacetOptions }) {
           {activeCount > 0 ? (
             <button
               type="button"
-              className="border-b border-[var(--ink)] pb-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--ink)]"
+              className="collection-filter-clear border-b border-[var(--ink)] pb-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--ink)]"
               onClick={clearFilters}
             >
               Clear
@@ -84,7 +84,7 @@ export function CollectionFilters({ facets }: { facets: FacetOptions }) {
         <label className="flex items-center gap-2 text-[11px] uppercase tracking-[0.1em] text-[var(--taupe)]">
           Sort
           <select
-            className="border border-[var(--line)] bg-[var(--milk)] px-2 py-2 text-[13px] normal-case tracking-normal text-[var(--ink)]"
+            className="collection-filter-sort border border-[var(--line)] bg-[var(--milk)] px-2 py-2 text-[13px] normal-case tracking-normal text-[var(--ink)]"
             style={{ borderRadius: "var(--r)" }}
             value={params.sort ?? "newest"}
             onChange={(e) =>
@@ -253,7 +253,7 @@ function FacetChip({
     <button
       type="button"
       onClick={onClick}
-      className="px-3 py-1.5 text-[13px]"
+      className="collection-facet-chip px-3 py-1.5 text-[13px]"
       style={{
         borderRadius: "var(--r)",
         border: `1px solid ${active ? "var(--ink)" : "var(--line)"}`,

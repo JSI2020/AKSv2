@@ -1,10 +1,13 @@
 "use client";
 
-import { STANDARD_SIZE_LABELS, type SizeMode } from "./types";
+import type { SizeMode } from "./types";
 
 type Props = {
   sizeMode: SizeMode;
   sizeLabel: string | null;
+  sizes: readonly string[];
+  /** Available units for the selected colourway: sizeLabel → qty. */
+  availabilityBySize: Record<string, number>;
   onSizeModeChange: (mode: SizeMode) => void;
   onSizeLabelChange: (label: string | null) => void;
   onOpenSizeGuide: () => void;
@@ -13,6 +16,8 @@ type Props = {
 export function DesignSizePicker({
   sizeMode,
   sizeLabel,
+  sizes,
+  availabilityBySize,
   onSizeModeChange,
   onSizeLabelChange,
   onOpenSizeGuide,
@@ -22,14 +27,22 @@ export function DesignSizePicker({
       <div className="size-head">Select a size</div>
 
       <div className="std">
-        {STANDARD_SIZE_LABELS.filter((l) => l !== "XXL").map((label) => {
+        {sizes.map((label) => {
+          const available = availabilityBySize[label] ?? 0;
+          const soldOut = available <= 0;
           const active = sizeMode === "STANDARD" && sizeLabel === label;
           return (
             <button
               key={label}
               type="button"
-              className={active ? "on" : undefined}
+              className={
+                soldOut ? "sold-out" : active ? "on" : undefined
+              }
+              disabled={soldOut}
+              aria-disabled={soldOut}
+              title={soldOut ? "Sold out" : undefined}
               onClick={() => {
+                if (soldOut) return;
                 onSizeModeChange("STANDARD");
                 onSizeLabelChange(label);
               }}

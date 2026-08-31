@@ -1,21 +1,8 @@
 import { Link } from "@/i18n/routing";
 
-import { HOUSE_COLLECTIONS } from "./house-collections";
 import { CollectionFilters } from "./collection-filters";
 import { DesignCard } from "./design-card";
 import type { PublishedDesignCard, ResolvedCollection } from "./types";
-
-const COLLECTION_PILLS = [
-  ...HOUSE_COLLECTIONS.filter((c) =>
-    ["essentials", "tailored", "occasion", "signature", "separates"].includes(
-      c.slug,
-    ),
-  ).map((c) => ({
-    slug: c.slug,
-    label: c.navLabel,
-  })),
-  { slug: "new", label: "New" },
-] as const;
 
 type Facets = {
   occasions: string[];
@@ -24,17 +11,25 @@ type Facets = {
   fabrics: { id: string; name: string }[];
 };
 
+export type CollectionPill = { slug: string; label: string };
+
 export function CollectionPageView({
   collection,
+  collectionPills,
+  doorLabels,
   items,
   total,
   facets,
 }: {
   collection: ResolvedCollection;
+  collectionPills: CollectionPill[];
+  doorLabels: Record<string, string>;
   items: PublishedDesignCard[];
   total: number;
   facets: Facets;
 }) {
+  const pills = [...collectionPills, { slug: "new", label: "New" }];
+
   return (
     <main className="collection-page mx-auto max-w-[1500px] px-[2.5rem] pb-24 pt-28 max-[900px]:px-[1.4rem]">
       <nav
@@ -72,7 +67,7 @@ export function CollectionPageView({
       </header>
 
       <div className="filters mb-8">
-        {COLLECTION_PILLS.map((pill) => {
+        {pills.map((pill) => {
           const active = collection.slug === pill.slug;
           return (
             <Link
@@ -111,7 +106,11 @@ export function CollectionPageView({
 
       <div className="grid">
         {items.map((design) => (
-          <DesignCard key={design.id} design={design} />
+          <DesignCard
+            key={design.id}
+            design={design}
+            doorLabels={doorLabels}
+          />
         ))}
       </div>
     </main>

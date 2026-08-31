@@ -1,12 +1,14 @@
 import { Link } from "@/i18n/routing";
 
-import {
-  COLLECTIONS_HUB_INTRO,
-  HOUSE_COLLECTIONS,
-} from "./house-collections";
+import { COLLECTIONS_HUB_INTRO } from "./house-collections";
+import type { HouseCollectionPublic } from "./house-collections-queries";
 
 /** Hub above the house collection tiles — milk / shop-proto typography. */
-export function CollectionsHubPage() {
+export function CollectionsHubPage({
+  collections,
+}: {
+  collections: HouseCollectionPublic[];
+}) {
   return (
     <main className="collections-hub mx-auto max-w-[1500px] px-[2.5rem] pb-24 pt-28 max-[900px]:px-[1.4rem]">
       <article>
@@ -26,7 +28,7 @@ export function CollectionsHubPage() {
           className="grid gap-0 border-t md:grid-cols-2 lg:grid-cols-3"
           style={{ borderColor: "var(--line)" }}
         >
-          {HOUSE_COLLECTIONS.map((collection) => (
+          {collections.map((collection) => (
             <li
               key={collection.slug}
               className="border-b border-e"
