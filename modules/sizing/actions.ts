@@ -1,5 +1,6 @@
 "use server";
 
+import { supportsGhostMannequin } from "@aks/shared";
 import { asc, eq, or, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
@@ -76,6 +77,9 @@ export async function updateGarmentCategory(
     const nameUr = String(formData.get("nameUr") ?? "").trim();
     const sortOrder = Number.parseInt(String(formData.get("sortOrder") ?? ""), 10);
     const active = String(formData.get("active") ?? "") === "true";
+    // Absent field means "unchanged" rather than "off", so a form that does not
+    // submit it cannot silently switch every ghost off.
+    const ghostRaw = formData.get("requiresGhostMannequin");
     const keys = parseKeys(formData.get("measurementKeys"));
 
     if (!id || !name || !nameUr || !Number.isFinite(sortOrder) || !keys) {
@@ -115,6 +119,10 @@ export async function updateGarmentCategory(
       nameUr,
       sortOrder,
       active,
+      requiresGhostMannequin:
+        ghostRaw === null
+          ? (before.requiresGhostMannequin ?? true)
+          : String(ghostRaw) === "true",
       measurementKeys: keys,
       updatedAt: new Date(),
     };
@@ -184,6 +192,10 @@ export async function createGarmentCategory(
       nameUr,
       measurementKeys: keys,
       active: true,
+      requiresGhostMannequin:
+        String(formData.get("requiresGhostMannequin") ?? "") === ""
+          ? supportsGhostMannequin(key)
+          : String(formData.get("requiresGhostMannequin")) === "true",
       sortOrder,
     });
 

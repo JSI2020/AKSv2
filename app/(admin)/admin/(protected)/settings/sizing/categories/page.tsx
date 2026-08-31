@@ -30,6 +30,7 @@ export default async function SizingCategoriesPage() {
   }
 
   const keyLabel = new Map(keys.map((k) => [k.key, k.label]));
+  const activeCount = categories.filter((c) => c.active).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,6 +57,9 @@ export default async function SizingCategoriesPage() {
         <div className="border-b border-indigo-lift px-3 py-2">
           <p className="font-sans text-[12px] uppercase tracking-[0.12em] text-chalk">
             Garment categories · {categories.length}
+            {activeCount !== categories.length
+              ? ` (${activeCount} active)`
+              : null}
           </p>
         </div>
         <ul className="divide-y divide-indigo-lift">
@@ -77,6 +81,7 @@ export default async function SizingCategoriesPage() {
                   </div>
                   <p className="font-sans text-[11px] uppercase tracking-[0.08em] text-chalk">
                     {cat.active ? "Active" : "Inactive"} · sort {cat.sortOrder}
+                    {cat.requiresGhostMannequin ? null : " · no ghost"}
                   </p>
                 </div>
                 <p className="font-data text-[11px] leading-relaxed text-chalk">
@@ -89,6 +94,17 @@ export default async function SizingCategoriesPage() {
           ))}
         </ul>
       </div>
+
+      <p className="text-[12px] text-chalk">
+        Each active category has a matching house chart on{" "}
+        <Link
+          href="/admin/settings/sizing/blocks"
+          className="text-zari hover:underline"
+        >
+          Standard size charts
+        </Link>{" "}
+        ({activeCount}).
+      </p>
     </div>
   );
 }

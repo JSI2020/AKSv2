@@ -27,6 +27,9 @@ export function CategoryForm({ category, allKeys, mode }: Props) {
   const [key, setKey] = useState(category?.key ?? "");
   const [sortOrder, setSortOrder] = useState(String(category?.sortOrder ?? 100));
   const [active, setActive] = useState(category?.active ?? true);
+  const [requiresGhost, setRequiresGhost] = useState(
+    category?.requiresGhostMannequin ?? true,
+  );
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(category?.measurementKeys ?? []),
   );
@@ -59,6 +62,7 @@ export function CategoryForm({ category, allKeys, mode }: Props) {
     fd.set("nameUr", nameUr);
     fd.set("sortOrder", sortOrder);
     fd.set("active", active ? "true" : "false");
+    fd.set("requiresGhostMannequin", requiresGhost ? "true" : "false");
     fd.set("measurementKeys", JSON.stringify(keys));
 
     startTransition(async () => {
@@ -153,6 +157,23 @@ export function CategoryForm({ category, allKeys, mode }: Props) {
           Active
         </label>
       ) : null}
+
+      <label className="flex items-start gap-2 text-[13px] text-greige">
+        <input
+          type="checkbox"
+          checked={requiresGhost}
+          onChange={(e) => setRequiresGhost(e.target.checked)}
+          className="mt-0.5 size-3.5 accent-zari"
+        />
+        <span>
+          Ghost mannequin
+          <span className="mt-0.5 block text-[11.5px] text-chalk">
+            The ghost is an upper-body form — it needs a shoulder line to hang
+            from. Leave this off for trousers, palazzos and skirts, and no ghost
+            will be generated for pieces in this category.
+          </span>
+        </span>
+      </label>
 
       <fieldset className="border border-indigo-lift p-3">
         <legend className="px-1 font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
