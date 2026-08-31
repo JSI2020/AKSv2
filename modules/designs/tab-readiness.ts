@@ -16,6 +16,7 @@ export function tabReadiness(input: {
     fabricConsumptionMeters: number;
     sizeBlockId: string | null;
     fitProfileIds: Record<string, string> | null;
+    components?: string[];
   };
   colourways: { id: string; name: string }[];
   renders: { colourwayId: string; angle: string; altText: string }[];
@@ -37,7 +38,9 @@ export function tabReadiness(input: {
   const priceOk =
     !joined.includes("base price") && !joined.includes("fabric consumption");
   const detailsOk =
-    Boolean(input.design.name.trim()) && !joined.includes("occasion tag");
+    Boolean(input.design.name.trim()) &&
+    (input.design.components?.length ?? 0) >= 1 &&
+    !joined.includes("occasion tag");
 
   const tabOk: Record<DesignEditorTab, boolean> = {
     Details: detailsOk,

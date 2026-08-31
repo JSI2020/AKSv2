@@ -1,5 +1,7 @@
 "use client";
 
+import { MeasurementReport } from "@/modules/sizing/measurement-report";
+
 import { useMemo, useRef, useState } from "react";
 import { Copy, Download, LayoutGrid, Shirt } from "lucide-react";
 
@@ -57,6 +59,7 @@ type ChartState = {
     anchor: string;
     corrected: number;
     flagged: number;
+    warnings: string[];
     detail: Array<{
       pomKey: string;
       measured: number | null;
@@ -412,48 +415,20 @@ export function SizingTab() {
                   )}{" "}
                   Edit under Settings · Size chart tool before publishing.
                 </p>
-                {chart.measured?.detail.length ? (
-                  <details className="border border-indigo-lift px-3 py-2 text-[12px] text-chalk">
-                    <summary className="cursor-pointer text-greige">
-                      What the photo measured, row by row
-                    </summary>
-                    <table className="mt-2 w-full border-collapse text-[11.5px]">
-                      <thead>
-                        <tr className="text-chalk">
-                          <th className="py-1 text-start font-normal">Row</th>
-                          <th className="py-1 text-end font-normal">Photo</th>
-                          <th className="py-1 text-end font-normal">Template</th>
-                          <th className="py-1 text-end font-normal">Applied</th>
-                        </tr>
-                      </thead>
-                      <tbody className="font-data">
-                        {chart.measured.detail.map((d) => (
-                          <tr key={d.pomKey} className="border-t border-indigo-lift/50">
-                            <td className="py-1 text-greige">
-                              {POM_LABELS[d.pomKey as keyof typeof POM_LABELS] ?? d.pomKey}
-                            </td>
-                            <td className="py-1 text-end">
-                              {d.measured == null ? "not measured" : (d.measured / 100).toFixed(2)}
-                            </td>
-                            <td className="py-1 text-end">{(d.prior / 100).toFixed(2)}</td>
-                            <td className="py-1 text-end">
-                              {d.flagged ? (
-                                <span className="text-madder">rejected · 3σ</span>
-                              ) : d.delta === 0 ? (
-                                "—"
-                              ) : (
-                                <span className="text-zari">
-                                  {d.delta > 0 ? "+" : ""}
-                                  {(d.delta / 100).toFixed(2)}
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </details>
-                ) : null}
+                <MeasurementReport
+                  data={
+                    chart.measured
+                      ? {
+                          captureContext: chart.measured.captureContext,
+                          anchor: chart.measured.anchor,
+                          corrected: chart.measured.corrected,
+                          flagged: chart.measured.flagged,
+                          warnings: chart.measured.warnings,
+                          detail: chart.measured.detail,
+                        }
+                      : null
+                  }
+                />
                 <GarmentSizingPreview
                   imageUrl={displayImageUrl}
                   rows={chart.rows}

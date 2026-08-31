@@ -14,6 +14,10 @@ import {
   recognizeDesignSizing,
 } from "./recognize-sizing-action";
 import { stylesForCategory } from "./standard-styles";
+import {
+  MeasurementReport,
+  type MeasurementReportData,
+} from "@/modules/sizing/measurement-report";
 
 import {
   DEFAULT_SIZE_BLOCK_SEEDS,
@@ -266,6 +270,8 @@ function PieceSizeGuide({
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [recognizing, setRecognizing] = useState(false);
   const [recognizeMsg, setRecognizeMsg] = useState<string | null>(null);
+  const [report, setReport] = useState<MeasurementReportData | null>(null);
+  const [reportReady, setReportReady] = useState(false);
   const [highlightKey, setHighlightKey] = useState<string | null>(null);
 
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
@@ -304,29 +310,22 @@ function PieceSizeGuide({
         setError(res.error);
         return;
       }
-      // Say plainly whether the photo was actually measured or the chart came
-      // from the style template alone — otherwise a silent fallback looks
-      // identical to a successful measurement.
+      // Structured report, shared with AI Studio.
       const m = res.measurement;
-      const source = m
-        ? [
-            `measured from photo (${m.landmarks.captureContext.replace("_", " ")}`,
-            m.anchor === "person_height"
-              ? ", scaled on model height)"
-              : ", scaled on garment length)",
-            m.applied.length
-              ? ` · ${m.applied.length} corrected`
-              : " · matched the template",
-            m.conflicts.length
-              ? ` · ${m.conflicts.length} flagged for review`
-              : "",
-          ].join("")
-        : "from style template only — photo could not be measured";
-      setRecognizeMsg(
-        `Chart built · ${res.filled.length} measurements · ${source} · ${
-          res.ghostUrl ? "ghost saved" : "ghost unavailable"
-        }`,
+      setReport(
+        m
+          ? {
+              captureContext: m.landmarks.captureContext,
+              anchor: m.anchor,
+              corrected: m.applied.length,
+              flagged: m.conflicts.length,
+              warnings: m.warnings,
+              detail: m.detail,
+            }
+          : null,
       );
+      setReportReady(true);
+      setRecognizeMsg(null);
       if (res.ghostUrl) setGhostUrl(res.ghostUrl);
       if (res.blockId !== activeBlockId) {
         setActiveBlockId(res.blockId);
@@ -755,6 +754,9 @@ function PieceSizeGuide({
             ghost mannequin with the design. Edit M below to adjust; grading
             stays on the house step.
           </p>
+          {reportReady ? (
+            <MeasurementReport data={report} tone="light" className="mb-2" />
+          ) : null}
           {recognizeMsg ? (
             <p className="mb-2 text-[11.5px] text-ink/60">{recognizeMsg}</p>
           ) : null}

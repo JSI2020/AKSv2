@@ -56,6 +56,15 @@ export type PhotoEstimateInput = {
  * armhole seam — which inflates every girth enough to be rejected downstream.
  * Outside this band the girths are dropped and the lengths kept.
  */
+/**
+ * The garment must fill a reasonable share of the frame. A screenshot of a
+ * web page — browser chrome, navigation, an "add to bag" button — leaves the
+ * dress occupying a small central strip, and every span measured off it
+ * inherits whatever the model guessed about the surrounding furniture.
+ */
+const MIN_GARMENT_WIDTH_FRACTION = 0.18;
+const MIN_GARMENT_HEIGHT_FRACTION = 0.3;
+
 const PIT_TO_SHOULDER_BAND: Record<CaptureContext, [number, number]> = {
   // Laid flat, the chest reads as HALF the girth — wider than the shoulder seam.
   flat_lay: [0.95, 1.65],
@@ -201,6 +210,24 @@ export function estimateFromPhoto(
       : onBodyGirthIn(widthIn, landmark);
 
   const warnings: string[] = [];
+
+  // Frame coverage — a garment lost inside a screenshot cannot be measured.
+  const widthFraction = Math.max(
+    Math.abs(lm.pitR.x - lm.pitL.x),
+    Math.abs(lm.hemR.x - lm.hemL.x),
+    Math.abs(lm.shoulderR.x - lm.shoulderL.x),
+  );
+  const heightFraction = Math.abs(
+    (lm.hemL.y + lm.hemR.y) / 2 - (lm.shoulderL.y + lm.shoulderR.y) / 2,
+  );
+  if (
+    widthFraction < MIN_GARMENT_WIDTH_FRACTION ||
+    heightFraction < MIN_GARMENT_HEIGHT_FRACTION
+  ) {
+    warnings.push(
+      `The garment fills only ${Math.round(widthFraction * 100)}% of the frame's width and ${Math.round(heightFraction * 100)}% of its height. If this is a screenshot or a busy scene, crop tightly to the garment — measurements taken off a small part of a large image are unreliable.`,
+    );
+  }
 
   const shoulderIn = dist(lm.shoulderL, lm.shoulderR, w, h) / ppi;
   record("shoulder", shoulderIn, lengthSd, anchorRelSd);

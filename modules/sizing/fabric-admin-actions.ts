@@ -1,15 +1,27 @@
 "use server";
 
-import { eq } from "drizzle-orm";
-import { revalidatePath } from "next/cache";
+import { and, count, eq, inArray, or, sql } from "drizzle-orm";
 
-import { db, fabricLots, fabrics, insertAuditLog, type Database } from "@aks/db";
+import {
+  colourways,
+  db,
+  designCosts,
+  fabricLots,
+  fabricReservations,
+  fabrics,
+  insertAuditLog,
+  purchaseOrderLines,
+  stockAdjustments,
+  type Database,
+} from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
 import { completeUpload } from "@/modules/platform/assets";
 import { parseMeasureInput } from "@/modules/ui";
 import { parseMetresInput } from "@/modules/ui/metres/format";
 import { refreshFabricLotStatus } from "@/modules/inventory/lot-status";
+import { ensureFabricColourways } from "@/modules/inventory/ledger-queries";
+import { revalidateFabricStockPaths } from "@/modules/inventory/revalidate-fabric-paths";
 
 import type { BlockSaveResult } from "./types";
 import { listFabrics, getFabric } from "./fabric-archetype-actions";
@@ -48,20 +60,23 @@ function parseRupeesToMinor(raw: string): number | null {
   return Number.parseInt(whole, 10) * 100 + Number.parseInt(paisa, 10);
 }
 
-async function insertStartingLot(input: {
+async function insertFabricLot(input: {
   fabricId: string;
   lotCode: string;
+  colourNotes: string | null;
   metersHundredths: number;
   costPerMeterMinor: number;
   actorId: string;
   actorRole: string;
 }) {
   const lotId = uuidv7();
+  const colourNotes = input.colourNotes?.trim() || "Default";
   await db.transaction(async (tx) => {
     await tx.insert(fabricLots).values({
       id: lotId,
       fabricId: input.fabricId,
       lotCode: input.lotCode,
+      colourNotes,
       metersReceived: input.metersHundredths,
       metersOnHand: input.metersHundredths,
       metersReserved: 0,
@@ -70,6 +85,14 @@ async function insertStartingLot(input: {
       status: "AVAILABLE",
     });
     await refreshFabricLotStatus(tx, lotId);
+    await tx.insert(stockAdjustments).values({
+      id: uuidv7(),
+      fabricLotId: lotId,
+      deltaMeters: input.metersHundredths,
+      reason: "OTHER",
+      note: `Received — lot ${input.lotCode}`,
+      actorId: input.actorId,
+    });
     await insertAuditLog(tx as unknown as Database, {
       id: uuidv7(),
       actorId: input.actorId,
@@ -82,8 +105,24 @@ async function insertStartingLot(input: {
         fabricId: input.fabricId,
         lotCode: input.lotCode,
         meters: input.metersHundredths,
+        colourNotes,
       },
     });
+  });
+  return lotId;
+}
+
+async function insertStartingLot(input: {
+  fabricId: string;
+  lotCode: string;
+  metersHundredths: number;
+  costPerMeterMinor: number;
+  actorId: string;
+  actorRole: string;
+}) {
+  await insertFabricLot({
+    ...input,
+    colourNotes: "Default",
   });
 }
 
@@ -198,13 +237,130 @@ export async function saveFabric(formData: FormData): Promise<BlockSaveResult> {
       after: values,
     });
 
-    revalidatePath("/admin/fabrics");
-    revalidatePath(`/admin/fabrics/${id}`);
+    await ensureFabricColourways(id);
+
+    revalidateFabricStockPaths(id);
     return { ok: true, id };
   } catch (e) {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Save failed",
+    };
+  }
+}
+
+export async function deleteFabric(
+  fabricId: string,
+): Promise<BlockSaveResult> {
+  try {
+    const session = await requirePermission("fabric.delete");
+
+    const [before] = await db
+      .select()
+      .from(fabrics)
+      .where(eq(fabrics.id, fabricId))
+      .limit(1);
+    if (!before) return { ok: false, error: "Fabric not found" };
+
+    const [designColourwayUse] = await db
+      .select({ count: count() })
+      .from(colourways)
+      .where(
+        or(
+          eq(colourways.fabricId, fabricId),
+          sql`EXISTS (SELECT 1 FROM jsonb_each_text(${colourways.pieceFabrics}) AS t(k, v) WHERE t.v = ${fabricId})`,
+        ),
+      );
+    if ((designColourwayUse?.count ?? 0) > 0) {
+      return {
+        ok: false,
+        error:
+          "Designs use this fabric — archive it instead of deleting.",
+      };
+    }
+
+    const [designCostUse] = await db
+      .select({ count: count() })
+      .from(designCosts)
+      .where(
+        or(
+          eq(designCosts.fabricId, fabricId),
+          sql`EXISTS (SELECT 1 FROM jsonb_array_elements(${designCosts.pieceCosts}) AS elem WHERE elem->>'fabricId' = ${fabricId})`,
+        ),
+      );
+    if ((designCostUse?.count ?? 0) > 0) {
+      return {
+        ok: false,
+        error:
+          "Design costing references this fabric — archive it instead.",
+      };
+    }
+
+    const [poUse] = await db
+      .select({ count: count() })
+      .from(purchaseOrderLines)
+      .where(eq(purchaseOrderLines.fabricId, fabricId));
+    if ((poUse?.count ?? 0) > 0) {
+      return {
+        ok: false,
+        error:
+          "Purchase orders reference this fabric — archive it instead.",
+      };
+    }
+
+    const [reservedUse] = await db
+      .select({ count: count() })
+      .from(fabricReservations)
+      .innerJoin(fabricLots, eq(fabricReservations.fabricLotId, fabricLots.id))
+      .where(
+        and(
+          eq(fabricLots.fabricId, fabricId),
+          eq(fabricReservations.status, "RESERVED"),
+        ),
+      );
+    if ((reservedUse?.count ?? 0) > 0) {
+      return {
+        ok: false,
+        error:
+          "Stock is reserved for open orders — release reservations first.",
+      };
+    }
+
+    const lotRows = await db
+      .select({ id: fabricLots.id })
+      .from(fabricLots)
+      .where(eq(fabricLots.fabricId, fabricId));
+    const lotIds = lotRows.map((row) => row.id);
+
+    await db.transaction(async (tx) => {
+      if (lotIds.length > 0) {
+        await tx
+          .delete(stockAdjustments)
+          .where(inArray(stockAdjustments.fabricLotId, lotIds));
+        await tx
+          .delete(fabricReservations)
+          .where(inArray(fabricReservations.fabricLotId, lotIds));
+        await tx.delete(fabricLots).where(eq(fabricLots.fabricId, fabricId));
+      }
+      await tx.delete(fabrics).where(eq(fabrics.id, fabricId));
+    });
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "fabric.delete",
+      entityType: "fabric",
+      entityId: fabricId,
+      before,
+    });
+
+    revalidateFabricStockPaths(fabricId);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Delete failed",
     };
   }
 }
@@ -237,8 +393,7 @@ export async function archiveFabric(
       after: { active: false },
     });
 
-    revalidatePath("/admin/fabrics");
-    revalidatePath(`/admin/fabrics/${fabricId}`);
+    revalidateFabricStockPaths(fabricId);
     return { ok: true };
   } catch (e) {
     return {
@@ -274,36 +429,20 @@ export async function recordFabricLot(
     if (!fabric) return { ok: false, error: "Fabric not found" };
 
     const costPerMeterMinor = costFromRupees ?? fabric.costPerMeterMinor;
-    const lotId = uuidv7();
 
-    await db.transaction(async (tx) => {
-      await tx.insert(fabricLots).values({
-        id: lotId,
-        fabricId,
-        lotCode,
-        colourNotes,
-        metersReceived: meters,
-        metersOnHand: meters,
-        metersReserved: 0,
-        costPerMeterMinor,
-        receivedAt: new Date(),
-        status: "AVAILABLE",
-      });
-      await refreshFabricLotStatus(tx, lotId);
-      await insertAuditLog(tx as unknown as Database, {
-        id: uuidv7(),
-        actorId: session.user.id,
-        actorRole: session.user.role,
-        action: "fabric.record_lot",
-        entityType: "fabric_lot",
-        entityId: lotId,
-        before: null,
-        after: { fabricId, lotCode, meters, colourNotes },
-      });
+    await insertFabricLot({
+      fabricId,
+      lotCode,
+      colourNotes,
+      metersHundredths: meters,
+      costPerMeterMinor,
+      actorId: session.user.id,
+      actorRole: session.user.role,
     });
 
-    revalidatePath(`/admin/fabrics/${fabricId}`);
-    revalidatePath("/admin/fabrics");
+    await ensureFabricColourways(fabricId);
+
+    revalidateFabricStockPaths(fabricId);
     return { ok: true };
   } catch (e) {
     return {

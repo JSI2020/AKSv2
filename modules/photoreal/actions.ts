@@ -1050,6 +1050,7 @@ export type StudioSizeChartResult =
         anchor: string;
         corrected: number;
         flagged: number;
+        warnings: string[];
         detail: Array<{
           pomKey: string;
           measured: number | null;
@@ -1204,6 +1205,7 @@ export async function studioBuildSizeChartAction(
       anchor: string;
       corrected: number;
       flagged: number;
+      warnings: string[];
       detail: Array<{
         pomKey: string;
         measured: number | null;
@@ -1237,6 +1239,7 @@ export async function studioBuildSizeChartAction(
             anchor: m.anchor,
             corrected: m.applied.length,
             flagged: m.conflicts.length,
+            warnings: m.warnings,
             detail: m.detail.map((d) => ({
               pomKey: d.pomKey,
               measured: d.measured,

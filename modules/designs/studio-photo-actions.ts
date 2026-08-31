@@ -1,6 +1,6 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -14,13 +14,18 @@ import {
 import { RENDER_ANGLES, uuidv7, type RenderAngle } from "@aks/shared";
 import { generateColourways } from "@/modules/ai/studio/colourway-actions";
 import { requirePermission } from "@/modules/auth";
+import { formatActionError } from "@/modules/platform/action-error";
+import { revalidateFabricStockPathsMany } from "@/modules/inventory/revalidate-fabric-paths";
+import { revalidateFabricsFromColourwayRows } from "@/modules/designs/fabric-revalidation";
 import {
   poseById,
   resolveStudioPosePicks,
 } from "@/modules/photoreal/commercial-poses";
+import { resolveStudioBackgroundPrompt } from "@/modules/designs/studio-backgrounds";
+import { processManualStudioGenerations } from "@/modules/designs/process-manual-studio-generations";
 
 type DesignActionResult =
-  | { ok: true; id?: string }
+  | { ok: true; id?: string; colourwayIds?: string[] }
   | { ok: false; error: string };
 
 function slugify(input: string): string {
@@ -120,29 +125,91 @@ export async function syncStudioColourways(
     }
 
     const existing = await db
-      .select({ id: colourways.id })
+      .select({
+        id: colourways.id,
+        fabricId: colourways.fabricId,
+        pieceFabrics: colourways.pieceFabrics,
+      })
       .from(colourways)
-      .where(eq(colourways.designId, designId));
+      .where(eq(colourways.designId, designId))
+      .orderBy(asc(colourways.sortOrder));
 
-    // Keep renders only when colourway ids are preserved — full replace drops renders.
-    await db.delete(colourways).where(eq(colourways.designId, designId));
+    const priorFabricIds = existing.flatMap((cw) => [
+      cw.fabricId,
+      ...Object.values(cw.pieceFabrics ?? {}),
+    ]);
+
+    const referenceRows = await db
+      .select({
+        id: designRenders.id,
+        colourwayId: designRenders.colourwayId,
+      })
+      .from(designRenders)
+      .where(
+        and(
+          eq(designRenders.designId, designId),
+          eq(designRenders.isAiGenerated, false),
+        ),
+      );
+
+    const keptIds: string[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]!;
-      await db.insert(colourways).values({
-        id: uuidv7(),
-        designId,
-        name: row.name.trim(),
-        nameUr: "",
-        slug: slugify(row.name) || `colour-${i + 1}`,
-        fabricId: row.fabricId,
-        hexApproximation: row.hex?.trim() || null,
-        pieceFabrics: row.pieceFabrics ?? {},
-        priceDeltaMinor: 0,
-        isDefault: i === 0,
-        sortOrder: i,
-        active: true,
-      });
+      const prev = existing[i];
+      if (prev) {
+        await db
+          .update(colourways)
+          .set({
+            name: row.name.trim(),
+            nameUr: "",
+            slug: slugify(row.name) || `colour-${i + 1}`,
+            fabricId: row.fabricId,
+            hexApproximation: row.hex?.trim() || null,
+            pieceFabrics: row.pieceFabrics ?? {},
+            isDefault: i === 0,
+            sortOrder: i,
+            active: true,
+            updatedAt: new Date(),
+          })
+          .where(eq(colourways.id, prev.id));
+        keptIds.push(prev.id);
+      } else {
+        const id = uuidv7();
+        await db.insert(colourways).values({
+          id,
+          designId,
+          name: row.name.trim(),
+          nameUr: "",
+          slug: slugify(row.name) || `colour-${i + 1}`,
+          fabricId: row.fabricId,
+          hexApproximation: row.hex?.trim() || null,
+          pieceFabrics: row.pieceFabrics ?? {},
+          priceDeltaMinor: 0,
+          isDefault: i === 0,
+          sortOrder: i,
+          active: true,
+        });
+        keptIds.push(id);
+      }
+    }
+
+    const defaultColourwayId = keptIds[0];
+    if (defaultColourwayId) {
+      for (const ref of referenceRows) {
+        if (!keptIds.includes(ref.colourwayId)) {
+          await db
+            .update(designRenders)
+            .set({ colourwayId: defaultColourwayId, updatedAt: new Date() })
+            .where(eq(designRenders.id, ref.id));
+        }
+      }
+    }
+
+    for (const ex of existing) {
+      if (!keptIds.includes(ex.id)) {
+        await db.delete(colourways).where(eq(colourways.id, ex.id));
+      }
     }
 
     await insertAuditLog(db, {
@@ -157,7 +224,10 @@ export async function syncStudioColourways(
     });
 
     revalidatePath(`/admin/designs/${designId}`);
-    return { ok: true, id: designId };
+    revalidatePath("/admin/inventory");
+    revalidateFabricsFromColourwayRows(rows);
+    revalidateFabricStockPathsMany(priorFabricIds);
+    return { ok: true, id: designId, colourwayIds: keptIds };
   } catch (e) {
     return {
       ok: false,
@@ -170,13 +240,17 @@ export async function generateStudioAngles(
   formData: FormData,
 ): Promise<DesignActionResult> {
   try {
-    await requirePermission("designs.create");
+    await requirePermission("designs.edit");
     const designId = String(formData.get("designId") ?? "");
     if (!designId) return { ok: false, error: "Invalid design" };
 
     const slotRaw = String(formData.get("slotIndex") ?? "").trim();
     const poseIdRaw = String(formData.get("poseId") ?? "").trim();
     const anglesRaw = String(formData.get("anglesJson") ?? "").trim();
+    const backgroundPrompt = resolveStudioBackgroundPrompt({
+      presetId: String(formData.get("backgroundPreset") ?? ""),
+      custom: String(formData.get("backgroundCustom") ?? ""),
+    });
 
     let picks = resolveStudioPosePicks(
       (await db
@@ -212,31 +286,16 @@ export async function generateStudioAngles(
       .set({ studioAnglePicks: picks, updatedAt: new Date() })
       .where(eq(designs.id, designId));
 
-    // Ensure at least one colourway exists for generation.
     const existingCw = await db
       .select({ id: colourways.id })
       .from(colourways)
       .where(eq(colourways.designId, designId))
       .limit(1);
     if (!existingCw[0]) {
-      const [fabric] = await db
-        .select({ id: fabrics.id, name: fabrics.name })
-        .from(fabrics)
-        .where(eq(fabrics.active, true))
-        .limit(1);
-      if (!fabric) {
-        return { ok: false, error: "Add a fabric and colour set before generating." };
-      }
-      await db.insert(colourways).values({
-        id: uuidv7(),
-        designId,
-        name: fabric.name,
-        slug: slugify(fabric.name) || "default",
-        fabricId: fabric.id,
-        isDefault: true,
-        sortOrder: 0,
-        active: true,
-      });
+      return {
+        ok: false,
+        error: "Save colour sets with fabric on Photos before generating.",
+      };
     }
 
     const poses = resolveStudioPosePicks(picks);
@@ -252,14 +311,22 @@ export async function generateStudioAngles(
       includeDefault: true,
       angles: singleAngle ? [singleAngle] : undefined,
       posePrompt: single?.prompt ?? null,
+      backgroundPrompt,
     });
     if (!res.ok) return { ok: false, error: res.error };
+
+    const processed = await processManualStudioGenerations({
+      designId,
+      angles: singleAngle ? [singleAngle] : undefined,
+    });
+    if (!processed.ok) return processed;
+
     revalidatePath(`/admin/designs/${designId}`);
     return { ok: true, id: designId };
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Generate failed",
+      error: formatActionError(e),
     };
   }
 }
@@ -297,31 +364,11 @@ export async function attachReferencePhoto(
     }
 
     if (!cw) {
-      const [fabric] = await db
-        .select({ id: fabrics.id })
-        .from(fabrics)
-        .where(eq(fabrics.active, true))
-        .limit(1);
-      if (!fabric) return { ok: false, error: "Add a fabric first" };
-      const cwId = uuidv7();
-      await db.insert(colourways).values({
-        id: cwId,
-        designId,
-        name: "Default",
-        slug: "default",
-        fabricId: fabric.id,
-        isDefault: true,
-        sortOrder: 0,
-        active: true,
-      });
-      [cw] = await db
-        .select()
-        .from(colourways)
-        .where(eq(colourways.id, cwId))
-        .limit(1);
+      return {
+        ok: false,
+        error: "Save colour sets with fabric on Photos before attaching a reference.",
+      };
     }
-
-    if (!cw) return { ok: false, error: "Could not resolve colourway" };
 
     // Replace prior FRONT reference so generate always finds one.
     if (angle === "FRONT") {

@@ -24,7 +24,6 @@ import {
   PricingTab,
   PreviewPublishTab,
 } from "./design-price-preview-tabs";
-import { houseDoorOptions, isHouseDoorTag } from "./item-number";
 import { tabReadiness } from "./tab-readiness";
 
 type FormOptions = {
@@ -33,6 +32,7 @@ type FormOptions = {
   blocks: { id: string; name: string; categoryId: string }[];
   profiles: { id: string; name: string; categoryId: string }[];
   archetypes: { id: string; name: string }[];
+  houseDoors: { tag: string; label: string; code: string }[];
 };
 
 const TABS = [
@@ -105,21 +105,60 @@ function Field({
   );
 }
 
+function savedComponentKeys(detail: DesignDetail): string[] {
+  return detail.design.components ?? [];
+}
+
 function componentKeysOf(detail: DesignDetail): string[] {
-  const fromDesign = detail.design.components ?? [];
+  const fromDesign = savedComponentKeys(detail);
   if (fromDesign.length > 0) return fromDesign;
   return detail.categoryKey ? [detail.categoryKey] : [];
 }
 
-function houseDoorFromTags(tags: DesignDetail["tags"]): string {
+const POST_DETAILS_TABS: Tab[] = [
+  "Photos",
+  "Sizing",
+  "Costing",
+  "Price",
+  "Preview",
+];
+
+function resolveInitialTab(
+  requested: Tab | undefined,
+  hasArticleTypes: boolean,
+  hasFabrics: boolean,
+): Tab {
+  const tab = requested ?? "Details";
+  if (!hasArticleTypes && POST_DETAILS_TABS.includes(tab)) return "Details";
+  if (!hasFabrics && tab === "Photos") return "Details";
+  return tab;
+}
+
+function tabLocked(
+  t: Tab,
+  hasArticleTypes: boolean,
+  hasFabrics: boolean,
+): boolean {
+  if (!hasArticleTypes && POST_DETAILS_TABS.includes(t)) return true;
+  if (!hasFabrics && t === "Photos") return true;
+  return false;
+}
+
+function houseDoorFromTags(
+  tags: DesignDetail["tags"],
+  doorTags: Set<string>,
+): string {
   const found = tags.find(
-    (t) => t.kind === "FREE" && isHouseDoorTag(t.value),
+    (t) => t.kind === "FREE" && doorTags.has(t.value.toUpperCase()),
   );
   return found?.value ?? "";
 }
 
-function houseDoorLabel(tag: string): string {
-  return houseDoorOptions().find((o) => o.tag === tag)?.label ?? tag;
+function houseDoorLabel(
+  tag: string,
+  options: FormOptions["houseDoors"],
+): string {
+  return options.find((o) => o.tag === tag)?.label ?? tag;
 }
 
 function piecesMeta(components: string[]): string {
@@ -136,12 +175,14 @@ export function CreateDesignForm({ options }: { options: FormOptions }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const hasCategories = options.categories.length > 0;
 
   return (
     <form
       className="flex max-w-md flex-col gap-3"
       onSubmit={(e) => {
         e.preventDefault();
+        if (!hasCategories) return;
         const fd = new FormData(e.currentTarget);
         startTransition(async () => {
           const res = await createDesign(fd);
@@ -159,14 +200,24 @@ export function CreateDesignForm({ options }: { options: FormOptions }) {
         <input name="name" required className={fieldClass()} />
       </label>
       <label className="flex flex-col gap-1.5">
-        <Label>Category</Label>
-        <select name="garmentTypeId" required className={fieldClass()}>
-          {options.categories.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.key} — {c.name}
-            </option>
-          ))}
-        </select>
+        <Label>Article type</Label>
+        {hasCategories ? (
+          <select name="garmentTypeId" required className={fieldClass()}>
+            {options.categories.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.key} — {c.name}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-[13px] text-madder">
+            No article types yet.{" "}
+            <Link href="/admin/settings/sizing/categories" className="underline">
+              Add categories
+            </Link>{" "}
+            before creating a design.
+          </p>
+        )}
       </label>
       {error ? (
         <p className="text-[13px] text-madder" role="alert">
@@ -175,7 +226,7 @@ export function CreateDesignForm({ options }: { options: FormOptions }) {
       ) : null}
       <button
         type="submit"
-        disabled={pending}
+        disabled={pending || !hasCategories}
         className="border border-zari bg-zari px-3 py-1.5 text-[13px] text-indigo disabled:opacity-50"
       >
         {pending ? "Creating…" : "Create draft"}
@@ -199,17 +250,24 @@ export function DesignEditor({
   canEditCosts?: boolean;
   initialTab?: Tab;
 }) {
-  const [tab, setTab] = useState<Tab>(initialTab ?? "Details");
+  const savedComponents = savedComponentKeys(detail);
+  const hasArticleTypes = savedComponents.length > 0;
+  const hasFabrics = options.fabrics.length > 0;
+  const [tab, setTab] = useState<Tab>(() =>
+    resolveInitialTab(initialTab, hasArticleTypes, hasFabrics),
+  );
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [tabNotice, setTabNotice] = useState<string | null>(null);
 
   const d = detail.design;
   const isArchived = d.status === "ARCHIVED";
   const canPublish = d.status === "DRAFT" || d.status === "READY_TO_PUBLISH";
   const components = componentKeysOf(detail);
-  const houseDoor = houseDoorFromTags(detail.tags);
+  const doorTags = new Set(options.houseDoors.map((d) => d.tag.toUpperCase()));
+  const houseDoor = houseDoorFromTags(detail.tags, doorTags);
   const readiness = tabReadiness({
     design: {
       name: d.name,
@@ -217,6 +275,7 @@ export function DesignEditor({
       fabricConsumptionMeters: d.fabricConsumptionMeters,
       sizeBlockId: d.sizeBlockId,
       fitProfileIds: d.fitProfileIds,
+      components: savedComponents,
     },
     colourways: detail.colourways.map((c) => ({ id: c.id, name: c.name })),
     renders: detail.renders.map((r) => ({
@@ -353,17 +412,32 @@ export function DesignEditor({
       >
         {TABS.map((t) => {
           const ok = readiness.tabOk[t];
+          const locked = tabLocked(t, hasArticleTypes, hasFabrics);
           return (
             <button
               key={t}
               type="button"
               role="tab"
               aria-selected={tab === t}
-              onClick={() => setTab(t)}
+              aria-disabled={locked || undefined}
+              onClick={() => {
+                if (locked) {
+                  setTabNotice(
+                    !hasArticleTypes
+                      ? "Save at least one article type on Details before continuing."
+                      : "Add a fabric in inventory before opening Photos.",
+                  );
+                  return;
+                }
+                setTabNotice(null);
+                setTab(t);
+              }}
               className={
                 tab === t
                   ? "-mb-px inline-flex items-center gap-1.5 border-b-2 border-zari px-4 py-2.5 text-[12.5px] text-ink"
-                  : "-mb-px inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/55 hover:text-ink"
+                  : locked
+                    ? "-mb-px inline-flex cursor-not-allowed items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/30"
+                    : "-mb-px inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/55 hover:text-ink"
               }
             >
               <span
@@ -382,6 +456,19 @@ export function DesignEditor({
           );
         })}
       </div>
+      {tabNotice ? (
+        <p className="border border-ink/12 bg-greige/40 px-3 py-2 text-[12px] text-ink/70">
+          {tabNotice}
+          {!hasFabrics ? (
+            <>
+              {" "}
+              <Link href="/admin/fabrics" className="text-zari underline">
+                Open fabrics
+              </Link>
+            </>
+          ) : null}
+        </p>
+      ) : null}
       {!readiness.ready && !isArchived ? (
         <p className="border border-madder/30 bg-milk px-3 py-2 text-[12px] text-madder">
           Before publish: {readiness.missing.join(" · ")}
@@ -404,10 +491,13 @@ export function DesignEditor({
               detail={detail}
               options={options}
               pending={pending}
-              onSave={(fd) => run(updateDesignDetails, fd, "Photos")}
+              onSave={(fd) => {
+                setTabNotice(null);
+                run(updateDesignDetails, fd, "Photos");
+              }}
             />
           ) : null}
-          {tab === "Photos" ? (
+          {tab === "Photos" && hasArticleTypes && hasFabrics ? (
             <DesignPhotosTab
               detail={detail}
               options={options}
@@ -424,7 +514,7 @@ export function DesignEditor({
                       return;
                     }
                   }
-                  setMessage("Saved");
+                  setMessage(thenAdvance ? "Saved" : "Photo saved");
                   router.refresh();
                   if (thenAdvance) setTab("Sizing");
                 });
@@ -432,7 +522,7 @@ export function DesignEditor({
               onSavedAdvance={() => setTab("Sizing")}
             />
           ) : null}
-          {tab === "Sizing" ? (
+          {tab === "Sizing" && hasArticleTypes ? (
             <DesignSizingTab
               detail={detail}
               options={options}
@@ -440,7 +530,7 @@ export function DesignEditor({
               onSave={(fd) => run(updateDesignSizing, fd, "Costing")}
             />
           ) : null}
-          {tab === "Costing" ? (
+          {tab === "Costing" && hasArticleTypes ? (
             costing ? (
               <DesignCostingPanel
                 data={costing}
@@ -456,7 +546,7 @@ export function DesignEditor({
               </p>
             )
           ) : null}
-          {tab === "Price" ? (
+          {tab === "Price" && hasArticleTypes ? (
             <PricingTab
               detail={detail}
               costing={costing}
@@ -464,7 +554,7 @@ export function DesignEditor({
               onSave={(fd) => run(updateDesignPricing, fd, "Preview")}
             />
           ) : null}
-          {tab === "Preview" ? (
+          {tab === "Preview" && hasArticleTypes ? (
             <PreviewPublishTab
               detail={detail}
               costing={costing}
@@ -484,6 +574,7 @@ export function DesignEditor({
           detail={detail}
           components={components}
           houseDoor={houseDoor}
+          houseDoors={options.houseDoors}
         />
       </div>
     </div>
@@ -494,10 +585,12 @@ function PreviewColumn({
   detail,
   components,
   houseDoor,
+  houseDoors,
 }: {
   detail: DesignDetail;
   components: string[];
   houseDoor: string;
+  houseDoors: FormOptions["houseDoors"];
 }) {
   const d = detail.design;
   return (
@@ -511,7 +604,7 @@ function PreviewColumn({
       <p className="mt-1 text-[11px] text-ink/55">{piecesMeta(components)}</p>
       {houseDoor ? (
         <p className="mt-0.5 text-[11px] text-ink/45">
-          {houseDoorLabel(houseDoor)}
+          {houseDoorLabel(houseDoor, houseDoors)}
         </p>
       ) : null}
       <div className="mt-2 font-data text-[13px] text-ink">
@@ -549,10 +642,13 @@ function DetailsTab({
   onSave: (fd: FormData) => void;
 }) {
   const d = detail.design;
-  const initialComponents = componentKeysOf(detail);
+  const initialComponents = savedComponentKeys(detail).length
+    ? savedComponentKeys(detail)
+    : componentKeysOf(detail);
   const [components, setComponents] = useState<string[]>(initialComponents);
+  const doorTags = new Set(options.houseDoors.map((d) => d.tag.toUpperCase()));
   const [houseDoorTag, setHouseDoorTag] = useState(
-    houseDoorFromTags(detail.tags),
+    houseDoorFromTags(detail.tags, doorTags),
   );
 
   function toggleComponent(key: string) {
@@ -630,7 +726,7 @@ function DetailsTab({
             className={fieldClass()}
           >
             <option value="">Select…</option>
-            {houseDoorOptions().map((o) => (
+            {options.houseDoors.map((o) => (
               <option key={o.tag} value={o.tag}>
                 {o.label}
               </option>

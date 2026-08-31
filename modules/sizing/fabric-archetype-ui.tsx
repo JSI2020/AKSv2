@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import { formatModelDisclosure } from "@aks/shared";
 import { Measure, Money } from "@/modules/ui";
 
+import { saveFabric } from "./fabric-admin-actions";
 import {
-  saveFabric,
   saveHouseModel,
   type FabricRow,
   type HouseModelRow,

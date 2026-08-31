@@ -10,6 +10,7 @@ import {
 } from "@/packages/db/schema";
 import {
   measureGarmentFromPhoto,
+  type ChartCellRow,
   type PhotoMeasurementSummary,
 } from "@/modules/dress-sizing/service/measure-garment";
 import { DEFAULT_SIZE_BLOCK_SEEDS, uuidv7 } from "@aks/shared";
@@ -208,6 +209,8 @@ export type RecognizeSizingResult =
       ghostUrl: string | null;
       /** Present when the photo could be measured; null = template-only. */
       measurement: PhotoMeasurementSummary | null;
+      /** House standard for the detected garment type, before corrections. */
+      standardChart: ChartCellRow[];
     }
   | { ok: false; error: string };
 
@@ -260,6 +263,7 @@ export async function recognizeDesignSizing(
       lowConfidence: sizing.lowConfidence,
       ghostUrl,
       measurement,
+      standardChart: sizing.standardChart,
     };
   } catch (e) {
     return {

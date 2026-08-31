@@ -9,6 +9,7 @@ export type PublishChecklistDesign = {
   fabricConsumptionMeters: number;
   sizeBlockId: string | null;
   fitProfileIds: Record<string, string> | null;
+  components?: string[];
 };
 
 export type PublishChecklistColourway = {
@@ -32,8 +33,13 @@ export function evaluatePublishChecklist(input: {
   colourways: PublishChecklistColourway[];
   renders: PublishChecklistRender[];
   tags: PublishChecklistTag[];
+  /** When provided, blocks publish if the size chart pointer exists but has no rows. */
+  sizeBlockRowCount?: number | null;
 }): string[] {
   const missing: string[] = [];
+  if ((input.design.components?.length ?? 0) < 1) {
+    missing.push("≥1 article type");
+  }
   if (input.colourways.length < 1) missing.push("≥1 colourway");
   for (const cw of input.colourways) {
     const cwRenders = input.renders.filter((r) => r.colourwayId === cw.id);
@@ -47,6 +53,15 @@ export function evaluatePublishChecklist(input: {
     missing.push("fabric consumption");
   }
   if (!input.design.sizeBlockId) missing.push("size block");
+  if (
+    input.design.sizeBlockId &&
+    input.sizeBlockRowCount != null &&
+    input.sizeBlockRowCount < 1
+  ) {
+    missing.push(
+      "the size chart has no measurement rows — add sizing before publishing",
+    );
+  }
   if (Object.keys(input.design.fitProfileIds ?? {}).length < 1) {
     missing.push("fit profile");
   }

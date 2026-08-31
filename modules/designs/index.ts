@@ -8,6 +8,7 @@ export {
   setDesignTags,
   upsertColourway,
   upsertDesignRender,
+  deleteDesignRender,
   upsertCustomizationOption,
   addCustomizationValue,
   publishDesign,
@@ -46,6 +47,7 @@ export {
 export {
   allocateItemNumber,
   houseDoorOptions,
+  houseItemCodeForTag,
   isHouseDoorTag,
-  HOUSE_ITEM_CODES,
+  itemCodeForHouseTag,
 } from "./item-number";

@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -29,6 +29,83 @@ export type SizeBlockListItem = {
   categoryKey: string;
   categoryName: string;
 };
+
+/** One row per active category — default house chart or gap if missing. */
+export type StandardSizeChartListItem = {
+  categoryId: string;
+  categoryKey: string;
+  categoryName: string;
+  sortOrder: number;
+  blockId: string | null;
+  blockName: string | null;
+  baseSizeLabel: string | null;
+  sizeLabels: string[];
+  rowCount: number;
+  hasChart: boolean;
+};
+
+export async function listStandardSizeCharts(): Promise<
+  StandardSizeChartListItem[]
+> {
+  await requirePermission("settings.view");
+
+  const categories = await db
+    .select({
+      id: garmentCategories.id,
+      key: garmentCategories.key,
+      name: garmentCategories.name,
+      sortOrder: garmentCategories.sortOrder,
+    })
+    .from(garmentCategories)
+    .where(eq(garmentCategories.active, true))
+    .orderBy(asc(garmentCategories.sortOrder), asc(garmentCategories.key));
+
+  const defaults = await db
+    .select({
+      id: sizeBlocks.id,
+      name: sizeBlocks.name,
+      categoryId: sizeBlocks.categoryId,
+      baseSizeLabel: sizeBlocks.baseSizeLabel,
+      sizeLabels: sizeBlocks.sizeLabels,
+    })
+    .from(sizeBlocks)
+    .where(
+      and(
+        eq(sizeBlocks.isDefault, true),
+        eq(sizeBlocks.active, true),
+        sql`${sizeBlocks.ownerDesignId} is null`,
+      ),
+    );
+
+  const blockByCategory = new Map(defaults.map((b) => [b.categoryId, b]));
+
+  const rowCounts = await db
+    .select({
+      blockId: sizeBlockRows.blockId,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(sizeBlockRows)
+    .groupBy(sizeBlockRows.blockId);
+
+  const rowsByBlock = new Map(rowCounts.map((r) => [r.blockId, r.count]));
+
+  return categories.map((cat) => {
+    const block = blockByCategory.get(cat.id);
+    const rowCount = block ? (rowsByBlock.get(block.id) ?? 0) : 0;
+    return {
+      categoryId: cat.id,
+      categoryKey: cat.key,
+      categoryName: cat.name,
+      sortOrder: cat.sortOrder,
+      blockId: block?.id ?? null,
+      blockName: block?.name ?? null,
+      baseSizeLabel: block?.baseSizeLabel ?? null,
+      sizeLabels: block?.sizeLabels ?? [],
+      rowCount,
+      hasChart: Boolean(block && rowCount > 0),
+    };
+  });
+}
 
 export type SizeBlockDetail = {
   id: string;

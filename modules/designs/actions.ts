@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, max } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -29,6 +29,9 @@ import {
 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
 import { seedRtwStockForDesign } from "@/modules/inventory/rtw-stock";
+import { revalidateFabricStockPathsMany } from "@/modules/inventory/revalidate-fabric-paths";
+import { revalidateFabricsForDesign } from "./fabric-revalidation";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { createPresignedReadUrl } from "@/modules/platform/assets";
 import { transition } from "@/modules/platform/transition";
 
@@ -187,7 +190,21 @@ export async function createDesign(
     const slug = slugify(slugRaw || name);
 
     if (!name || !garmentTypeId || !slug) {
-      return { ok: false, error: "Name and category are required" };
+      return { ok: false, error: "Name and article type are required" };
+    }
+
+    const [category] = await db
+      .select({ key: garmentCategories.key })
+      .from(garmentCategories)
+      .where(
+        and(
+          eq(garmentCategories.id, garmentTypeId),
+          eq(garmentCategories.active, true),
+        ),
+      )
+      .limit(1);
+    if (!category) {
+      return { ok: false, error: "Choose a valid article type" };
     }
 
     const id = uuidv7();
@@ -197,7 +214,7 @@ export async function createDesign(
       name,
       nameUr,
       garmentTypeId,
-      components: [],
+      components: [category.key],
       status: "DRAFT",
       basePriceMinor: 0,
       madeToMeasureSurchargeMinor: 0,
@@ -212,7 +229,7 @@ export async function createDesign(
       entityType: "design",
       entityId: id,
       before: null,
-      after: { name, slug, garmentTypeId },
+      after: { name, slug, garmentTypeId, components: [category.key] },
     });
 
     revalidatePath("/admin/designs");
@@ -261,10 +278,14 @@ export async function updateDesignDetails(
       return { ok: false, error: "Invalid input" };
     }
 
-    const { allocateItemNumber, isHouseDoorTag, rebuildItemNumberKeepingQuartet } =
-      await import("./item-number");
+    const {
+      allocateItemNumber,
+      isHouseDoorTag,
+      itemCodeForHouseTag,
+      rebuildItemNumberKeepingQuartet,
+    } = await import("./item-number");
 
-    if (houseDoorTag && !isHouseDoorTag(houseDoorTag)) {
+    if (houseDoorTag && !(await isHouseDoorTag(houseDoorTag))) {
       return { ok: false, error: "Invalid house door" };
     }
 
@@ -293,9 +314,10 @@ export async function updateDesignDetails(
 
     let itemNumber = before[0].itemNumber;
     if (houseDoorTag) {
+      const itemCode = await itemCodeForHouseTag(houseDoorTag);
       const rebuilt = rebuildItemNumberKeepingQuartet(
         before[0].itemNumber,
-        houseDoorTag,
+        itemCode,
       );
       if (rebuilt) {
         const clash = await db
@@ -304,7 +326,7 @@ export async function updateDesignDetails(
           .where(eq(designs.itemNumber, rebuilt))
           .limit(1);
         if (clash[0] && clash[0].id !== id) {
-          itemNumber = await allocateItemNumber(houseDoorTag, async (c) => {
+          itemNumber = await allocateItemNumber(itemCode, async (c) => {
             const rows = await db
               .select({ id: designs.id })
               .from(designs)
@@ -316,7 +338,7 @@ export async function updateDesignDetails(
           itemNumber = rebuilt;
         }
       } else if (!itemNumber) {
-        itemNumber = await allocateItemNumber(houseDoorTag, async (c) => {
+        itemNumber = await allocateItemNumber(itemCode, async (c) => {
           const rows = await db
             .select({ id: designs.id })
             .from(designs)
@@ -347,16 +369,15 @@ export async function updateDesignDetails(
       .where(eq(designs.id, id));
 
     if (houseDoorTag) {
+      const doorTags = new Set(
+        (await listHouseCollections({ activeOnly: false })).map((c) => c.tag),
+      );
       const existingTags = await db
         .select()
         .from(designTags)
         .where(eq(designTags.designId, id));
       const keep = existingTags.filter(
-        (t) =>
-          !(
-            t.kind === "FREE" &&
-            isHouseDoorTag(t.value)
-          ),
+        (t) => !(t.kind === "FREE" && doorTags.has(t.value.toUpperCase())),
       );
       await db.delete(designTags).where(eq(designTags.designId, id));
       for (const t of keep) {
@@ -700,7 +721,14 @@ export async function upsertColourway(
     }
 
     const id = existingId || uuidv7();
+    let previousFabricId: string | null = null;
     if (existingId) {
+      const [prev] = await db
+        .select({ fabricId: colourways.fabricId })
+        .from(colourways)
+        .where(eq(colourways.id, id))
+        .limit(1);
+      previousFabricId = prev?.fabricId ?? null;
       await db
         .update(colourways)
         .set({
@@ -745,6 +773,12 @@ export async function upsertColourway(
     });
 
     revalidatePath(`/admin/designs/${designId}`);
+    revalidatePath("/admin/inventory");
+    revalidateFabricStockPathsMany([
+      fabricId,
+      ...Object.values(pieceFabrics),
+      ...(previousFabricId ? [previousFabricId] : []),
+    ]);
     return { ok: true, id };
   } catch (e) {
     return {
@@ -767,10 +801,9 @@ export async function upsertDesignRender(
     const archetypeId =
       String(formData.get("archetypeId") ?? "").trim() || null;
     const existingId = String(formData.get("id") ?? "");
-    const sortOrder = Number.parseInt(
-      String(formData.get("sortOrder") ?? "0"),
-      10,
-    );
+    const sortOrderRaw = String(formData.get("sortOrder") ?? "").trim();
+    const sortOrder =
+      sortOrderRaw === "" ? Number.NaN : Number.parseInt(sortOrderRaw, 10);
 
     if (
       !designId ||
@@ -790,11 +823,37 @@ export async function upsertDesignRender(
           assetId,
           altText,
           archetypeId,
-          sortOrder,
+          sortOrder: Number.isFinite(sortOrder) ? sortOrder : 0,
           updatedAt: new Date(),
         })
         .where(eq(designRenders.id, id));
     } else {
+      if (angle !== "DETAIL") {
+        await db
+          .delete(designRenders)
+          .where(
+            and(
+              eq(designRenders.designId, designId),
+              eq(designRenders.colourwayId, colourwayId),
+              eq(designRenders.angle, angle),
+            ),
+          );
+      }
+
+      let order = sortOrder;
+      if (!Number.isFinite(order)) {
+        const [maxRow] = await db
+          .select({ n: max(designRenders.sortOrder) })
+          .from(designRenders)
+          .where(
+            and(
+              eq(designRenders.designId, designId),
+              eq(designRenders.colourwayId, colourwayId),
+            ),
+          );
+        order = (maxRow?.n ?? -1) + 1;
+      }
+
       await db.insert(designRenders).values({
         id,
         designId,
@@ -804,7 +863,7 @@ export async function upsertDesignRender(
         altText,
         archetypeId,
         isAiGenerated: false,
-        sortOrder,
+        sortOrder: order,
       });
     }
 
@@ -825,6 +884,51 @@ export async function upsertDesignRender(
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Render save failed",
+    };
+  }
+}
+
+export async function deleteDesignRender(
+  formData: FormData,
+): Promise<DesignActionResult> {
+  try {
+    const session = await requirePermission("designs.edit");
+    const id = String(formData.get("id") ?? "");
+    const designId = String(formData.get("designId") ?? "");
+    if (!id || !designId) {
+      return { ok: false, error: "Invalid render" };
+    }
+
+    const [row] = await db
+      .select({ id: designRenders.id })
+      .from(designRenders)
+      .where(
+        and(eq(designRenders.id, id), eq(designRenders.designId, designId)),
+      )
+      .limit(1);
+    if (!row) {
+      return { ok: false, error: "Photo not found" };
+    }
+
+    await db.delete(designRenders).where(eq(designRenders.id, id));
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "design.render.delete",
+      entityType: "design_render",
+      entityId: id,
+      before: { designId },
+      after: null,
+    });
+
+    revalidatePath(`/admin/designs/${designId}`);
+    return { ok: true, id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Delete failed",
     };
   }
 }
@@ -956,35 +1060,28 @@ export async function publishDesign(
     const detail = await getDesign(id);
     if (!detail) return { ok: false, error: "Not found" };
 
-    const missing = evaluatePublishChecklist({
-      design: detail.design,
-      colourways: detail.colourways,
-      renders: detail.renders,
-      tags: detail.tags,
-    });
-    if (missing.length) {
-      return {
-        ok: false,
-        error: `Publish checklist: ${missing.join("; ")}`,
-      };
-    }
-
-    // The checklist guards the size-block pointer, not its data. Refuse to
-    // publish a design whose size chart has no measurement rows (this is how
-    // the storefront size guide previously shipped empty).
+    let sizeBlockRowCount: number | null = null;
     if (detail.design.sizeBlockId) {
       const sizeRows = await db
         .select({ id: sizeBlockRows.id })
         .from(sizeBlockRows)
         .where(eq(sizeBlockRows.blockId, detail.design.sizeBlockId))
         .limit(1);
-      if (sizeRows.length === 0) {
-        return {
-          ok: false,
-          error:
-            "Publish checklist: the size chart has no measurement rows — add sizing before publishing.",
-        };
-      }
+      sizeBlockRowCount = sizeRows.length;
+    }
+
+    const missing = evaluatePublishChecklist({
+      design: detail.design,
+      colourways: detail.colourways,
+      renders: detail.renders,
+      tags: detail.tags,
+      sizeBlockRowCount,
+    });
+    if (missing.length) {
+      return {
+        ok: false,
+        error: `Publish checklist: ${missing.join("; ")}`,
+      };
     }
 
     const publishFrom = detail.design.status;
@@ -1031,6 +1128,7 @@ export async function publishDesign(
     revalidatePath("/admin/studio");
     revalidatePath("/admin/inventory");
     revalidatePath("/", "layout");
+    await revalidateFabricsForDesign(id);
     return { ok: true, id };
   } catch (e) {
     return {
@@ -1147,6 +1245,11 @@ export async function archiveDesign(
 /** Dropdown data for design forms — searchable selects, never free text. */
 export async function getDesignFormOptions() {
   await requirePermission("designs.view");
+  const { ensureDefaultSizeBlocksForAllCategories } = await import(
+    "@/modules/sizing/ensure-default-blocks"
+  );
+  await ensureDefaultSizeBlocksForAllCategories();
+
   const [categories, fabricRows, blocks, profiles, archetypes] =
     await Promise.all([
       db
@@ -1190,5 +1293,16 @@ export async function getDesignFormOptions() {
         .where(eq(houseModels.active, true)),
     ]);
 
-  return { categories, fabrics: fabricRows, blocks, profiles, archetypes };
+  return {
+    categories,
+    fabrics: fabricRows,
+    blocks,
+    profiles,
+    archetypes,
+    houseDoors: (await listHouseCollections({ activeOnly: true })).map((c) => ({
+      tag: c.tag,
+      label: c.navLabel,
+      code: c.itemCode,
+    })),
+  };
 }
