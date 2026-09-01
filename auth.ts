@@ -1,6 +1,9 @@
 import NextAuth, { CredentialsSignin } from "next-auth";
+import type { Provider } from "next-auth/providers";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Credentials from "next-auth/providers/credentials";
+import Google from "next-auth/providers/google";
+import Facebook from "next-auth/providers/facebook";
 import { eq } from "drizzle-orm";
 
 import {
@@ -43,6 +46,35 @@ class AccountDisabled extends CredentialsSignin {
 
 class TwoFactorInvalid extends CredentialsSignin {
   code = "2FA_INVALID";
+}
+
+/**
+ * OAuth providers are added only when their credentials exist, so an unset
+ * environment simply has no Google/Facebook button rather than a broken one.
+ * New sign-ins land as CUSTOMER (the users.role default); Auth.js will not link
+ * an OAuth login to an existing email that has no matching account row
+ * (OAuthAccountNotLinked), which keeps staff — who must use /admin/login and
+ * its 2FA — from slipping in through the shop.
+ */
+function oauthProviders(): Provider[] {
+  const list: Provider[] = [];
+  if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
+    list.push(
+      Google({
+        clientId: process.env.AUTH_GOOGLE_ID,
+        clientSecret: process.env.AUTH_GOOGLE_SECRET,
+      }),
+    );
+  }
+  if (process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET) {
+    list.push(
+      Facebook({
+        clientId: process.env.AUTH_FACEBOOK_ID,
+        clientSecret: process.env.AUTH_FACEBOOK_SECRET,
+      }),
+    );
+  }
+  return list;
 }
 
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
@@ -347,10 +379,21 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         };
       },
     }),
+    ...oauthProviders(),
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async jwt({ token, user, trigger, session }) {
+    async signIn({ user, account }) {
+      // Defense in depth: never let an OAuth login resolve to a staff account,
+      // even if email-linking were ever enabled. New customers have no role yet
+      // at this point and pass through.
+      if (account && account.provider !== "otp" && account.provider !== "customer-otp") {
+        const role = (user as { role?: string }).role;
+        if (role && role !== "CUSTOMER") return false;
+      }
+      return true;
+    },
+    async jwt({ token, user, account, trigger, session }) {
       if (user) {
         token.sub = user.id;
         token.role = (user as { role?: string }).role;
@@ -361,6 +404,26 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           user as { requires2faEnrolment?: boolean }
         ).requires2faEnrolment;
         token.sessionId = (user as { sessionId?: string }).sessionId;
+      }
+
+      // OAuth first sign-in: the adapter created or matched a CUSTOMER user, but
+      // no revocable session row exists yet (only the credentials providers make
+      // one). Create it here so sign-out and the session list behave the same as
+      // email sign-in, and pin the customer shape.
+      if (
+        user &&
+        account &&
+        account.provider !== "otp" &&
+        account.provider !== "customer-otp" &&
+        !token.sessionId
+      ) {
+        token.role = (user as { role?: string }).role ?? "CUSTOMER";
+        token.twoFactorEnabled = false;
+        token.requires2faEnrolment = false;
+        const oauthSession = await createAuthSession({
+          userId: user.id as string,
+        });
+        token.sessionId = oauthSession.id;
       }
 
       if (trigger === "update" && session) {
