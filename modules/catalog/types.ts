@@ -8,6 +8,8 @@ export type DesignSort =
   | "best_selling";
 
 export type CatalogFilters = {
+  /** Free-text search across name, item code, category, and colour/shade. */
+  query?: string;
   occasion?: string[];
   work?: string[];
   freeTags?: string[];
@@ -125,6 +127,11 @@ export type ResolvedRenderImage = {
 
 export type ResolvedImageTriple = Record<GalleryAngle, ResolvedRenderImage>;
 
+/** PDP gallery: three angles plus fabric swatch renders (always last). */
+export type ResolvedGalleryImages = ResolvedImageTriple & {
+  fabricPhotos: NonNullable<ResolvedRenderImage>[];
+};
+
 export type DesignColourwayPublic = {
   id: string;
   slug: string;
@@ -134,6 +141,11 @@ export type DesignColourwayPublic = {
   fabricName: string;
   hexApproximation: string | null;
   priceDeltaMinor: number;
+  /** Sizes stocked for this shade; empty = inherit design.availableSizeLabels. */
+  availableSizeLabels: string[];
+  /** When set, retail price for this shade. */
+  basePriceMinor: number | null;
+  compareAtPriceMinor: number | null;
   isDefault: boolean;
   sortOrder: number;
   swatch: {

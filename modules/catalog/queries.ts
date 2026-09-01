@@ -6,8 +6,10 @@ import {
   eq,
   exists,
   gte,
+  ilike,
   inArray,
   lte,
+  or,
 } from "drizzle-orm";
 
 import {
@@ -36,6 +38,7 @@ function mergeFilters(
   extra: CatalogFilters,
 ): CatalogFilters {
   return {
+    query: extra.query ?? base.query,
     occasion: uniq([...(base.occasion ?? []), ...(extra.occasion ?? [])]),
     work: uniq([...(base.work ?? []), ...(extra.work ?? [])]),
     freeTags: uniq([...(base.freeTags ?? []), ...(extra.freeTags ?? [])]),
@@ -116,6 +119,46 @@ export async function getPublishedDesigns(
         garmentCategories.key,
         filters.garmentTypeKeys.map((k) => k.toUpperCase()),
       ),
+    );
+  }
+
+  // Free-text search. Each word must match somewhere — the article name or
+  // number, the copy, the garment type ("kameez"), or a shade/colour word
+  // ("blue", "tea rose") — so "blue kameez" narrows to blue kameez, not either.
+  const searchTokens = (filters.query ?? "")
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((t) => t.length > 0)
+    .slice(0, 6);
+
+  for (const token of searchTokens) {
+    const like = `%${token.replace(/[%_]/g, (m) => `\\${m}`)}%`;
+    conditions.push(
+      or(
+        ilike(designs.name, like),
+        ilike(designs.nameUr, like),
+        ilike(designs.itemNumber, like),
+        ilike(designs.subtitle, like),
+        ilike(designs.silhouetteLabel, like),
+        ilike(designs.description, like),
+        ilike(garmentCategories.name, like),
+        ilike(garmentCategories.key, like),
+        exists(
+          db
+            .select({ one: colourways.id })
+            .from(colourways)
+            .where(
+              and(
+                eq(colourways.designId, designs.id),
+                or(
+                  ilike(colourways.name, like),
+                  ilike(colourways.nameUr, like),
+                ),
+              ),
+            ),
+        ),
+      )!,
     );
   }
 

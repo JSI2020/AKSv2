@@ -18,6 +18,7 @@ export const SORT_VALUES = [
 
 /** Price in whole PKR rupees in the URL; converted to paisa for queries. */
 export const collectionFilterParsers = {
+  q: parseAsString.withDefault(""),
   occasion: parseAsArrayOf(parseAsString).withDefault([]),
   work: parseAsArrayOf(parseAsString).withDefault([]),
   garment: parseAsArrayOf(parseAsString).withDefault([]),
@@ -36,6 +37,7 @@ export function searchParamsToFilters(
   params: Awaited<ReturnType<typeof collectionSearchParamsCache.parse>>,
 ): { filters: CatalogFilters; sort: DesignSort; page: number } {
   const filters: CatalogFilters = {};
+  if (params.q.trim()) filters.query = params.q.trim();
   if (params.occasion.length) filters.occasion = params.occasion;
   if (params.work.length) filters.work = params.work;
   if (params.garment.length) filters.garmentTypeKeys = params.garment;

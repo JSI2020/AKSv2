@@ -51,6 +51,52 @@ function NavHref({
   );
 }
 
+function FallbackNavLinks({
+  homeNav,
+  onClick,
+  t,
+}: {
+  homeNav: boolean;
+  onClick?: () => void;
+  t: (key: "navShop" | "navEdit" | "navFabric" | "navAtelier") => string;
+}) {
+  if (homeNav) {
+    return (
+      <>
+        <a href="#cats" onClick={onClick}>
+          {t("navShop")}
+        </a>
+        <a href="#edit" onClick={onClick}>
+          {t("navEdit")}
+        </a>
+        <Link href="/fabrics" onClick={onClick}>
+          {t("navFabric")}
+        </Link>
+        <a href="#making" onClick={onClick}>
+          {t("navAtelier")}
+        </a>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Link href="/collections" onClick={onClick}>
+        {t("navShop")}
+      </Link>
+      <Link href="/collections" onClick={onClick}>
+        {t("navEdit")}
+      </Link>
+      <Link href="/fabrics" onClick={onClick}>
+        {t("navFabric")}
+      </Link>
+      <Link href="/#making" onClick={onClick}>
+        {t("navAtelier")}
+      </Link>
+    </>
+  );
+}
+
 export function ShopHeaderClient({
   headerNav,
 }: {
@@ -81,8 +127,12 @@ export function ShopHeaderClient({
 
     const onScroll = () => {
       const hero = document.querySelector(".hero");
+      const chrome = document.querySelector(".shop-topchrome");
+      const chromeH = chrome
+        ? (chrome as HTMLElement).offsetHeight
+        : 90;
       const threshold = hero
-        ? Math.max(0, (hero as HTMLElement).offsetHeight - 90)
+        ? Math.max(0, (hero as HTMLElement).offsetHeight - chromeH)
         : 120;
       setSolid(window.scrollY > threshold);
     };
@@ -106,21 +156,11 @@ export function ShopHeaderClient({
 
   // SSR + first client paint: always use route Links (stable).
   // After mount on home: switch hash anchors for in-page jumps.
-  const fallbackLeft = homeNav ? (
-    <>
-      <a href="#cats">{t("navShop")}</a>
-      <a href="#edit">{t("navEdit")}</a>
-      <Link href="/fabrics">{t("navFabric")}</Link>
-      <a href="#making">{t("navAtelier")}</a>
-    </>
-  ) : (
-    <>
-      <Link href="/collections">{t("navShop")}</Link>
-      <Link href="/collections">{t("navEdit")}</Link>
-      <Link href="/fabrics">{t("navFabric")}</Link>
-      <Link href="/#making">{t("navAtelier")}</Link>
-    </>
+  const fallbackLeft = (
+    <FallbackNavLinks homeNav={homeNav} t={t} />
   );
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <header className={headerClass}>
@@ -146,7 +186,7 @@ export function ShopHeaderClient({
         <AksStoreBrandLink />
 
         <div className="nav-right">
-          <Link href="/collections" className="icobtn" aria-label={t("search")}>
+          <Link href="/search" className="icobtn" aria-label={t("search")}>
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <use href="#ic-search" />
             </svg>
@@ -171,14 +211,16 @@ export function ShopHeaderClient({
                 key={item.id}
                 item={item}
                 onHome={homeNav}
-                onClick={() => setMenuOpen(false)}
+                onClick={closeMenu}
               />
             ))
-          : null}
-        <Link href="/collections" onClick={() => setMenuOpen(false)}>
+          : (
+              <FallbackNavLinks homeNav={homeNav} onClick={closeMenu} t={t} />
+            )}
+        <Link href="/collections" onClick={closeMenu}>
           {t("search")}
         </Link>
-        <Link href="/account/orders" onClick={() => setMenuOpen(false)}>
+        <Link href="/account/orders" onClick={closeMenu}>
           {t("account")}
         </Link>
       </div>
