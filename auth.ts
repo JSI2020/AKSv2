@@ -379,6 +379,90 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         };
       },
     }),
+    // Storefront customer sign-in by phone, with a code sent over WhatsApp.
+    // Same self-provisioning and staff guard as the email flow, keyed on phone.
+    Credentials({
+      id: "customer-whatsapp",
+      name: "Customer WhatsApp code",
+      credentials: {
+        phone: { label: "Phone", type: "tel" },
+        otp: { label: "Code", type: "text" },
+      },
+      authorize: async (credentials, request) => {
+        const phoneRaw =
+          typeof credentials?.phone === "string" ? credentials.phone : "";
+        const otp =
+          typeof credentials?.otp === "string" ? credentials.otp.trim() : "";
+        const phone = phoneRaw.replace(/\D/g, "");
+        const ip = request ? clientIpFromHeaders(request.headers) : null;
+        const userAgent = request?.headers.get("user-agent") ?? null;
+        const label = `wa:${phone}`;
+
+        if (phone.length < 10 || !otp) throw new OtpInvalid();
+
+        const { verifyPhoneOtp, consumePhoneOtp } = await import(
+          "@/modules/auth/phone-otp"
+        );
+
+        const otpOk = await verifyPhoneOtp({ phone, code: otp });
+        if (!otpOk) {
+          await logSignInAttempt({
+            email: label,
+            ip,
+            userAgent,
+            success: false,
+            reason: "otp_invalid",
+          });
+          throw new OtpInvalid();
+        }
+
+        const resolved = await findOrCreateCustomer({ phone, provider: "whatsapp" });
+        if (!resolved.ok) {
+          await logSignInAttempt({
+            email: label,
+            ip,
+            userAgent,
+            success: false,
+            reason:
+              resolved.reason === "staff" ? "customer_is_staff" : "account_disabled",
+          });
+          throw new AccountDisabled();
+        }
+
+        await consumePhoneOtp(phone);
+
+        const session = await createAuthSession({
+          userId: resolved.user.id,
+          ip,
+          userAgent,
+        });
+
+        await logSignInAttempt({
+          email: label,
+          ip,
+          userAgent,
+          success: true,
+          reason: "otp_success",
+        });
+
+        const { readAnonToken } = await import("@/modules/measure/anon-cookie");
+        const { mergeGuestCartIntoUser } = await import("@/modules/cart/merge");
+        const anonId = await readAnonToken();
+        if (anonId) {
+          await mergeGuestCartIntoUser({ userId: resolved.user.id, anonId });
+        }
+
+        return {
+          id: resolved.user.id,
+          email: resolved.user.email,
+          name: resolved.user.name,
+          role: resolved.user.role,
+          twoFactorEnabled: false,
+          requires2faEnrolment: false,
+          sessionId: session.id,
+        };
+      },
+    }),
     ...oauthProviders(),
   ],
   callbacks: {

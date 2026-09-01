@@ -47,6 +47,20 @@ export function crmPlaceholderEmail(digits: string): string {
   return `${d}@customers.aks.local`;
 }
 
+/**
+ * Best-effort Pakistani MSISDN for the WhatsApp Cloud API: country code, no
+ * plus, no leading zero. `03001234567` and `3001234567` both become
+ * `923001234567`; an already-prefixed `92…` is left as-is.
+ */
+export function toWhatsappMsisdn(raw: string | null | undefined): string {
+  const d = normalizePhoneDigits(raw ?? "");
+  if (!d) return "";
+  if (d.startsWith("92")) return d;
+  if (d.startsWith("0")) return `92${d.slice(1)}`;
+  if (d.length === 10 && d.startsWith("3")) return `92${d}`;
+  return d;
+}
+
 export function initialsFromName(name: string | null | undefined): string {
   const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";

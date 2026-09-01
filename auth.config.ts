@@ -42,6 +42,15 @@ export const authConfig = {
       // edge bundle's provider shape in sync.
       authorize: async () => null,
     }),
+    Credentials({
+      id: "customer-whatsapp",
+      name: "Customer WhatsApp code",
+      credentials: {
+        phone: { label: "Phone", type: "tel" },
+        otp: { label: "Code", type: "text" },
+      },
+      authorize: async () => null,
+    }),
   ],
   pages: {
     signIn: "/admin/login",
