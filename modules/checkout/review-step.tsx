@@ -101,9 +101,11 @@ export function ReviewStep({
         </h3>
         <p className="mt-2 text-[15px] text-ink">{address.recipientName}</p>
         <p className="text-[14px] text-ink/70">{address.phone}</p>
-        <p className="text-[14px] text-ink/70">
-          WhatsApp: {address.whatsappNumber}
-        </p>
+        {address.whatsappNumber ? (
+          <p className="text-[14px] text-ink/70">
+            WhatsApp: {address.whatsappNumber}
+          </p>
+        ) : null}
         <p className="mt-2 text-[14px] leading-relaxed text-ink/75">
           {address.addressLine1}
           {address.addressLine2 ? `, ${address.addressLine2}` : ""}

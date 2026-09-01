@@ -8,6 +8,8 @@ export type CheckoutAddressInput = {
   recipientName: string;
   phone: string;
   whatsappNumber: string;
+  /** Opt-in: the customer wants order updates on WhatsApp. */
+  contactOnWhatsapp?: boolean;
   addressLine1: string;
   addressLine2?: string;
   city: string;

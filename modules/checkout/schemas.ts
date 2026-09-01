@@ -26,12 +26,24 @@ export function validateCheckoutAddress(
     return { ok: false, error: "Enter a valid phone number." };
   }
 
+  // WhatsApp is opt-in. Require a valid number only when the customer asked to
+  // be contacted there; otherwise accept a blank, and reject only a number that
+  // was typed but malformed.
+  const contactOnWhatsapp = Boolean(input.contactOnWhatsapp);
   const whatsappNumber = digitsOnly(input.whatsappNumber);
-  if (whatsappNumber.length < 10 || whatsappNumber.length > 15) {
-    return {
-      ok: false,
-      error: "Enter the WhatsApp number where we should send order updates.",
-    };
+  if (contactOnWhatsapp) {
+    if (whatsappNumber.length < 10 || whatsappNumber.length > 15) {
+      return {
+        ok: false,
+        error:
+          "Enter the WhatsApp number for updates, or turn off WhatsApp contact.",
+      };
+    }
+  } else if (
+    whatsappNumber &&
+    (whatsappNumber.length < 10 || whatsappNumber.length > 15)
+  ) {
+    return { ok: false, error: "Enter a valid WhatsApp number, or leave it blank." };
   }
 
   const addressLine1 = trim(input.addressLine1);
@@ -59,6 +71,7 @@ export function validateCheckoutAddress(
       recipientName,
       phone,
       whatsappNumber,
+      contactOnWhatsapp,
       addressLine1,
       addressLine2: trim(input.addressLine2) || undefined,
       city,

@@ -67,40 +67,55 @@ export function AddressStep({ initial, isSignedIn, onContinue }: Props) {
         />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <div>
-          <label htmlFor="phone" className={labelClass}>
-            Phone
-          </label>
+      <div>
+        <label htmlFor="phone" className={labelClass}>
+          Phone
+        </label>
+        <input
+          id="phone"
+          name="phone"
+          type="tel"
+          autoComplete="tel"
+          className={inputClass}
+          value={form.phone}
+          onChange={(e) => update("phone", e.target.value)}
+          required
+        />
+      </div>
+
+      <div className="border border-greige-deep bg-greige/40 p-4">
+        <label className="flex items-start gap-3 text-[14px] text-ink/80">
           <input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            className={inputClass}
-            value={form.phone}
-            onChange={(e) => update("phone", e.target.value)}
-            required
+            type="checkbox"
+            checked={Boolean(form.contactOnWhatsapp)}
+            onChange={(e) => update("contactOnWhatsapp", e.target.checked)}
+            className="mt-1"
           />
-        </div>
-        <div>
-          <label htmlFor="whatsappNumber" className={labelClass}>
-            WhatsApp for order updates
-          </label>
-          <input
-            id="whatsappNumber"
-            name="whatsappNumber"
-            type="tel"
-            className={inputClass}
-            value={form.whatsappNumber}
-            onChange={(e) => update("whatsappNumber", e.target.value)}
-            required
-          />
-          <p className="mt-1.5 text-[13px] text-ink/60">
-            This is where we send production updates — cutting, stitching, and
-            dispatch.
-          </p>
-        </div>
+          <span>
+            Send my order updates on WhatsApp — cutting, stitching, and dispatch.
+            <span className="mt-0.5 block text-[13px] text-ink/55">
+              Optional. Leave it off and we&apos;ll reach you by phone instead.
+            </span>
+          </span>
+        </label>
+
+        {form.contactOnWhatsapp ? (
+          <div className="mt-3">
+            <label htmlFor="whatsappNumber" className={labelClass}>
+              WhatsApp number
+            </label>
+            <input
+              id="whatsappNumber"
+              name="whatsappNumber"
+              type="tel"
+              className={inputClass}
+              value={form.whatsappNumber}
+              onChange={(e) => update("whatsappNumber", e.target.value)}
+              placeholder="03001234567"
+              required
+            />
+          </div>
+        ) : null}
       </div>
 
       {!isSignedIn ? (
