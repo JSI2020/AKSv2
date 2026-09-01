@@ -36,6 +36,15 @@ export type CatalogueColourwayInput = {
   sortOrder?: number;
 };
 
+export type CatalogueRenderSpec = {
+  /** Defaults to the first colourway. */
+  colourwayIndex?: number;
+  angle: "FRONT" | "THREE_QUARTER" | "BACK" | "DETAIL";
+  assetId: string;
+  altText: string;
+  sortOrder?: number;
+};
+
 export type CreatePublishedCatalogueDesignInput = {
   slug: string;
   name: string;
@@ -55,6 +64,10 @@ export type CreatePublishedCatalogueDesignInput = {
   seoDescription?: string;
   tags: { kind: "OCCASION" | "SEASON" | "WORK" | "FREE"; value: string }[];
   colourways: CatalogueColourwayInput[];
+  /** When set, replaces the single placeholder FRONT render per colourway. */
+  renderSpecs?: CatalogueRenderSpec[];
+  /** When set, seeds RTW inventory rows on publish (matches admin publishDesign). */
+  availableSizeLabels?: readonly string[];
   placeholderAssetId: string;
   actor: CatalogueActor;
   auditNote?: string;
@@ -170,17 +183,33 @@ export async function createPublishedCatalogueDesign(
 
   await db.insert(colourways).values(colourwayRows);
 
-  const renderRows = colourwayRows.map((cw, index) => ({
-    id: uuidv7(),
-    designId,
-    colourwayId: cw.id,
-    angle: "FRONT" as const,
-    archetypeId: null,
-    assetId: input.placeholderAssetId,
-    isAiGenerated: false,
-    altText: `${input.name} in ${cw.name}, front view`,
-    sortOrder: index,
-  }));
+  const renderRows = input.renderSpecs?.length
+    ? input.renderSpecs.map((spec, index) => {
+        const cw =
+          colourwayRows[spec.colourwayIndex ?? 0] ?? colourwayRows[0]!;
+        return {
+          id: uuidv7(),
+          designId,
+          colourwayId: cw.id,
+          angle: spec.angle,
+          archetypeId: null,
+          assetId: spec.assetId,
+          isAiGenerated: false,
+          altText: spec.altText,
+          sortOrder: spec.sortOrder ?? index,
+        };
+      })
+    : colourwayRows.map((cw, index) => ({
+        id: uuidv7(),
+        designId,
+        colourwayId: cw.id,
+        angle: "FRONT" as const,
+        archetypeId: null,
+        assetId: input.placeholderAssetId,
+        isAiGenerated: false,
+        altText: `${input.name} in ${cw.name}, front view`,
+        sortOrder: index,
+      }));
   await db.insert(designRenders).values(renderRows);
 
   const missing = evaluatePublishChecklist({
@@ -189,6 +218,7 @@ export async function createPublishedCatalogueDesign(
       fabricConsumptionMeters: input.fabricConsumptionMeters,
       sizeBlockId: input.sizeBlockId,
       fitProfileIds: input.fitProfileIds,
+      components: input.components,
     },
     colourways: colourwayRows.map((c) => ({ id: c.id, name: c.name })),
     renders: renderRows.map((r) => ({
@@ -213,6 +243,17 @@ export async function createPublishedCatalogueDesign(
       allowList: DESIGN_TRANSITION_ALLOW,
       tx,
     });
+  });
+
+  const sizeLabels =
+    (input.availableSizeLabels?.length ?? 0) > 0
+      ? input.availableSizeLabels
+      : ["XS", "S", "M", "L", "XL"];
+  await db.transaction(async (tx) => {
+    const { seedRtwStockForDesign } = await import(
+      "@/modules/inventory/rtw-stock"
+    );
+    await seedRtwStockForDesign(tx as never, designId, sizeLabels);
   });
 
   await db
