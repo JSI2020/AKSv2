@@ -6,6 +6,12 @@ import {
   isTailorAllowedPath,
 } from "@/modules/auth/tailor-access";
 
+/** Edge-safe mirror of {@link adminTwoFactorEnforced} — no DB imports. */
+function adminTwoFactorEnforced(): boolean {
+  if (process.env.AKS_ENFORCE_ADMIN_2FA === "1") return true;
+  return process.env.NODE_ENV === "production";
+}
+
 /**
  * Edge-safe Auth.js config (no DB adapter / Node crypto).
  * Shared by middleware and the full `auth.ts` config.
@@ -25,6 +31,17 @@ export const authConfig = {
       // this stub satisfies the config shape for the edge bundle.
       authorize: async () => null,
     }),
+    Credentials({
+      id: "customer-otp",
+      name: "Customer email code",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        otp: { label: "Code", type: "text" },
+      },
+      // Real authorize lives in auth.ts (Node runtime); this stub keeps the
+      // edge bundle's provider shape in sync.
+      authorize: async () => null,
+    }),
   ],
   pages: {
     signIn: "/admin/login",
@@ -40,9 +57,8 @@ export const authConfig = {
       const isLoggedIn = !!auth?.user;
 
       if (path.startsWith("/admin/login")) {
-        if (isLoggedIn) {
-          return Response.redirect(new URL("/admin", request.nextUrl));
-        }
+        // Never auto-bounce to /admin — stale JWT cookies (e.g. after db:wipe)
+        // loop forever with the protected layout sign-in redirect.
         return true;
       }
 
@@ -56,6 +72,7 @@ export const authConfig = {
         const twoFactorEnabled = (auth.user as { twoFactorEnabled?: boolean })
           .twoFactorEnabled;
         if (
+          adminTwoFactorEnforced() &&
           (role === "OWNER" || role === "ADMIN") &&
           !twoFactorEnabled &&
           !path.startsWith("/admin/2fa")

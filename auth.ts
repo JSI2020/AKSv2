@@ -12,6 +12,7 @@ import {
 } from "@aks/db";
 
 import { authConfig } from "./auth.config";
+import { findOrCreateCustomer } from "@/modules/auth/customer-account";
 import {
   checkOtpVerifyRateLimit,
   clientIpFromHeaders,
@@ -245,6 +246,103 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             rolesRequiring2fa(user.role) &&
             !twoFactorEnabled &&
             adminTwoFactorEnforced(),
+          sessionId: session.id,
+        };
+      },
+    }),
+    // Storefront customer sign-in: email one-time code, self-provisioning on
+    // first use. Separate from the staff "otp" provider on purpose — it creates
+    // CUSTOMER accounts and carries no 2FA, so it must never sign in staff (the
+    // findOrCreateCustomer guard enforces that).
+    Credentials({
+      id: "customer-otp",
+      name: "Customer email code",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        otp: { label: "Code", type: "text" },
+      },
+      authorize: async (credentials, request) => {
+        const email = normalizeEmail(
+          typeof credentials?.email === "string" ? credentials.email : "",
+        );
+        const otp =
+          typeof credentials?.otp === "string" ? credentials.otp.trim() : "";
+        const ip = request ? clientIpFromHeaders(request.headers) : null;
+        const userAgent = request?.headers.get("user-agent") ?? null;
+
+        if (!email || !otp) throw new OtpInvalid();
+
+        const verifyLimit = await checkOtpVerifyRateLimit({
+          email,
+          reasons: ["otp_invalid"],
+        });
+        if (!verifyLimit.ok) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "otp_verify_locked",
+          });
+          throw new OtpInvalid();
+        }
+
+        const otpOk = await verifyEmailOtp({ email, code: otp });
+        if (!otpOk) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "otp_invalid",
+          });
+          throw new OtpInvalid();
+        }
+
+        const resolved = await findOrCreateCustomer({ email, provider: "email" });
+        if (!resolved.ok) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason:
+              resolved.reason === "staff" ? "customer_is_staff" : "account_disabled",
+          });
+          // Staff must use /admin/login (2FA); surface as disabled to the shop.
+          throw new AccountDisabled();
+        }
+
+        await consumeEmailOtp(email);
+
+        const session = await createAuthSession({
+          userId: resolved.user.id,
+          ip,
+          userAgent,
+        });
+
+        await logSignInAttempt({
+          email,
+          ip,
+          userAgent,
+          success: true,
+          reason: "otp_success",
+        });
+
+        const { readAnonToken } = await import("@/modules/measure/anon-cookie");
+        const { mergeGuestCartIntoUser } = await import("@/modules/cart/merge");
+        const anonId = await readAnonToken();
+        if (anonId) {
+          await mergeGuestCartIntoUser({ userId: resolved.user.id, anonId });
+        }
+
+        return {
+          id: resolved.user.id,
+          email: resolved.user.email,
+          name: resolved.user.name,
+          role: resolved.user.role,
+          twoFactorEnabled: false,
+          requires2faEnrolment: false,
           sessionId: session.id,
         };
       },

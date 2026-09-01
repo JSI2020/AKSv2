@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/routing";
 import { auth } from "@/auth";
 import { listCustomerOrders } from "@/modules/orders/customer-queries";
+import { SignOutButton } from "@/modules/account/sign-out-button";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 export default async function AccountOrdersPage() {
@@ -10,15 +11,26 @@ export default async function AccountOrdersPage() {
   return (
     <ShopPageContainer>
       <div className="mx-auto max-w-[640px] py-8 md:py-12">
-        <h1 className="font-display text-[26px] font-medium text-ink md:text-[28px]">
-          Your orders
-        </h1>
+        <div className="flex items-baseline justify-between gap-4">
+          <h1 className="font-display text-[26px] font-medium text-ink md:text-[28px]">
+            Your orders
+          </h1>
+          {session?.user?.id ? <SignOutButton /> : null}
+        </div>
 
         {!session?.user?.id ? (
-          <p className="mt-4 text-[15px] leading-relaxed text-ink/75">
-            Sign in to see orders linked to your account. If you checked out as a
-            guest, use order tracking with your email instead.
-          </p>
+          <div className="mt-4">
+            <p className="text-[15px] leading-relaxed text-ink/75">
+              Sign in to see orders linked to your account. Checked out as a
+              guest? Track that order with your email instead.
+            </p>
+            <Link
+              href="/account/login"
+              className="btn-primary mt-5 inline-block"
+            >
+              Sign in
+            </Link>
+          </div>
         ) : orders.length === 0 ? (
           <p className="mt-4 text-[15px] leading-relaxed text-ink/75">
             No orders yet. When you place one, it&apos;ll live here — every piece
