@@ -22,6 +22,12 @@ function formatUsdMicros(micros: number): string {
   return `$${(micros / 1_000_000).toFixed(4)}`;
 }
 
+/** Larger money reads cleaner at 2dp; sub-dollar AI costs need 4dp to be legible. */
+function usd(micros: number): string {
+  const v = micros / 1_000_000;
+  return v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(4)}`;
+}
+
 export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
   const [data, setData] = useState(initial);
   const [selfies, setSelfies] = useState(pendingSelfies);
@@ -70,116 +76,188 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
     });
   }
 
-  const capLabel =
-    data.spend.capUsdMicros != null
-      ? formatUsdMicros(data.spend.capUsdMicros)
-      : "No cap";
+  const combined = data.spend.combinedUsdMicros;
+  const tryon = data.spend.tryonUsdMicros;
+  const studio = Math.max(0, combined - tryon);
+  const cap = data.spend.capUsdMicros;
+  const remaining = cap != null ? Math.max(0, cap - combined) : null;
+  const pctUsed =
+    cap != null && cap > 0 ? Math.min(100, (combined / cap) * 100) : null;
+  const over = cap != null && combined >= cap;
+  const near = pctUsed != null && pctUsed >= 80;
+  const barTone = over ? "bg-madder" : near ? "bg-zari" : "bg-chalk";
+  const share = (part: number) =>
+    combined > 0 ? Math.round((part / combined) * 100) : 0;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       {message ? (
-        <p className="border border-zari/40 bg-indigo-lift px-3 py-2 text-[13px] text-greige">
+        <p className="border border-zari/40 bg-milk px-3 py-2 text-[13px] text-ink">
           {message}
         </p>
       ) : null}
 
-      <section className="grid gap-4 sm:grid-cols-3">
-        <div className="border border-indigo-lift p-4">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-chalk">
-            Try-on spend (month)
+      {/* Budget: this month's AI spend against the cap, and what is left. */}
+      <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+        <div className="border border-ink/12 bg-milk px-5 py-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
+              AI spend this month
+            </p>
+            <p className="font-sans text-[11px] text-ink/50">
+              {cap != null ? `Cap ${usd(cap)}` : "No cap set"}
+            </p>
+          </div>
+          <p className="mt-3 font-display text-[2.6rem] font-light leading-none text-ink">
+            {usd(combined)}
           </p>
-          <p className="mt-2 font-display text-2xl text-greige">
-            {formatUsdMicros(data.spend.tryonUsdMicros)}
-          </p>
+          {cap != null ? (
+            <>
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-ink/10">
+                <span
+                  className={`block h-full rounded-full ${barTone}`}
+                  style={{ width: `${pctUsed ?? 0}%` }}
+                />
+              </div>
+              <div className="mt-2 flex items-baseline justify-between text-[12px]">
+                <span className={over ? "text-madder" : "text-ink/60"}>
+                  {pctUsed?.toFixed(0)}% of cap used
+                </span>
+                <span className="font-data text-ink">
+                  {usd(remaining ?? 0)}{" "}
+                  <span className="text-ink/55">left</span>
+                </span>
+              </div>
+              {over ? (
+                <p className="mt-2 text-[12px] text-madder">
+                  Cap reached — new AI generation is refused until the cap is
+                  raised or the month rolls over.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="mt-3 text-[12px] text-ink/55">
+              No monthly cap is set, so AI spend is uncapped. Set one in Studio
+              settings to enforce a budget.
+            </p>
+          )}
         </div>
-        <div className="border border-indigo-lift p-4">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-chalk">
-            Combined AI spend
+
+        <div className="border border-ink/12 bg-milk px-5 py-5">
+          <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
+            Where it goes
           </p>
-          <p className="mt-2 font-display text-2xl text-greige">
-            {formatUsdMicros(data.spend.combinedUsdMicros)} / {capLabel}
-          </p>
-        </div>
-        <div className="border border-indigo-lift p-4">
-          <p className="text-[11px] uppercase tracking-[0.12em] text-chalk">
-            Conversion (try-on → cart)
-          </p>
-          <p className="mt-2 font-display text-2xl text-greige">
-            {(data.conversionRate * 100).toFixed(1)}%
+          <dl className="mt-3 flex flex-col">
+            {(
+              [
+                ["Studio generation", studio, "photoreal & angles"],
+                ["Reflection try-on", tryon, "face-swap model"],
+              ] as const
+            ).map(([label, value, hint]) => (
+              <div
+                key={label}
+                className="flex items-center justify-between gap-3 border-b border-ink/10 py-2.5 last:border-b-0"
+              >
+                <dt>
+                  <span className="text-[13px] text-ink">{label}</span>
+                  <span className="ms-2 text-[11px] text-ink/45">{hint}</span>
+                </dt>
+                <dd className="text-end">
+                  <span className="font-data text-[13px] text-ink">
+                    {usd(value)}
+                  </span>
+                  <span className="ms-2 font-data text-[11px] text-ink/45">
+                    {share(value)}%
+                  </span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-3 border-t border-ink/10 pt-3 text-[11px] leading-relaxed text-ink/50">
+            Metered from fal.ai job costs. Hosting and storage are a fixed
+            monthly cost, billed separately and not metered here. Try-on → cart
+            conversion: {(data.conversionRate * 100).toFixed(1)}%.
           </p>
         </div>
       </section>
 
+      <div className="mt-2 border-t border-ink/12 pt-6">
+        <h2 className="font-display text-xl text-ink">Reflection · try-on</h2>
+        <p className="mt-1 text-[12px] text-ink/55">
+          The virtual try-on feature that spends the face-swap budget above.
+        </p>
+      </div>
+
       <form
         onSubmit={handleSettingsSubmit}
-        className="flex max-w-xl flex-col gap-4 border border-indigo-lift p-4"
+        className="flex max-w-xl flex-col gap-4 border border-ink/12 bg-milk px-5 py-5"
       >
-        <legend className="font-sans text-[11px] uppercase tracking-[0.12em] text-chalk">
+        <legend className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
           Quota & model
         </legend>
-        <label className="flex items-center gap-2 text-[13px] text-greige">
+        <label className="flex items-center gap-2 text-[13px] text-ink">
           <input
             type="checkbox"
             name="enabled"
             defaultChecked={data.settings.enabled}
-            className="border border-indigo-lift"
+            className="border border-ink/20"
           />
           Reflection enabled
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[13px] text-greige">fal model id</span>
+          <span className="text-[13px] text-ink">fal model id</span>
           <input
             name="modelId"
             defaultValue={data.settings.modelId}
-            className="border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
+            className="border border-ink/15 bg-greige px-2 py-1.5 text-[13px] text-ink"
           />
         </label>
         <div className="grid grid-cols-2 gap-4">
           <label className="flex flex-col gap-1">
-            <span className="text-[13px] text-greige">Anon daily limit</span>
+            <span className="text-[13px] text-ink">Anon daily limit</span>
             <input
               name="anonDailyLimit"
               type="number"
               min={1}
               defaultValue={data.settings.anonDailyLimit}
-              className="border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
+              className="border border-ink/15 bg-greige px-2 py-1.5 text-[13px] text-ink"
             />
           </label>
           <label className="flex flex-col gap-1">
-            <span className="text-[13px] text-greige">Signed-in daily limit</span>
+            <span className="text-[13px] text-ink">Signed-in daily limit</span>
             <input
               name="signedInDailyLimit"
               type="number"
               min={1}
               defaultValue={data.settings.signedInDailyLimit}
-              className="border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
+              className="border border-ink/15 bg-greige px-2 py-1.5 text-[13px] text-ink"
             />
           </label>
         </div>
         <button
           type="submit"
           disabled={pending}
-          className="self-start border border-zari bg-zari px-4 py-2 text-[13px] text-indigo"
+          className="self-start border border-zari bg-zari px-4 py-2 text-[13px] font-medium text-ink"
         >
           Save settings
         </button>
       </form>
 
-      <section className="border border-indigo-lift p-4">
-        <h2 className="text-[11px] uppercase tracking-[0.12em] text-chalk">
+      <section className="border border-ink/12 bg-milk px-5 py-5">
+        <h2 className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
           Purge job status
         </h2>
-        <dl className="mt-3 grid gap-2 text-[13px] text-greige sm:grid-cols-3">
+        <dl className="mt-3 grid gap-2 text-[13px] text-ink sm:grid-cols-3">
           <div>
-            <dt className="text-chalk">Pending purge</dt>
+            <dt className="text-ink/55">Pending purge</dt>
             <dd>{data.purgeStatus.pendingCount}</dd>
           </div>
           <div>
-            <dt className="text-chalk">Purged (24h)</dt>
+            <dt className="text-ink/55">Purged (24h)</dt>
             <dd>{data.purgeStatus.purgedLast24h}</dd>
           </div>
           <div>
-            <dt className="text-chalk">Last purge</dt>
+            <dt className="text-ink/55">Last purge</dt>
             <dd>
               {data.purgeStatus.lastPurgeAt
                 ? data.purgeStatus.lastPurgeAt.toISOString()
@@ -187,11 +265,11 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
             </dd>
           </div>
         </dl>
-        <ul className="mt-4 max-h-48 overflow-y-auto text-[12px] text-chalk">
+        <ul className="mt-4 max-h-48 overflow-y-auto text-[12px] text-ink/60">
           {selfies.map((s: { id: string; purgeAt: Date }) => (
             <li
               key={s.id}
-              className="flex items-center justify-between gap-4 border-t border-indigo-lift py-2"
+              className="flex items-center justify-between gap-4 border-t border-ink/10 py-2"
             >
               <span>
                 {s.id.slice(0, 8)}… purge {s.purgeAt.toISOString()}
@@ -200,7 +278,7 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
                 type="button"
                 disabled={pending}
                 onClick={() => handlePurge(s.id)}
-                className="border border-madder px-2 py-1 text-madder"
+                className="border border-madder/50 px-2 py-1 text-madder"
               >
                 Purge now
               </button>
@@ -209,8 +287,8 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
         </ul>
       </section>
 
-      <section className="border border-indigo-lift p-4">
-        <h2 className="text-[11px] uppercase tracking-[0.12em] text-chalk">
+      <section className="border border-ink/12 bg-milk px-5 py-5">
+        <h2 className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
           Cache management
         </h2>
         <div className="mt-3 flex gap-2">
@@ -218,7 +296,7 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
             value={cacheDesignId}
             onChange={(e) => setCacheDesignId(e.target.value)}
             placeholder="Design UUID"
-            className="flex-1 border border-indigo-lift bg-indigo px-2 py-1.5 text-[13px] text-greige"
+            className="flex-1 border border-ink/15 bg-greige px-2 py-1.5 text-[13px] text-ink"
           />
           <button
             type="button"
@@ -232,12 +310,12 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
       </section>
 
       <section>
-        <h2 className="mb-3 text-[11px] uppercase tracking-[0.12em] text-chalk">
+        <h2 className="mb-3 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
           Recent sessions
         </h2>
-        <div className="overflow-x-auto border border-indigo-lift">
-          <table className="w-full min-w-[720px] text-left text-[12px] text-greige">
-            <thead className="border-b border-indigo-lift text-chalk">
+        <div className="overflow-x-auto border border-ink/12 bg-milk">
+          <table className="w-full min-w-[720px] text-left text-[12px] text-ink">
+            <thead className="border-b border-ink/12 text-ink/55">
               <tr>
                 <th className="px-3 py-2">Created</th>
                 <th className="px-3 py-2">Status</th>
@@ -248,7 +326,7 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
             </thead>
             <tbody>
               {data.sessions.map((s) => (
-                <tr key={s.id} className="border-b border-indigo-lift/60">
+                <tr key={s.id} className="border-b border-ink/10">
                   <td className="px-3 py-2">{s.createdAt.toISOString()}</td>
                   <td className="px-3 py-2">{s.status}</td>
                   <td className="px-3 py-2">
@@ -268,12 +346,12 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
       </section>
 
       <section>
-        <h2 className="mb-3 text-[11px] uppercase tracking-[0.12em] text-chalk">
+        <h2 className="mb-3 font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
           Consent records
         </h2>
-        <div className="overflow-x-auto border border-indigo-lift">
-          <table className="w-full min-w-[640px] text-left text-[12px] text-greige">
-            <thead className="border-b border-indigo-lift text-chalk">
+        <div className="overflow-x-auto border border-ink/12 bg-milk">
+          <table className="w-full min-w-[640px] text-left text-[12px] text-ink">
+            <thead className="border-b border-ink/12 text-ink/55">
               <tr>
                 <th className="px-3 py-2">Granted</th>
                 <th className="px-3 py-2">Version</th>
@@ -283,7 +361,7 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
             </thead>
             <tbody>
               {data.consents.map((c) => (
-                <tr key={c.id} className="border-b border-indigo-lift/60">
+                <tr key={c.id} className="border-b border-ink/10">
                   <td className="px-3 py-2">{c.grantedAt.toISOString()}</td>
                   <td className="px-3 py-2">v{c.version}</td>
                   <td className="px-3 py-2">

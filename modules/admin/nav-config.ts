@@ -104,7 +104,7 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
     shortcut: "G D",
   },
   {
-    title: "Reflection",
+    title: "AI Spend",
     href: "/admin/tryon",
     icon: Sparkles,
     permission: "tryon.view",
@@ -171,19 +171,14 @@ export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
     id: "create",
     label: "Create",
     items: ADMIN_NAV_ITEMS.filter((i) =>
-      [
-        "/admin/photoreal",
-        "/admin/fabrics",
-        "/admin/designs",
-        "/admin/tryon",
-      ].includes(i.href),
+      ["/admin/photoreal", "/admin/fabrics", "/admin/designs"].includes(i.href),
     ),
   },
   {
     id: "money",
     label: "Money",
     items: ADMIN_NAV_ITEMS.filter((i) =>
-      ["/admin/finance", "/admin/insights"].includes(i.href),
+      ["/admin/finance", "/admin/tryon", "/admin/insights"].includes(i.href),
     ),
   },
   {
@@ -203,7 +198,7 @@ const BREADCRUMB_HREF_DENY = new Set([
 const BREADCRUMB_LABELS: Record<string, string> = {
   studio: "Designs",
   photoreal: "AI Studio",
-  tryon: "Reflection",
+  tryon: "AI Spend",
   fabrics: "Fabric",
   inventory: "Inventory",
   designs: "Designs",

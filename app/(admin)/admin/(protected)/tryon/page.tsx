@@ -29,12 +29,12 @@ export default async function AdminTryOnPage() {
 
   return (
     <div>
-      <Eyebrow>Reflection</Eyebrow>
-      <h1 className="mt-1 font-display text-3xl text-greige">Try-on</h1>
+      <Eyebrow>Money</Eyebrow>
+      <h1 className="mt-1 font-display text-3xl text-greige">AI spend & budget</h1>
       <p className="mt-2 max-w-[640px] text-[13px] leading-relaxed text-chalk">
-        Session logs, consent records, selfie purge status, cache management,
-        quotas, and AI spend vs cap. Storefront stays shoppable when Reflection
-        is resting.
+        What the AI features are costing this month against the monthly cap, and
+        how much budget is left. Reflection (virtual try-on) runs the face-swap
+        model; its quotas, selfie purge, and cache controls live below.
       </p>
       <div className="mt-6">
         <TryOnAdminDashboard initial={dashboard} pendingSelfies={pendingSelfies} />
