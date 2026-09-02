@@ -61,6 +61,19 @@ export const authConfig = {
     maxAge: 30 * 24 * 60 * 60,
   },
   callbacks: {
+    // The edge middleware derives `auth.user` from the JWT via this callback.
+    // Without it, role is absent in middleware and every role check misfires —
+    // notably bouncing authenticated staff to /admin/login. The node config in
+    // auth.ts defines a richer session callback that overrides this one.
+    session({ session, token }) {
+      if (session.user) {
+        (session.user as { role?: string }).role =
+          typeof token.role === "string" ? token.role : undefined;
+        (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled =
+          Boolean(token.twoFactorEnabled);
+      }
+      return session;
+    },
     authorized({ auth, request }) {
       const path = request.nextUrl.pathname;
       const isLoggedIn = !!auth?.user;
@@ -78,6 +91,14 @@ export const authConfig = {
       if (path.startsWith("/admin")) {
         if (!isLoggedIn) return false;
         const role = (auth.user as { role?: string }).role;
+        // Storefront customers must never enter the admin shell. Only an
+        // explicit CUSTOMER role is bounced here; a token whose role has not
+        // surfaced falls through to the admin layout, which re-gates on the
+        // node runtime where the role is always known. (Treating merely-missing
+        // role as a customer looped every staff member back to login.)
+        if (role === "CUSTOMER") {
+          return Response.redirect(new URL("/account/login", request.nextUrl));
+        }
         const twoFactorEnabled = (auth.user as { twoFactorEnabled?: boolean })
           .twoFactorEnabled;
         if (
