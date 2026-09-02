@@ -214,7 +214,14 @@ export function OrderDetailView({
               ["Balance due", order.totalMinor - order.paidMinor, true],
             ] as const
           ).map(([label, value, due]) => (
-            <div key={label} className="bg-indigo px-4 py-3 text-center">
+            // Explicit dark fill: the admin shell remaps the `bg-indigo` utility
+            // to cream for legacy pages, which would hide the milk-toned figures
+            // on this dark rail. Inline style overrides that remap.
+            <div
+              key={label}
+              className="px-4 py-3 text-center"
+              style={{ backgroundColor: "var(--color-indigo)" }}
+            >
               <p
                 className={cn(
                   "text-[9px] font-medium uppercase tracking-[0.14em]",
