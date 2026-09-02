@@ -30,11 +30,12 @@ export function SearchBox({ initialQuery = "" }: { initialQuery?: string }) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search — a name, a code, kameez, blue…"
         aria-label="Search products"
-        className="w-full border border-greige-deep bg-greige px-4 py-3 text-[15px] text-ink outline-none placeholder:text-ink/40 focus:border-ink"
+        className="min-w-0 flex-1 border border-greige-deep bg-greige px-4 py-3 text-[15px] text-ink outline-none placeholder:text-ink/40 focus:border-ink"
       />
       <button
         type="submit"
-        className="btn-primary shrink-0 px-6"
+        className="btn-primary"
+        style={{ width: "auto", flex: "none" }}
         aria-label="Search"
       >
         Search

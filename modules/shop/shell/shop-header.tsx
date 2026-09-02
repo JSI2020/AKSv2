@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { Link, usePathname } from "@/i18n/routing";
 import { CartHeaderButton } from "@/modules/cart/cart-header-button";
+import { SearchOverlay } from "@/modules/catalog/search-overlay";
 import type { NavItemPublic } from "@/modules/content/types";
 
 import { AksStoreBrandLink } from "./brand";
@@ -116,6 +117,7 @@ export function ShopHeaderClient({
   const [solid, setSolid] = useState(true);
   const [ready, setReady] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const homeNav = ready && onHome;
 
   useEffect(() => {
@@ -186,11 +188,16 @@ export function ShopHeaderClient({
         <AksStoreBrandLink />
 
         <div className="nav-right">
-          <Link href="/search" className="icobtn" aria-label={t("search")}>
+          <button
+            type="button"
+            className="icobtn"
+            aria-label={t("search")}
+            onClick={() => setSearchOpen(true)}
+          >
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <use href="#ic-search" />
             </svg>
-          </Link>
+          </button>
           <Link
             href="/account/orders"
             className="icobtn"
@@ -217,13 +224,21 @@ export function ShopHeaderClient({
           : (
               <FallbackNavLinks homeNav={homeNav} onClick={closeMenu} t={t} />
             )}
-        <Link href="/collections" onClick={closeMenu}>
+        <button
+          type="button"
+          onClick={() => {
+            closeMenu();
+            setSearchOpen(true);
+          }}
+        >
           {t("search")}
-        </Link>
+        </button>
         <Link href="/account/orders" onClick={closeMenu}>
           {t("account")}
         </Link>
       </div>
+
+      <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
   );
 }
