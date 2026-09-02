@@ -185,15 +185,25 @@ export function OrderDetailView({
             {formatPlaced(order.placedAt)} ·{" "}
             {order.source.replaceAll("_", " ").toLowerCase()} order
           </p>
-          <div className="mt-3.5 flex flex-wrap gap-2">
-            <span className="inline-flex items-center gap-1.5 border border-zari/55 px-3 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zari">
-              <span className="size-1.5 rounded-full bg-zari" />
-              {PRODUCTION_STATUS_LABELS[order.productionStatus]}
-            </span>
-            <span className="inline-flex items-center gap-1.5 border border-milk/30 px-3 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-milk">
-              <span className="size-1.5 rounded-full bg-milk" />
-              {PAYMENT_STATUS_LABELS[order.paymentStatus]}
-            </span>
+          <div className="mt-4 flex flex-wrap gap-6">
+            <div>
+              <p className="mb-1.5 font-sans text-[9px] uppercase tracking-[0.16em] text-milk/45">
+                Production
+              </p>
+              <span className="inline-flex items-center gap-1.5 border border-zari/55 px-3 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-zari">
+                <span className="size-1.5 rounded-full bg-zari" />
+                {PRODUCTION_STATUS_LABELS[order.productionStatus]}
+              </span>
+            </div>
+            <div>
+              <p className="mb-1.5 font-sans text-[9px] uppercase tracking-[0.16em] text-milk/45">
+                Payment
+              </p>
+              <span className="inline-flex items-center gap-1.5 border border-milk/30 px-3 py-1.5 text-[10.5px] font-medium uppercase tracking-[0.06em] text-milk">
+                <span className="size-1.5 rounded-full bg-milk" />
+                {PAYMENT_STATUS_LABELS[order.paymentStatus]}
+              </span>
+            </div>
           </div>
         </div>
         <div className="grid shrink-0 grid-cols-3 gap-px self-stretch border border-milk/15 bg-milk/15 md:self-center">
@@ -652,7 +662,7 @@ export function OrderDetailView({
                 {order.customer.name}
               </Link>
             )}
-            <dl className="mt-3 grid gap-2 text-[13px]">
+            <dl className="mt-3">
               <Kv
                 label="Email"
                 value={
@@ -778,7 +788,7 @@ export function OrderDetailView({
             </div>
           </Panel>
 
-          <Panel title="Notes">
+          <Panel title="Notes" collapsible defaultOpen={false}>
             <div className="flex flex-col gap-4">
               <div>
                 <p className="mb-2 text-[10px] uppercase tracking-[0.12em] text-ink/55">
@@ -818,7 +828,7 @@ export function OrderDetailView({
           </Panel>
 
           {canEdit ? (
-            <Panel title="Record payment">
+            <Panel title="Record payment" collapsible defaultOpen={false}>
               <RecordPaymentForm
                 order={order}
                 disabled={pending}
@@ -831,12 +841,17 @@ export function OrderDetailView({
             </Panel>
           ) : null}
 
-          <Panel title="Messages">
+          <Panel title="Messages" collapsible defaultOpen={false}>
             <OrderMessagesPanel messages={messages} />
           </Panel>
 
           {(canRefund || canCancel || (canEdit && beforeLock) || canEdit) ? (
-            <Panel title="Order controls">
+            <Panel
+              title="Order controls"
+              collapsible
+              defaultOpen={false}
+              tone="danger"
+            >
               <div className="flex flex-col gap-4">
                 {canRefund ? (
                   <ActionButton
@@ -1038,18 +1053,71 @@ function PaymentPanel({
   );
 }
 
+function PanelHeading({
+  title,
+  tone = "default",
+}: {
+  title: string;
+  tone?: "default" | "danger";
+}) {
+  return (
+    <h2
+      className={cn(
+        "font-sans text-[10px] font-semibold uppercase tracking-[0.16em]",
+        tone === "danger" ? "text-madder/75" : "text-ink/55",
+      )}
+    >
+      {title}
+    </h2>
+  );
+}
+
 function Panel({
   title,
   children,
+  collapsible = false,
+  defaultOpen = true,
+  tone = "default",
 }: {
   title: string;
   children: React.ReactNode;
+  /** Render as a disclosure so form-heavy panels don't clutter the column. */
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+  tone?: "default" | "danger";
 }) {
+  if (collapsible) {
+    return (
+      <details
+        open={defaultOpen}
+        className="group border border-ink/12 bg-milk [&_summary::-webkit-details-marker]:hidden"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3.5 hover:bg-ink/[0.02]">
+          <PanelHeading title={title} tone={tone} />
+          <svg
+            viewBox="0 0 12 12"
+            aria-hidden="true"
+            className="size-3 text-ink/35 transition-transform duration-150 group-open:rotate-180"
+          >
+            <path
+              d="M2.5 4.5 6 8l3.5-3.5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </summary>
+        <div className="border-t border-ink/10 px-4 pb-4 pt-3.5">{children}</div>
+      </details>
+    );
+  }
   return (
-    <section className="border border-ink/12 bg-greige p-3">
-      <h2 className="mb-3 text-[12px] uppercase tracking-[0.12em] text-chalk">
-        {title}
-      </h2>
+    <section className="border border-ink/12 bg-milk px-4 py-4">
+      <div className="mb-3.5">
+        <PanelHeading title={title} tone={tone} />
+      </div>
       {children}
     </section>
   );
@@ -1057,9 +1125,9 @@ function Panel({
 
 function Kv({ label, value }: { label: string; value: React.ReactNode }) {
   return (
-    <div className="flex flex-wrap justify-between gap-2">
-      <dt className="text-chalk">{label}</dt>
-      <dd className="text-ink">{value}</dd>
+    <div className="flex items-center justify-between gap-3 border-b border-ink/10 py-2 text-[13px] last:border-b-0">
+      <dt className="text-ink/55">{label}</dt>
+      <dd className="text-end text-ink">{value}</dd>
     </div>
   );
 }
