@@ -4,9 +4,10 @@ import { and, eq, gt } from "drizzle-orm";
 
 import { db, verificationTokens } from "@aks/db";
 import { enqueue } from "@/modules/platform/outbox";
+import { verificationCodeEmail } from "@/modules/messaging/email-templates";
 
 export const OTP_LENGTH = 6;
-export const OTP_TTL_MS = 10 * 60 * 1000;
+export const OTP_TTL_MS = 24 * 60 * 60 * 1000;
 
 export function hashOtp(code: string): string {
   return createHash("sha256").update(code, "utf8").digest("hex");
@@ -30,7 +31,7 @@ function codesEqual(a: string, b: string): boolean {
 /** Issue a single-use email OTP and enqueue delivery via the outbox. */
 export async function issueEmailOtp(params: {
   email: string;
-}): Promise<{ expiresAt: Date }> {
+}): Promise<{ expiresAt: Date; devCode?: string }> {
   const email = normalizeEmail(params.email);
   const code = generateOtpCode();
   const tokenHash = hashOtp(code);
@@ -47,19 +48,21 @@ export async function issueEmailOtp(params: {
       expires: expiresAt,
     });
 
+    const mail = verificationCodeEmail(code);
     await enqueue(
       "email.send",
-      {
-        to: email,
-        subject: "Your AKS sign-in code",
-        text: `Your AKS sign-in code is ${code}. It expires in 10 minutes.`,
-        html: `<p>Your AKS sign-in code is <strong>${code}</strong>.</p><p>It expires in 10 minutes.</p>`,
-      },
+      { to: email, subject: mail.subject, text: mail.text, html: mail.html },
       tx,
     );
   });
 
-  return { expiresAt };
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      `\n[dev] Admin sign-in code for ${email}: ${code} (valid 24 hours)\n`,
+    );
+  }
+
+  return { expiresAt, devCode: process.env.NODE_ENV !== "production" ? code : undefined };
 }
 
 /**
