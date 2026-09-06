@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 import { customerProfiles, db, users } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 
-import { crmPlaceholderEmail } from "@/modules/customers/phone";
+import { crmPlaceholderEmail, toWhatsappMsisdn } from "@/modules/customers/phone";
 
 import { normalizeEmail } from "./otp";
 
@@ -24,9 +24,47 @@ type Identity = {
   email?: string | null;
   name?: string | null;
   phone?: string | null;
+  /** Opt-in captured at signup; only applied when the account is created. */
+  acceptsMarketing?: boolean;
   /** Where this sign-in came from — "email" | "google" | "facebook" | "whatsapp". */
   provider: string;
 };
+
+function normalizePhoneForStorage(
+  raw: string | null | undefined,
+  provider: string,
+): string | null {
+  if (!raw) return null;
+  if (provider === "whatsapp") {
+    const msisdn = toWhatsappMsisdn(raw);
+    return msisdn.length >= 11 ? msisdn : null;
+  }
+  const digits = raw.replace(/\D/g, "");
+  return digits || null;
+}
+
+async function ensureCustomerProfile(
+  userId: string,
+  identity: Identity,
+  phone: string | null,
+): Promise<void> {
+  const [profile] = await db
+    .select({ userId: customerProfiles.userId })
+    .from(customerProfiles)
+    .where(eq(customerProfiles.userId, userId))
+    .limit(1);
+
+  if (!profile) {
+    const now = new Date();
+    await db.insert(customerProfiles).values({
+      userId,
+      whatsappNumber: identity.provider === "whatsapp" ? phone : null,
+      source: identity.provider,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+}
 
 /**
  * Resolve a storefront customer from a verified identity, creating the account
@@ -44,7 +82,7 @@ export async function findOrCreateCustomer(
   identity: Identity,
 ): Promise<CustomerSignInResult> {
   const email = identity.email ? normalizeEmail(identity.email) : null;
-  const phone = identity.phone?.replace(/\D/g, "") || null;
+  const phone = normalizePhoneForStorage(identity.phone, identity.provider);
 
   const existing = email
     ? await db.select().from(users).where(eq(users.email, email)).limit(1)
@@ -74,6 +112,8 @@ export async function findOrCreateCustomer(
         phone: found.phone ?? phone,
       })
       .where(eq(users.id, found.id));
+
+    await ensureCustomerProfile(found.id, identity, phone);
 
     return {
       ok: true,
@@ -115,7 +155,9 @@ export async function findOrCreateCustomer(
     });
     await tx.insert(customerProfiles).values({
       userId,
-      whatsappNumber: identity.provider === "whatsapp" ? phone : null,
+      // The signup form's WhatsApp field arrives as phone for the email flow too.
+      whatsappNumber: phone,
+      acceptsMarketing: Boolean(identity.acceptsMarketing),
       source: identity.provider,
       createdAt: now,
       updatedAt: now,

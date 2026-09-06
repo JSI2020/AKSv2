@@ -27,6 +27,7 @@ import {
   normalizeEmail,
   rolesRequiring2fa,
   adminTwoFactorEnforced,
+  revokeSession,
   touchSession,
   verifyEmailOtp,
   verifyTotpForUser,
@@ -179,6 +180,17 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           throw new AccountDisabled();
         }
 
+        if (user.role === "CUSTOMER") {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "customer_on_staff_provider",
+          });
+          throw new OtpInvalid();
+        }
+
         const twoFactorEnabled = !!user.twoFactorEnabledAt && !!user.twoFactorSecret;
 
         // 2FA is enforced in production; skipped in local/dev (see
@@ -292,6 +304,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         otp: { label: "Code", type: "text" },
+        // Optional signup details — applied only when the account is created.
+        name: { label: "Name", type: "text" },
+        phone: { label: "WhatsApp", type: "text" },
+        acceptsMarketing: { label: "Marketing opt-in", type: "text" },
       },
       authorize: async (credentials, request) => {
         const email = normalizeEmail(
@@ -299,6 +315,11 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         );
         const otp =
           typeof credentials?.otp === "string" ? credentials.otp.trim() : "";
+        const name =
+          typeof credentials?.name === "string" ? credentials.name.trim() : "";
+        const phone =
+          typeof credentials?.phone === "string" ? credentials.phone.trim() : "";
+        const acceptsMarketing = credentials?.acceptsMarketing === "true";
         const ip = request ? clientIpFromHeaders(request.headers) : null;
         const userAgent = request?.headers.get("user-agent") ?? null;
 
@@ -331,7 +352,13 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           throw new OtpInvalid();
         }
 
-        const resolved = await findOrCreateCustomer({ email, provider: "email" });
+        const resolved = await findOrCreateCustomer({
+          email,
+          name: name || undefined,
+          phone: phone || undefined,
+          acceptsMarketing,
+          provider: "email",
+        });
         if (!resolved.ok) {
           await logSignInAttempt({
             email,
@@ -393,12 +420,28 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           typeof credentials?.phone === "string" ? credentials.phone : "";
         const otp =
           typeof credentials?.otp === "string" ? credentials.otp.trim() : "";
-        const phone = phoneRaw.replace(/\D/g, "");
+        const { toWhatsappMsisdn } = await import("@/modules/customers/phone");
+        const phone = toWhatsappMsisdn(phoneRaw);
         const ip = request ? clientIpFromHeaders(request.headers) : null;
         const userAgent = request?.headers.get("user-agent") ?? null;
         const label = `wa:${phone}`;
 
-        if (phone.length < 10 || !otp) throw new OtpInvalid();
+        if (phone.length < 11 || !otp) throw new OtpInvalid();
+
+        const verifyLimit = await checkOtpVerifyRateLimit({
+          email: label,
+          reasons: ["otp_invalid"],
+        });
+        if (!verifyLimit.ok) {
+          await logSignInAttempt({
+            email: label,
+            ip,
+            userAgent,
+            success: false,
+            reason: "otp_verify_locked",
+          });
+          throw new OtpInvalid();
+        }
 
         const { verifyPhoneOtp, consumePhoneOtp } = await import(
           "@/modules/auth/phone-otp"
@@ -467,13 +510,25 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ],
   callbacks: {
     ...authConfig.callbacks,
-    async signIn({ user, account }) {
+    async signIn({ user, account, profile }) {
       // Defense in depth: never let an OAuth login resolve to a staff account,
       // even if email-linking were ever enabled. New customers have no role yet
       // at this point and pass through.
-      if (account && account.provider !== "otp" && account.provider !== "customer-otp") {
+      if (
+        account &&
+        account.provider !== "otp" &&
+        account.provider !== "customer-otp" &&
+        account.provider !== "customer-whatsapp"
+      ) {
         const role = (user as { role?: string }).role;
         if (role && role !== "CUSTOMER") return false;
+
+        const resolved = await findOrCreateCustomer({
+          email: user.email,
+          name: user.name ?? (profile as { name?: string } | undefined)?.name,
+          provider: account.provider,
+        });
+        if (!resolved.ok) return false;
       }
       return true;
     },
@@ -552,6 +607,19 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       session.sessionId =
         typeof token.sessionId === "string" ? token.sessionId : "";
       return session;
+    },
+  },
+  events: {
+    async signOut(message) {
+      const sessionId =
+        "token" in message &&
+        message.token &&
+        typeof message.token.sessionId === "string"
+          ? message.token.sessionId
+          : null;
+      if (sessionId) {
+        await revokeSession(sessionId);
+      }
     },
   },
 });

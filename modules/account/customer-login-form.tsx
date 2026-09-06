@@ -5,7 +5,7 @@ import { signIn } from "next-auth/react";
 
 import { useRouter } from "@/i18n/routing";
 
-type Step = "email" | "code";
+type Step = "email" | "code" | "profile";
 
 export type SocialProvider = "google" | "facebook";
 
@@ -37,9 +37,30 @@ export function CustomerLoginForm({
   const [step, setStep] = useState<Step>("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  const [name, setName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [marketing, setMarketing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  /** Complete sign-in; extra fields are only used when the account is created. */
+  async function completeSignIn() {
+    const result = await signIn("customer-otp", {
+      email,
+      otp: code,
+      name: name || undefined,
+      phone: whatsapp || undefined,
+      acceptsMarketing: marketing ? "true" : "false",
+      redirect: false,
+    });
+    if (!result || result.error) {
+      setError("Something went wrong. Request a new code and try again.");
+      return;
+    }
+    router.replace(redirectTo);
+    router.refresh();
+  }
 
   function requestCode() {
     setError(null);
@@ -69,20 +90,32 @@ export function CustomerLoginForm({
     });
   }
 
-  function verify() {
+  /** Verify the code, then either finish (returning) or ask for a name (new). */
+  function checkCode() {
     setError(null);
     startTransition(async () => {
-      const result = await signIn("customer-otp", {
-        email,
-        otp: code,
-        redirect: false,
+      const res = await fetch("/api/auth/customer/otp/check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, otp: code }),
       });
-      if (!result || result.error) {
-        setError("That code didn't work. Request a new one and try again.");
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        isNew?: boolean;
+        error?: string;
+      };
+      if (!data.ok) {
+        setError(
+          data.error ?? "That code didn't work. Request a new one and try again.",
+        );
         return;
       }
-      router.replace(redirectTo);
-      router.refresh();
+      if (data.isNew) {
+        setMessage(null);
+        setStep("profile");
+        return;
+      }
+      await completeSignIn();
     });
   }
 
@@ -130,7 +163,8 @@ export function CustomerLoginForm({
         onSubmit={(e) => {
           e.preventDefault();
           if (step === "email") requestCode();
-          else verify();
+          else if (step === "code") checkCode();
+          else startTransition(() => completeSignIn());
         }}
       >
         <div>
@@ -172,6 +206,57 @@ export function CustomerLoginForm({
           </div>
         ) : null}
 
+        {step === "profile" ? (
+          <>
+            <p className="text-[14px] text-ink/70">
+              Welcome — let&apos;s set up your account.
+            </p>
+            <div>
+              <label htmlFor="signup-name" className={labelClass}>
+                Your name
+              </label>
+              <input
+                id="signup-name"
+                type="text"
+                autoComplete="name"
+                required
+                disabled={pending}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label htmlFor="signup-whatsapp" className={labelClass}>
+                WhatsApp number (optional)
+              </label>
+              <input
+                id="signup-whatsapp"
+                type="tel"
+                autoComplete="tel"
+                disabled={pending}
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="03001234567"
+                className={inputClass}
+              />
+              <p className="mt-1.5 text-[12px] text-ink/50">
+                For order updates. You can add it later instead.
+              </p>
+            </div>
+            <label className="flex items-start gap-2.5 text-[13px] text-ink/75">
+              <input
+                type="checkbox"
+                checked={marketing}
+                onChange={(e) => setMarketing(e.target.checked)}
+                disabled={pending}
+                className="mt-0.5"
+              />
+              <span>Email me first looks at new editions. No spam.</span>
+            </label>
+          </>
+        ) : null}
+
         {message ? <p className="text-[14px] text-ink/70">{message}</p> : null}
         {error ? (
           <p className="text-[14px] text-madder" role="alert">
@@ -184,16 +269,21 @@ export function CustomerLoginForm({
             ? "Please wait…"
             : step === "email"
               ? "Email me a code"
-              : "Sign in"}
+              : step === "code"
+                ? "Continue"
+                : "Create account"}
         </button>
 
-        {step === "code" ? (
+        {step !== "email" ? (
           <button
             type="button"
             className="text-start text-[13px] text-ink/60 underline-offset-2 hover:underline"
             onClick={() => {
               setStep("email");
               setCode("");
+              setName("");
+              setWhatsapp("");
+              setMarketing(false);
               setError(null);
               setMessage(null);
             }}
@@ -203,10 +293,12 @@ export function CustomerLoginForm({
         ) : null}
       </form>
 
-      <p className="mt-6 text-[13px] leading-relaxed text-ink/55">
-        No account needed to order — this is only for order history and saved
-        details. New here? Signing in creates your account.
-      </p>
+      {step !== "profile" ? (
+        <p className="mt-6 text-[13px] leading-relaxed text-ink/55">
+          No account needed to order — this is only for order history and saved
+          details. New here? Signing in creates your account.
+        </p>
+      ) : null}
     </div>
   );
 }
