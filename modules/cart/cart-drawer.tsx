@@ -5,6 +5,8 @@ import Image from "next/image";
 import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
 
+import { rtwStockCapMessage } from "@/modules/inventory/rtw-stock-messages";
+
 import { useCart } from "./cart-context";
 
 function sizeLabel(line: {
@@ -16,8 +18,16 @@ function sizeLabel(line: {
 }
 
 export function CartDrawer() {
-  const { cart, drawerOpen, closeDrawer, setLineQuantity, removeLine, pending } =
-    useCart();
+  const {
+    cart,
+    drawerOpen,
+    closeDrawer,
+    setLineQuantity,
+    removeLine,
+    pending,
+    cartNotice,
+    clearCartNotice,
+  } = useCart();
 
   return (
     <>
@@ -53,7 +63,10 @@ export function CartDrawer() {
             </p>
           ) : (
             <ul className="space-y-5">
-              {cart.lines.map((line) => (
+              {cart.lines.map((line) => {
+                const atStockCap =
+                  line.maxQuantity != null && line.quantity >= line.maxQuantity;
+                return (
                 <li
                   key={line.id}
                   className="cart-drawer-line grid grid-cols-[72px_1fr] gap-3 pb-5"
@@ -120,15 +133,25 @@ export function CartDrawer() {
                         </span>
                         <button
                           type="button"
-                          disabled={pending || line.quantity >= 99}
-                          onClick={() =>
-                            setLineQuantity(line.id, line.quantity + 1)
-                          }
+                          disabled={pending || atStockCap}
+                          onClick={() => {
+                            clearCartNotice();
+                            setLineQuantity(line.id, line.quantity + 1);
+                          }}
                           aria-label="Increase quantity"
                         >
                           +
                         </button>
                       </div>
+
+                      {atStockCap && line.sizeLabel ? (
+                        <p
+                          className="mt-2 text-[12px] leading-relaxed"
+                          style={{ color: "var(--oxblood)" }}
+                        >
+                          {rtwStockCapMessage(line.maxQuantity!, line.sizeLabel)}
+                        </p>
+                      ) : null}
 
                       <div className="text-end">
                         <span style={{ color: "var(--taupe)" }}>
@@ -156,12 +179,22 @@ export function CartDrawer() {
                     </button>
                   </div>
                 </li>
-              ))}
+              );
+              })}
             </ul>
           )}
         </div>
 
         <footer className="cart-drawer-foot border-t px-5 py-5">
+          {cartNotice ? (
+            <p
+              className="mb-3 text-[13px] leading-relaxed"
+              style={{ color: "var(--oxblood)" }}
+              role="alert"
+            >
+              {cartNotice}
+            </p>
+          ) : null}
           <div className="mb-2 flex items-baseline justify-between gap-3">
             <span
               className="text-[13px] uppercase tracking-[0.08em]"

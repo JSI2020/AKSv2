@@ -207,12 +207,22 @@ export async function generatePhotorealAction(
     if (mode === "sketch" && !sketchOnly.length) {
       return { ok: false, error: "Upload at least one sketch." };
     }
-    if (mode === "old-design" && !oldOnly.length) {
-      return { ok: false, error: "Upload at least one old design photo." };
+    if ((mode === "old-design" || mode === "repose") && !oldOnly.length) {
+      return {
+        ok: false,
+        error:
+          mode === "repose"
+            ? "Upload a garment photo to change pose."
+            : "Upload at least one old design photo.",
+      };
     }
 
     const imageUrls =
-      mode === "old-design" ? oldOnly : mode === "sketch" ? sketchOnly : [];
+      mode === "old-design" || mode === "repose"
+        ? oldOnly
+        : mode === "sketch"
+          ? sketchOnly
+          : [];
 
     let settings = DEFAULT_APP_SETTINGS;
     try {
@@ -232,7 +242,7 @@ export async function generatePhotorealAction(
       trouserColour: payload.trouserColour,
       fabric: payload.fabric,
       mode: "generate",
-      inputMode: mode,
+      inputMode: mode === "repose" ? "repose" : mode,
     });
 
     const backgroundPrompt = resolveStudioBackgroundPrompt({
@@ -265,7 +275,8 @@ export async function generatePhotorealAction(
               negativePrompt: built.negativePrompt,
               seed: built.seed,
               modelKey: settings.fal.generateModel,
-              strength: mode === "old-design" ? 0.82 : undefined,
+              strength:
+                mode === "repose" ? 0.8 : mode === "old-design" ? 0.82 : undefined,
             },
             settings.fal,
           );
@@ -398,7 +409,7 @@ export async function refinePhotorealAction(
       fabric: payload.fabric,
       feedback: payload.feedback,
       mode: "refine",
-      inputMode: mode,
+      inputMode: mode === "repose" ? "repose" : mode,
     });
 
     const backgroundPrompt = resolveStudioBackgroundPrompt({
@@ -422,15 +433,20 @@ export async function refinePhotorealAction(
     });
 
     const referenceUrls =
-      mode === "sketch" ? (payload.sketchUrls ?? []).slice(0, 2) : [];
+      mode === "sketch"
+        ? (payload.sketchUrls ?? []).slice(0, 2)
+        : mode === "repose" || mode === "old-design"
+          ? [payload.oldDesignUrl].filter(Boolean).slice(0, 1) as string[]
+          : [];
 
     const bigSceneChange =
       feedbackRequestsBackground(polished.feedback ?? payload.feedback) ||
-      feedbackRequestsPose(polished.feedback ?? payload.feedback);
+      feedbackRequestsPose(polished.feedback ?? payload.feedback) ||
+      Boolean(payload.poseId);
 
-    let strength = mode === "sketch" ? 0.55 : 0.72;
+    let strength = mode === "sketch" ? 0.55 : mode === "repose" ? 0.76 : 0.72;
     if (bigSceneChange) {
-      strength = mode === "sketch" ? 0.78 : 0.84;
+      strength = mode === "sketch" ? 0.78 : mode === "repose" ? 0.84 : 0.84;
     }
 
     const result = await refineImage(

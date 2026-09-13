@@ -1,80 +1,96 @@
-import Image from "next/image";
-
 import { Link } from "@/i18n/routing";
 import type { CategoryTilePublic } from "@/modules/content/types";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import type { HouseCollectionPublic } from "@/modules/catalog/house-collections-queries";
+import { AksBrandLogo } from "@/modules/shop/shell/aks-brand-logo";
 
 import { Reveal } from "./reveal";
 import {
   ImageSlotPlaceholder,
   type SilhouetteId,
 } from "./silhouette-svg";
+import Image from "next/image";
 
+/** Distinct tones so empty doors never collapse to the same pale wash. */
 const DOOR_META: Record<
   string,
   { silhouette: SilhouetteId; bg: string }
 > = {
   essentials: {
     silhouette: "kurta",
-    bg: "linear-gradient(160deg,#EAE1CF,#BFAA88)",
+    bg: "linear-gradient(160deg,#E3D7C0,#A89472)",
   },
   tailored: {
     silhouette: "layered",
-    bg: "linear-gradient(160deg,#DDD2BC,#A89A80)",
+    bg: "linear-gradient(160deg,#D4C6AE,#8F8068)",
   },
   occasion: {
     silhouette: "peshwaz",
-    bg: "linear-gradient(160deg,#F4EEE1,#CDC0A8)",
+    bg: "linear-gradient(160deg,#DDD0B8,#9A8668)",
   },
   signature: {
     silhouette: "farshi",
-    bg: "linear-gradient(160deg,#CDC0A8,#8D7E66)",
+    bg: "linear-gradient(160deg,#C8B898,#7A6B52)",
   },
 };
 
+function doorMeta(categoryKey: string) {
+  const key = categoryKey.trim().toLowerCase();
+  return DOOR_META[key] ?? DOOR_META.essentials!;
+}
+
 export function CategoryDoors({
   tiles,
+  fallbackDoors,
   eyebrow,
   title,
-  slotTag,
   exploreTemplate,
 }: {
   tiles: CategoryTilePublic[];
+  fallbackDoors: HouseCollectionPublic[];
   eyebrow: string;
   title: string;
-  slotTag: string;
+  /** @deprecated Admin tags are not shown on the storefront. */
+  slotTag?: string;
   exploreTemplate: (name: string) => string;
 }) {
   const doors =
     tiles.length > 0
       ? tiles
-      : HOUSE_COLLECTIONS.filter((c) =>
-          ["essentials", "tailored", "occasion", "signature"].includes(c.slug),
-        ).map((c) => ({
-          id: c.slug,
-          categoryKey: c.slug,
-          displayName: c.navLabel,
-          caption: c.tagline,
-          href: `/collections/${c.slug}`,
-          imageUrl: null as string | null,
-        }));
+      : fallbackDoors
+          .filter((c) => c.slug !== "separates")
+          .slice(0, 4)
+          .map((c) => ({
+            id: c.slug,
+            categoryKey: c.slug,
+            displayName: c.navLabel,
+            caption: c.tagline,
+            href: `/collections/${c.slug}`,
+            imageUrl: null as string | null,
+          }));
 
   // Single host node (not a Fragment) so SSR HTML and client hydration
   // stay aligned under <main> — Fragments as mapped section roots have
   // caused main↔first-child mismatches in this tree.
   return (
     <div className="cats-block">
-      <Reveal className="cats-head">
-        <span className="eyebrow">{eyebrow}</span>
-        <h2 className="serif">{title}</h2>
-      </Reveal>
       <Reveal as="section" className="cats" id="cats">
+        <div className="cats-head">
+          <AksBrandLogo variant="mark" className="cats-mark" />
+          <span className="eyebrow">{eyebrow}</span>
+          <h2 className="serif">{title}</h2>
+        </div>
+        <div className="cats-grid">
         {doors.map((door) => {
-          const meta = DOOR_META[door.categoryKey] ?? DOOR_META.essentials!;
+          const meta = doorMeta(door.categoryKey);
           return (
             <Link key={door.id} href={door.href as "/collections"} className="cat">
+              {/* Always paint door tone underneath — pale/missing photos stay readable */}
+              <ImageSlotPlaceholder
+                silhouette={meta.silhouette}
+                background={meta.bg}
+              />
               {door.imageUrl ? (
-                <div className="imgslot" style={{ position: "absolute", inset: 0 }}>
+                <div className="imgslot cat-photo" style={{ position: "absolute", inset: 0 }}>
                   <Image
                     src={door.imageUrl}
                     alt=""
@@ -83,13 +99,7 @@ export function CategoryDoors({
                     unoptimized
                   />
                 </div>
-              ) : (
-                <ImageSlotPlaceholder
-                  silhouette={meta.silhouette}
-                  background={meta.bg}
-                />
-              )}
-              <span className="slot-tag">{slotTag}</span>
+              ) : null}
               <div className="label">
                 <div className="n serif">{door.displayName}</div>
                 <div className="m">{door.caption}</div>
@@ -100,6 +110,7 @@ export function CategoryDoors({
             </Link>
           );
         })}
+        </div>
       </Reveal>
     </div>
   );

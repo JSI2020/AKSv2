@@ -1,11 +1,15 @@
 import Link from "next/link";
 
+import { MetresTriadBar } from "@/modules/admin/viz";
+
 export function InventoryPhotoCard({
   href,
   title,
   meta,
   stockLabel,
   stockValue,
+  photoUrl,
+  triad,
   low,
   lowTag,
   gradient,
@@ -15,8 +19,15 @@ export function InventoryPhotoCard({
   href: string;
   title: string;
   meta?: string;
-  stockLabel: string;
-  stockValue: string;
+  stockLabel?: string;
+  stockValue?: string;
+  photoUrl?: string | null;
+  triad?: {
+    onHand: number;
+    reserved: number;
+    available: number;
+    reorderPoint?: number;
+  };
   low?: boolean;
   lowTag?: string;
   gradient: string;
@@ -29,9 +40,13 @@ export function InventoryPhotoCard({
       className="group flex flex-col overflow-hidden border border-ink/12 bg-milk transition-colors hover:border-ink"
     >
       <div
-        className={`relative bg-greige ${square ? "aspect-square" : "aspect-[3/4]"}`}
-        style={{ background: gradient }}
+        className={`relative overflow-hidden bg-greige ${square ? "aspect-square" : "aspect-[3/4]"}`}
+        style={photoUrl ? undefined : { background: gradient }}
       >
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="" className="size-full object-cover" />
+        ) : null}
         {low && lowTag ? (
           <span className="absolute top-2 inset-inline-start-2 bg-madder px-1.5 py-0.5 text-[8px] uppercase tracking-[0.08em] text-milk">
             {lowTag}
@@ -58,14 +73,25 @@ export function InventoryPhotoCard({
             ))}
           </div>
         ) : null}
-        <div className="mt-auto flex items-center justify-between border-t border-ink/10 pt-2 text-[12px]">
-          <span className="text-ink/55">{stockLabel}</span>
-          <span
-            className={`font-data ${low ? "text-madder" : "text-ink"}`}
-          >
-            {stockValue}
-          </span>
-        </div>
+        {triad ? (
+          <div className="mt-auto border-t border-ink/10 pt-2">
+            <MetresTriadBar
+              onHand={triad.onHand}
+              reserved={triad.reserved}
+              available={triad.available}
+              reorderPoint={triad.reorderPoint ?? 0}
+            />
+          </div>
+        ) : stockLabel && stockValue ? (
+          <div className="mt-auto flex items-center justify-between border-t border-ink/10 pt-2 text-[12px]">
+            <span className="text-ink/55">{stockLabel}</span>
+            <span
+              className={`font-data ${low ? "text-madder" : "text-ink"}`}
+            >
+              {stockValue}
+            </span>
+          </div>
+        ) : null}
       </div>
     </Link>
   );

@@ -45,7 +45,8 @@ export default async function InventoryDesignDetailPage({
           {detail.name}
         </h1>
         <p className="mt-2 text-[13px] text-ink/55">
-          Pick a colour, then a size, to see its stock history.
+          Pick a shade and size for ledger history, or use Adjust stock below.
+          Shades and sizes come from design setup (Photos and Sizing tabs).
         </p>
         <p className="mt-3">
           <Link

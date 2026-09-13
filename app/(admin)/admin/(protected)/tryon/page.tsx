@@ -32,9 +32,10 @@ export default async function AdminTryOnPage() {
       <Eyebrow>Money</Eyebrow>
       <h1 className="mt-1 font-display text-3xl text-greige">AI spend & budget</h1>
       <p className="mt-2 max-w-[640px] text-[13px] leading-relaxed text-chalk">
-        What the AI features are costing this month against the monthly cap, and
-        how much budget is left. Reflection (virtual try-on) runs the face-swap
-        model; its quotas, selfie purge, and cache controls live below.
+        Live prepaid balances on fal.ai and DeepSeek, plus what AKS has spent
+        this month against your monthly cap. Reflection (virtual try-on) runs
+        the face-swap model; its quotas, selfie purge, and cache controls live
+        below.
       </p>
       <div className="mt-6">
         <TryOnAdminDashboard initial={dashboard} pendingSelfies={pendingSelfies} />

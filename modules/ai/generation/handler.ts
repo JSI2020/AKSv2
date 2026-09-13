@@ -10,6 +10,29 @@ import { persistGenerationImage } from "./persist-output";
 
 const MAX_PROCESSING_ATTEMPTS = 3;
 
+async function resolveGenerationSourceUrl(
+  inputAssetIds: string[],
+  storedUrl: string,
+): Promise<string> {
+  const assetId = inputAssetIds[0];
+  if (!assetId) return storedUrl;
+
+  const { assets } = await import("@aks/db");
+  const { createAiExternalReadUrl } = await import("@/modules/platform/assets");
+  const [asset] = await db
+    .select({ r2Key: assets.r2Key })
+    .from(assets)
+    .where(eq(assets.id, assetId))
+    .limit(1);
+  if (!asset) return storedUrl;
+
+  try {
+    return await createAiExternalReadUrl(asset.r2Key, 3600);
+  } catch {
+    return storedUrl;
+  }
+}
+
 export async function handleDesignGenerate(
   payload: Record<string, unknown>,
 ): Promise<void> {
@@ -43,8 +66,11 @@ export async function handleDesignGenerate(
     .where(eq(designGenerations.id, generationId));
 
   const promptPayload = row.promptJson as Record<string, unknown>;
-  const sourceImageUrl = String(promptPayload.sourceImageUrl ?? "");
   const prompt = String(promptPayload.prompt ?? "");
+  const sourceImageUrl = await resolveGenerationSourceUrl(
+    row.inputAssetIds as string[],
+    String(promptPayload.sourceImageUrl ?? ""),
+  );
   const started = Date.now();
 
   try {
@@ -98,6 +124,20 @@ export async function handleDesignGenerate(
         error: null,
       })
       .where(eq(designGenerations.id, generationId));
+
+    if (row.stage === "COLOURWAY") {
+      const { promoteManualStudioGeneration } = await import(
+        "@/modules/designs/manual-studio-promote"
+      );
+      const [fresh] = await db
+        .select()
+        .from(designGenerations)
+        .where(eq(designGenerations.id, generationId))
+        .limit(1);
+      if (fresh) {
+        await promoteManualStudioGeneration(fresh);
+      }
+    }
 
     if (row.stage === "HERO") {
       const [design] = await db
@@ -154,7 +194,12 @@ export async function handleDesignGenerate(
       await maybeTransitionToColourwaysReview(row.designId);
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const raw = err instanceof Error ? err.message : String(err);
+    const message =
+      raw === "Unprocessable Entity" ||
+      raw.toLowerCase().includes("unprocessable")
+        ? "fal.ai could not download the reference image. Start MinIO (docker compose up -d minio minio-init), set R2_ENDPOINT=http://127.0.0.1:9010, re-upload the reference photo, then generate again."
+        : raw;
     const latencyMs = Date.now() - started;
     const isFinal = attempts >= MAX_PROCESSING_ATTEMPTS;
 

@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
 import { DEFAULT_SECTIONS_ORDER } from "@/modules/content/types";
+import type { HouseCollectionPublic } from "@/modules/catalog/house-collections-queries";
 import {
   deleteCategoryGateAction,
   deleteHeroSlideAction,
@@ -76,12 +76,14 @@ export function HomepageAdmin({
   tiles: initialTiles,
   blocks,
   publishedDesigns,
+  houseCollections,
 }: {
   draft: Draft;
   heroes: Hero[];
   tiles: Tile[];
   blocks: Block[];
   publishedDesigns: PublishedDesignOption[];
+  houseCollections: HouseCollectionPublic[];
 }) {
   const [slides, setSlides] = useState<SlideDraft[]>(
     initialHeroes.map((h) => ({
@@ -483,7 +485,7 @@ export function HomepageAdmin({
                           );
                         }}
                       >
-                        {HOUSE_COLLECTIONS.map((c) => (
+                        {houseCollections.map((c) => (
                           <option key={c.tag} value={c.tag}>
                             {c.navLabel}
                           </option>

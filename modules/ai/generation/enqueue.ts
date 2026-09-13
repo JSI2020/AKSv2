@@ -10,6 +10,9 @@ import { uuidv7 } from "@aks/shared";
 
 import { enqueue } from "@/modules/platform/outbox";
 import type { DbTx } from "@/modules/platform/types";
+import {
+  isIdempotencyKeyViolation,
+} from "@/modules/platform/action-error";
 
 import { assertHeroLockedForDownstream } from "@/modules/designs/studio-pipeline";
 
@@ -35,6 +38,8 @@ export type EnqueueDesignGenerationInput = {
   attemptN?: number;
   /** Manual Studio — FRONT reference photo, no AI hero lock. */
   skipHeroLock?: boolean;
+  /** Manual Studio — auto-promote to design_renders on success. */
+  manualStudio?: boolean;
 };
 
 async function resolveModelId(
@@ -49,10 +54,14 @@ async function resolveModelId(
     .where(eq(studioSettings.id, STUDIO_SETTINGS_SINGLETON_ID))
     .limit(1);
   const models = settings?.models;
-  if (!models?.[jobType]) {
-    throw new Error(`No fal model configured for job type "${jobType}"`);
-  }
-  return models[jobType];
+  const configured = models?.[jobType]?.trim();
+  if (configured) return configured;
+
+  const { VERIFIED_FAL_MODELS } = await import("../providers/fal-models");
+  const fallback = VERIFIED_FAL_MODELS[jobType];
+  if (fallback) return fallback;
+
+  throw new Error(`No fal model configured for job type "${jobType}"`);
 }
 
 async function nextAttemptN(input: {
@@ -102,7 +111,7 @@ export async function enqueueDesignGeneration(
     attemptN,
   });
 
-  const existing = await db
+  const existing = await (tx ?? db)
     .select({ id: designGenerations.id })
     .from(designGenerations)
     .where(eq(designGenerations.idempotencyKey, idempotencyKey))
@@ -114,33 +123,55 @@ export async function enqueueDesignGeneration(
   const modelId = await resolveModelId(input.stage, input.modelId);
   const generationId = uuidv7();
 
-  const write = async (runner: DbTx) => {
-    await runner.insert(designGenerations).values({
-      id: generationId,
-      designId: input.designId,
-      stage: input.stage,
-      angle: input.angle ?? null,
-      colourwayId: input.colourwayId ?? null,
-      parentGenerationId: input.parentGenerationId ?? null,
-      archetypeId: input.archetypeId ?? null,
-      sizeBlockSnapshot: input.sizeBlockSnapshot ?? null,
-      provider: "fal",
-      modelId,
-      promptJson: { ...input.promptJson, sourceImageUrl: input.sourceImageUrl },
-      negativePrompt: input.negativePrompt ?? null,
-      seed: input.seed ?? null,
-      templateVersion: input.templateVersion,
-      inputAssetIds: input.inputAssetIds ?? [],
-      status: "PENDING",
-      idempotencyKey,
-    });
+  const write = async (
+    runner: DbTx,
+  ): Promise<{ generationId: string; idempotencyKey: string } | void> => {
+    try {
+      await runner.insert(designGenerations).values({
+        id: generationId,
+        designId: input.designId,
+        stage: input.stage,
+        angle: input.angle ?? null,
+        colourwayId: input.colourwayId ?? null,
+        parentGenerationId: input.parentGenerationId ?? null,
+        archetypeId: input.archetypeId ?? null,
+        sizeBlockSnapshot: input.sizeBlockSnapshot ?? null,
+        provider: "fal",
+        modelId,
+        promptJson: {
+          ...input.promptJson,
+          sourceImageUrl: input.sourceImageUrl,
+          manualStudio: Boolean(input.manualStudio),
+        },
+        negativePrompt: input.negativePrompt ?? null,
+        seed: input.seed ?? null,
+        templateVersion: input.templateVersion,
+        inputAssetIds: input.inputAssetIds ?? [],
+        status: "PENDING",
+        idempotencyKey,
+      });
+    } catch (error) {
+      if (isIdempotencyKeyViolation(error)) {
+        const [row] = await (tx ?? db)
+          .select({ id: designGenerations.id })
+          .from(designGenerations)
+          .where(eq(designGenerations.idempotencyKey, idempotencyKey))
+          .limit(1);
+        if (row) {
+          return { generationId: row.id, idempotencyKey };
+        }
+      }
+      throw error;
+    }
     await enqueue("design.generate", { generationId }, runner);
   };
 
   if (tx) {
-    await write(tx);
+    const existingResult = await write(tx);
+    if (existingResult) return existingResult;
   } else {
-    await db.transaction(write);
+    const existingResult = await db.transaction(async (runner) => write(runner));
+    if (existingResult) return existingResult;
   }
 
   return { generationId, idempotencyKey };

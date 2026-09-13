@@ -13,6 +13,7 @@ import {
 
 import { SettingsPanel } from "./settings-panel";
 import { FabricTab } from "./studio/fabric-tab";
+import { PoseTab } from "./studio/pose-tab";
 import { RenderTab } from "./studio/render-tab";
 import { SizingTab } from "./studio/sizing-tab";
 import {
@@ -54,6 +55,15 @@ const SUBTITLES: Record<StudioTabId, React.ReactNode> = {
       measurement lines, and the standard XS–XXL chart.{" "}
       <span className="font-semibold text-greige">Standard sizes only</span> —
       finished-garment measurements, not custom body measurement.
+    </>
+  ),
+  repose: (
+    <>
+      Upload a catalogue photo. Keep the{" "}
+      <span className="font-semibold text-greige">dress exactly</span> — only
+      the{" "}
+      <span className="font-semibold text-greige">pose and house model</span>{" "}
+      change. No redesign of silhouette, colour, embroidery, or hem.
     </>
   ),
 };
@@ -102,6 +112,18 @@ export function StudioApp() {
         )}
         {tab === "fabric" && <FabricTab />}
         {tab === "sizing" && <SizingTab />}
+        {tab === "repose" && (
+          <PoseTab
+            defaultHouseModelId={defaultHouseModelId}
+            sessionCostPkr={
+              sessionCost > 0
+                ? usdToPkrAtRate(sessionCost, usdPkrRate)
+                : undefined
+            }
+            usdPkrRate={usdPkrRate}
+            onSessionCost={onSessionCost}
+          />
+        )}
       </StudioShell>
 
       <SettingsPanel

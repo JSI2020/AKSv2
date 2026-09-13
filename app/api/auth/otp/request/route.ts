@@ -87,10 +87,11 @@ export async function POST(request: Request) {
     });
   }
 
-  await issueEmailOtp({ email });
+  const issued = await issueEmailOtp({ email });
 
   return NextResponse.json({
     ok: true,
     message: "If that email is registered, a code has been sent.",
+    ...(issued.devCode ? { devCode: issued.devCode } : {}),
   });
 }

@@ -1,6 +1,8 @@
 "use server";
 
 import { and, eq } from "drizzle-orm";
+
+import { cartLineFingerprint } from "./types";
 import { revalidatePath } from "next/cache";
 
 import { cartLines, carts, db } from "@aks/db";
@@ -9,6 +11,7 @@ import { auth } from "@/auth";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 
 import { computeCartLineUnitPrice } from "./compute-unit-price";
+import { checkRtwLineStock } from "@/modules/inventory/rtw-stock";
 import { upsertCartLine } from "./merge";
 import {
   getOrCreateActiveCart,
@@ -51,6 +54,45 @@ export async function addToCart(
   }
 
   const ctx = await getCartContext();
+  const cartId = await getOrCreateActiveCart(ctx);
+
+  if (input.sizeMode === "STANDARD" && input.sizeLabel) {
+    const existingLines = await db
+      .select()
+      .from(cartLines)
+      .where(eq(cartLines.cartId, cartId));
+    const normalizedLabel = input.sizeLabel.trim();
+    const fp = cartLineFingerprint({
+      designId: input.designId,
+      colourwayId: input.colourwayId,
+      sizeMode: input.sizeMode,
+      sizeLabel: normalizedLabel,
+      measurementProfileId: null,
+      customizationSelections: input.customizationSelections ?? {},
+    });
+    const existing = existingLines.find(
+      (line) =>
+        cartLineFingerprint({
+          designId: line.designId,
+          colourwayId: line.colourwayId,
+          sizeMode: line.sizeMode,
+          sizeLabel: line.sizeLabel,
+          measurementProfileId: line.measurementProfileId,
+          customizationSelections: line.customizationSelections ?? {},
+        }) === fp,
+    );
+    const mergedQty = Math.min(99, (existing?.quantity ?? 0) + quantity);
+
+    const stock = await checkRtwLineStock({
+      designId: input.designId,
+      colourwayId: input.colourwayId,
+      sizeLabel: normalizedLabel,
+      quantity: mergedQty,
+    });
+    if (!stock.ok) {
+      return { ok: false, error: stock.error };
+    }
+  }
 
   let measurementProfileId = input.measurementProfileId;
   if (input.sizeMode === "MADE_TO_MEASURE") {
@@ -84,7 +126,6 @@ export async function addToCart(
     };
   }
 
-  const cartId = await getOrCreateActiveCart(ctx);
   const lineId = await upsertCartLine({
     cartId,
     designId: input.designId,
@@ -129,6 +170,18 @@ export async function updateCartLineQuantity(input: {
 
   if (!line) {
     return { ok: false, error: "Line not found." };
+  }
+
+  if (line.sizeMode === "STANDARD" && line.sizeLabel) {
+    const stock = await checkRtwLineStock({
+      designId: line.designId,
+      colourwayId: line.colourwayId,
+      sizeLabel: line.sizeLabel,
+      quantity,
+    });
+    if (!stock.ok) {
+      return { ok: false, error: stock.error };
+    }
   }
 
   await db

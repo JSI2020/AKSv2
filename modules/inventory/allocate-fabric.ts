@@ -92,7 +92,7 @@ async function listViableLots(
     .where(
       and(
         eq(fabricLots.fabricId, fabricId),
-        eq(fabricLots.status, "AVAILABLE"),
+        inArray(fabricLots.status, ["AVAILABLE", "LOW"]),
         sql`${fabricLots.metersOnHand} - ${fabricLots.metersReserved} >= ${metersRequired}`,
       ),
     )

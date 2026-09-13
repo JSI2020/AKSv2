@@ -30,7 +30,6 @@ import {
   type ProductionJobStage,
   type ReworkFaultAttribution,
 } from "./constants";
-import { enterCuttingStage } from "./cutting";
 import {
   resolveNextJobStage,
   transitionProductionJob,
@@ -97,14 +96,6 @@ export async function advanceProductionJobAction(input: {
         .limit(1);
 
       if (!item) throw new Error("Order item not found.");
-
-      if (to === "CUTTING") {
-        await enterCuttingStage(
-          item.orderId,
-          { id: session.user.id, role: session.user.role },
-          tx,
-        );
-      }
 
       await transitionProductionJob({
         jobId: job.id,
@@ -299,20 +290,6 @@ export async function recordQcCheckAction(input: {
         chargeCustomer: reworkChargeCustomer(fault),
         status: "PENDING",
       });
-
-      const [item] = await tx
-        .select({ orderId: orderItems.orderId })
-        .from(orderItems)
-        .where(eq(orderItems.id, job.orderItemId))
-        .limit(1);
-
-      if (returnStage === "CUTTING" && item) {
-        await enterCuttingStage(
-          item.orderId,
-          { id: session.user.id, role: session.user.role },
-          tx,
-        );
-      }
 
       await transitionProductionJob({
         jobId: job.id,

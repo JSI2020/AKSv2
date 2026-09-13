@@ -1,14 +1,16 @@
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
+import { adminTwoFactorEnforced } from "@/modules/auth";
 import { AksLogoImage } from "@/modules/shop/shell/brand";
 
 import { LoginForm } from "./login-form";
 
 export default async function AdminLoginPage() {
   const session = await auth();
-  if (session?.user) {
+  if (session?.user && session.user.role !== "CUSTOMER") {
     if (
+      adminTwoFactorEnforced() &&
       (session.user.role === "OWNER" || session.user.role === "ADMIN") &&
       !session.user.twoFactorEnabled
     ) {
@@ -27,7 +29,7 @@ export default async function AdminLoginPage() {
       </p>
       <h1 className="mt-2 font-display text-4xl text-greige">Sign in</h1>
       <p className="mt-2 max-w-md text-sm text-chalk">
-        Passwordless access. We email a one-time code — no passwords.
+        Passwordless access. We email a one-time code — valid for 24 hours.
       </p>
       <LoginForm />
     </main>

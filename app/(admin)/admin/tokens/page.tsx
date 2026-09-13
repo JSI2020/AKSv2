@@ -91,7 +91,7 @@ export default async function TokensPage() {
               >
                 {"sample" in t && t.sample
                   ? t.sample
-                  : "AKS by Shahneela — your reflection, stitched. 0123456789"}
+                  : "AKS Demo — your reflection, stitched. 0123456789"}
               </p>
             </li>
           ))}

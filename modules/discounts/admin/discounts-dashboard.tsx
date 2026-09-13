@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 
 import { Money } from "@/modules/ui";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import type { HouseCollectionPublic } from "@/modules/catalog/house-collections-queries";
 
 import { saveDiscount } from "../actions";
 import {
@@ -101,6 +101,7 @@ function StatusBadge({ status }: { status: DiscountListRow["status"] }) {
 function scopePreviewLine(
   form: FormState,
   designs: PublishedDesignOpt[],
+  houseCollections: HouseCollectionPublic[],
 ): string {
   const value = form.value.trim() || "0";
   const kind =
@@ -115,7 +116,7 @@ function scopePreviewLine(
     return `${auto} · ${kind} on the whole order`;
   }
   if (form.appliesTo === "CATEGORY" || form.appliesTo === "COLLECTION") {
-    const house = HOUSE_COLLECTIONS.find(
+    const house = houseCollections.find(
       (c) => c.tag === target.toUpperCase() || c.slug === target.toLowerCase(),
     );
     return `${auto} · ${kind} on category: ${house?.navLabel ?? (target || "…")}`;
@@ -130,9 +131,11 @@ function scopePreviewLine(
 export function DiscountsDashboard({
   rows,
   publishedDesigns = [],
+  houseCollections,
 }: {
   rows: DiscountListRow[];
   publishedDesigns?: PublishedDesignOpt[];
+  houseCollections: HouseCollectionPublic[];
 }) {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [message, setMessage] = useState<string | null>(null);
@@ -361,7 +364,7 @@ export function DiscountsDashboard({
                 className="w-full border border-ink/12 bg-greige px-3 py-2 text-[13px] text-ink"
               >
                 <option value="">Select…</option>
-                {HOUSE_COLLECTIONS.map((c) => (
+                {houseCollections.map((c) => (
                   <option key={c.tag} value={c.tag}>
                     {c.navLabel}
                   </option>
@@ -395,7 +398,7 @@ export function DiscountsDashboard({
           ) : null}
 
           <div className="border border-ink/12 bg-greige px-4 py-3 text-[12.5px] text-ink/70">
-            {scopePreviewLine(form, publishedDesigns)}
+            {scopePreviewLine(form, publishedDesigns, houseCollections)}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

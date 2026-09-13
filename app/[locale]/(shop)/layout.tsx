@@ -9,7 +9,7 @@ import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { AksSvgSprite } from "@/modules/shop/shell/aks-svg-sprite";
 import { ShopFooter, ShopHeader } from "@/modules/shop/shell/chrome";
 import { ShopNuqsProvider } from "@/modules/shop/shell/nuqs-provider";
-import { fontShopDisplay, fontShopSans, fontShopUrdu } from "@/lib/fonts";
+import { fontShopDisplay, fontShopSans } from "@/lib/fonts";
 
 export default async function ShopLayout({
   children,
@@ -25,11 +25,11 @@ export default async function ShopLayout({
     <ShopNuqsProvider>
       <CartProvider initialCart={initialCart}>
         <div
-          className={`shop-proto flex min-h-dvh flex-col ${fontShopSans.variable} ${fontShopDisplay.variable} ${fontShopUrdu.variable}`}
+          className={`shop-proto flex min-h-dvh flex-col ${fontShopSans.variable} ${fontShopDisplay.variable}`}
         >
           <AksSvgSprite />
           <ShopHeader />
-          <div className="flex-1">{children}</div>
+          <div className="shop-main flex-1">{children}</div>
           <ShopFooter />
           <CartDrawer />
           <AddToCartToast />

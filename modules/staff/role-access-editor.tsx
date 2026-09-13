@@ -21,7 +21,7 @@ const MODULE_LABEL: Record<string, string> = {
   production: "Production",
   discounts: "Discounts",
   tryon: "Reflection",
-  photoreal: "Photoreal",
+  photoreal: "AI Studio",
   content: "Content",
 };
 

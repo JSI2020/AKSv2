@@ -84,7 +84,7 @@ export function AksStoreBrandLink({
       className={["brand", className].filter(Boolean).join(" ")}
       aria-label="AKS — Minimalist Luxury, home"
     >
-      <AksBrandLogo className="brand-logo" />
+      <AksBrandLogo className="brand-logo" variant="header" />
     </Link>
   );
 }

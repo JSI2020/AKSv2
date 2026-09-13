@@ -113,8 +113,8 @@ export default async function AdminSettingsPage() {
         },
         {
           href: "/admin/settings/sizing/blocks",
-          title: "Size charts",
-          desc: "The standard house charts every design starts from.",
+          title: "Standard size charts",
+          desc: "One house chart per garment category — matches the categories list.",
           icon: Ruler,
         },
         {

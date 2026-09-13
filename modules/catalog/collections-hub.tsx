@@ -22,6 +22,19 @@ export function CollectionsHubPage({
           >
             {COLLECTIONS_HUB_INTRO.line2}
           </p>
+          <p className="mt-6">
+            <Link
+              href="/collections/all"
+              className="text-[11px] uppercase tracking-[0.14em]"
+              style={{
+                borderBottom: "1px solid var(--ink)",
+                paddingBottom: 3,
+                color: "var(--ink)",
+              }}
+            >
+              View all pieces →
+            </Link>
+          </p>
         </header>
 
         <ul

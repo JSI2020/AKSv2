@@ -4,6 +4,23 @@ export {
   releaseFabricForOrder,
   consumeFabricAtCutting,
 } from "./order-lifecycle";
+export {
+  reserveRtwForOrder,
+  releaseRtwForOrder,
+  consumeRtwForOrder,
+} from "./rtw-order-lifecycle";
+export {
+  checkRtwLineStock,
+  getRtwAvailableByLine,
+  getRtwStockMapForDesign,
+  seedRtwStockForDesign,
+} from "./rtw-stock";
+export {
+  rtwLowStockMessage,
+  rtwSoldOutSizeMessage,
+  rtwStockCapMessage,
+  RTW_LOW_STOCK_THRESHOLD,
+} from "./rtw-stock-messages";
 export { lotAvailableMeters } from "./lot-status";
 export {
   countFabricsBelowReorderPoint,
@@ -25,6 +42,7 @@ export {
   FABRIC_RESERVATION_ORDER_STATUS,
   FabricAllocationError,
   FabricStockError,
+  RtwStockError,
 } from "./types";
 export type {
   FabricAllocationResult,
@@ -61,4 +79,5 @@ export {
 export { StockLedgerView } from "./stock-ledger-view";
 export { InventoryPhotoCard } from "./inventory-photo-card";
 export { colourGradient, deltaFromMovementType } from "./ledger-types";
+export { revalidateFabricStockPaths, revalidateFabricStockPathsMany } from "./revalidate-fabric-paths";
 

@@ -13,7 +13,7 @@ import {
 import type { RenderAngle } from "@aks/shared";
 import { estimateCostUsdMicros } from "@/modules/ai/providers/fal-models";
 
-import { createPresignedReadUrl } from "@/modules/platform/assets";
+import { createAiExternalReadUrl } from "@/modules/platform/assets";
 
 const GALLERY_ANGLES = ["FRONT", "THREE_QUARTER", "BACK"] as const satisfies readonly RenderAngle[];
 
@@ -92,7 +92,7 @@ async function resolveAssetReadUrl(assetId: string): Promise<string | null> {
     .where(eq(assets.id, assetId))
     .limit(1);
   if (!asset) return null;
-  return createPresignedReadUrl(asset.r2Key, 3600);
+  return createAiExternalReadUrl(asset.r2Key, 3600);
 }
 
 /** Locked hero (front) + latest approved derived angles. */
@@ -187,12 +187,41 @@ function buildRecolourPrompt(input: {
   );
 }
 
+function buildManualStudioPrompt(input: {
+  colourwayName: string;
+  fabricName: string;
+  fabricComposition: string | null;
+  hexApproximation: string | null;
+  backgroundPrompt: string | null;
+  posePrompt: string | null;
+}): string {
+  const colour = input.hexApproximation?.trim() || input.fabricName.trim();
+  const fabric = [input.fabricName.trim(), input.fabricComposition?.trim()]
+    .filter(Boolean)
+    .join(", ");
+  const background =
+    input.backgroundPrompt?.trim() ||
+    "Soft outdoor daylight courtyard with warm stone, natural depth, and realistic shadows — not a flat paper studio.";
+
+  return [
+    "Photorealistic modest Pakistani women's fashion campaign photograph shot on a real camera.",
+    `Garment colour and fabric: ${colour} in ${fabric}. Match the selected fabric name and swatch hue exactly for colour, weave, and drape.`,
+    `Environment: ${background} Believable real location, natural lighting, not CGI, not illustration.`,
+    "Model: young South Asian woman with a soft genuine closed-mouth smile, warm eyes, modest styling, and natural human micro-expression — not blank or mannequin-like.",
+    "Preserve the exact garment design, cut, neckline, sleeves, hem, and embroidery from the reference image.",
+    input.posePrompt?.trim(),
+    "50–85mm lens look, sharp focus on garment texture, high-end commercial lookbook quality.",
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
 export async function buildColourwayPromptContext(
   designId: string,
   colourwayId: string,
   angle: RenderAngle,
   attemptN: number,
-  options?: { manualStudio?: boolean },
+  options?: { manualStudio?: boolean; backgroundPrompt?: string | null; posePrompt?: string | null },
 ): Promise<ColourwayPromptContext> {
   const locked = options?.manualStudio
     ? await resolveManualReferenceSources(designId)
@@ -224,14 +253,25 @@ export async function buildColourwayPromptContext(
   const batchSeed = batchSeedFor(colourwayId, attemptN);
   const batchGroupId = `${colourwayId}:${attemptN}`;
 
+  const prompt = options?.manualStudio
+    ? buildManualStudioPrompt({
+        colourwayName: cw.name,
+        fabricName: cw.fabricName,
+        fabricComposition: cw.composition,
+        hexApproximation: cw.hexApproximation,
+        backgroundPrompt: options.backgroundPrompt ?? null,
+        posePrompt: options.posePrompt ?? null,
+      })
+    : buildRecolourPrompt({
+        colourwayName: cw.name,
+        fabricName: cw.fabricName,
+        fabricComposition: cw.composition,
+        hexApproximation: cw.hexApproximation,
+      });
+
   return {
     angle,
-    prompt: buildRecolourPrompt({
-      colourwayName: cw.name,
-      fabricName: cw.fabricName,
-      fabricComposition: cw.composition,
-      hexApproximation: cw.hexApproximation,
-    }),
+    prompt,
     templateVersion: 1,
     sourceImageUrl: source.imageUrl,
     inputAssetIds: [source.assetId],
@@ -249,6 +289,7 @@ export async function buildColourwayBatchContexts(
   options?: {
     angles?: readonly RenderAngle[];
     posePrompt?: string | null;
+    backgroundPrompt?: string | null;
     manualStudio?: boolean;
   },
 ): Promise<ColourwayPromptContext[]> {
@@ -259,9 +300,12 @@ export async function buildColourwayBatchContexts(
     angles.map((angle) =>
       buildColourwayPromptContext(designId, colourwayId, angle, attemptN, {
         manualStudio: options?.manualStudio,
+        backgroundPrompt: options?.backgroundPrompt,
+        posePrompt: options?.posePrompt,
       }),
     ),
   );
+  if (options?.manualStudio) return contexts;
   const poseLine = options?.posePrompt?.trim();
   if (!poseLine) return contexts;
   return contexts.map((ctx) => ({

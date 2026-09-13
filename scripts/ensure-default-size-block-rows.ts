@@ -50,6 +50,9 @@ async function main() {
       )
       .limit(1);
 
+    const sizeLabels = seed.sizeLabels ?? [...STANDARD_SIZE_LABELS];
+    const baseSizeLabel = seed.baseSizeLabel ?? DEFAULT_BASE_SIZE_LABEL;
+
     if (!def) {
       const id = uuidv7();
       await db.insert(sizeBlocks).values({
@@ -58,13 +61,24 @@ async function main() {
         categoryId,
         isDefault: true,
         ownerDesignId: null,
-        sizeLabels: [...STANDARD_SIZE_LABELS],
-        baseSizeLabel: DEFAULT_BASE_SIZE_LABEL,
+        sizeLabels: [...sizeLabels],
+        baseSizeLabel,
         notes: seed.notes,
         active: true,
       });
       def = { id };
       console.log("created default block", seed.categoryKey, id);
+    } else {
+      await db
+        .update(sizeBlocks)
+        .set({
+          name: seed.name,
+          sizeLabels: [...sizeLabels],
+          baseSizeLabel,
+          notes: seed.notes,
+          updatedAt: new Date(),
+        })
+        .where(eq(sizeBlocks.id, def.id));
     }
 
     const existingRows = await db

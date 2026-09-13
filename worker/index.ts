@@ -59,6 +59,14 @@ async function main() {
           );
         } else if (r.kind === "dead") {
           console.log(`[worker] DEAD ${r.topic} ${r.id} attempts=${r.attempts}`);
+          const { alertOutboxDead } = await import(
+            "../modules/platform/observability"
+          );
+          void alertOutboxDead({
+            id: r.id,
+            topic: r.topic,
+            attempts: r.attempts,
+          });
         } else if (r.kind === "missing-handler") {
           console.log(`[worker] MISSING ${r.topic} ${r.id}`);
         }

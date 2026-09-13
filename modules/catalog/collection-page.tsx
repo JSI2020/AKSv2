@@ -1,6 +1,7 @@
 import { Link } from "@/i18n/routing";
 
 import { CollectionFilters } from "./collection-filters";
+import { CatalogPagination } from "./catalog-pagination";
 import { DesignCard } from "./design-card";
 import type { PublishedDesignCard, ResolvedCollection } from "./types";
 
@@ -19,6 +20,8 @@ export function CollectionPageView({
   doorLabels,
   items,
   total,
+  page,
+  pageCount,
   facets,
 }: {
   collection: ResolvedCollection;
@@ -26,9 +29,15 @@ export function CollectionPageView({
   doorLabels: Record<string, string>;
   items: PublishedDesignCard[];
   total: number;
+  page: number;
+  pageCount: number;
   facets: Facets;
 }) {
-  const pills = [...collectionPills, { slug: "new", label: "New" }];
+  const pills = [
+    { slug: "all", label: "All" },
+    ...collectionPills,
+    { slug: "new", label: "New" },
+  ];
 
   return (
     <main className="collection-page mx-auto max-w-[1500px] px-[2.5rem] pb-24 pt-28 max-[900px]:px-[1.4rem]">
@@ -113,6 +122,8 @@ export function CollectionPageView({
           />
         ))}
       </div>
+
+      <CatalogPagination pageCount={pageCount} />
     </main>
   );
 }

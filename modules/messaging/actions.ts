@@ -41,7 +41,7 @@ async function buildRetryPayload(row: typeof messageLog.$inferSelect) {
       orderNumber: order?.orderNumber ?? "",
       customerName: order?.shippingAddressSnapshot.recipientName ?? "there",
       trackUrl: order
-        ? `${base}/en/track/${encodeURIComponent(order.orderNumber)}`
+        ? `${base}/track/${encodeURIComponent(order.orderNumber)}`
         : base,
     },
   };

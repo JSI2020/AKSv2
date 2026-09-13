@@ -1,6 +1,10 @@
 const LOGO_VARIANTS = {
   full: { symbol: "logo-full", viewBox: "0 0 372 324" },
+  /** Header lockup — extra headroom so the crest peak is never clipped. */
+  header: { symbol: "logo-full", viewBox: "0 -18 372 350" },
   mono: { symbol: "logo-mono", viewBox: "0 -6 372 194" },
+  /** Gold flourish + ink A — section divider (no wordmark). */
+  mark: { symbol: "logo-mark", viewBox: "0 0 372 194" },
   word: { symbol: "logo-word", viewBox: "0 198 372 92" },
   flourish: { symbol: "logo-flourish", viewBox: "0 46 372 126" },
 } as const;

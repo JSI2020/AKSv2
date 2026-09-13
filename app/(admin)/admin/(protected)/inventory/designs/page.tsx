@@ -6,12 +6,17 @@ import {
   UnauthenticatedError,
 } from "@/modules/auth";
 import { listRtwDesignCards } from "@/modules/inventory";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { RtwDesignsInventoryView } from "@/modules/inventory/rtw-designs-inventory-view";
 
 export default async function InventoryDesignsPage() {
   let cards;
+  let houseCollections: Awaited<ReturnType<typeof listHouseCollections>> = [];
   try {
-    cards = await listRtwDesignCards();
+    [cards, houseCollections] = await Promise.all([
+      listRtwDesignCards(),
+      listHouseCollections({ activeOnly: true }),
+    ]);
   } catch (e) {
     if (
       e instanceof PermissionDeniedError ||
@@ -48,7 +53,10 @@ export default async function InventoryDesignsPage() {
           No designs with colourways yet. Publish a design first.
         </p>
       ) : (
-        <RtwDesignsInventoryView cards={cards} />
+        <RtwDesignsInventoryView
+          cards={cards}
+          houseCollections={houseCollections}
+        />
       )}
     </div>
   );

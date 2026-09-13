@@ -1,0 +1,209 @@
+/*
+ * Full-bleed pre-launch holding page. The garment photography fills the whole
+ * viewport as a mood wall; the wordmark and message sit over a soft scrim.
+ * Self-contained — nothing here leaks into the storefront.
+ */
+
+.stage {
+  --paper: #efe9dd;
+  --light: #f4efe6;
+  --gold: #d8c39a;
+  --accent: #e7b9b0;
+
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: hidden;
+  background: #241f1c; /* fallback behind the photography */
+  color: var(--light);
+  isolation: isolate;
+}
+
+/* Photography canvas ----------------------------------------------------- */
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  z-index: 0;
+}
+
+.pane {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Hairline seam between adjacent looks. */
+.pane + .pane::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 1px;
+  background: rgba(0, 0, 0, 0.28);
+  z-index: 2;
+}
+
+.photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 20%; /* favour bodice / neckline over hem */
+  transform-origin: center;
+  animation: drift 24s ease-in-out infinite alternate both;
+  will-change: transform;
+}
+
+.pane:nth-child(even) .photo {
+  animation-duration: 28s;
+  animation-direction: alternate-reverse;
+}
+
+/* Scrim + vignette for legible type over any photo ----------------------- */
+
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      68% 54% at 50% 50%,
+      rgba(20, 16, 14, 0.34) 0%,
+      rgba(20, 16, 14, 0) 72%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(20, 16, 14, 0.5) 0%,
+      rgba(20, 16, 14, 0.14) 30%,
+      rgba(20, 16, 14, 0.2) 62%,
+      rgba(20, 16, 14, 0.66) 100%
+    );
+}
+
+/* A fine gallery keyline framing the whole viewport. */
+.stage::after {
+  content: "";
+  position: absolute;
+  inset: clamp(10px, 2vw, 20px);
+  border: 1px solid rgba(244, 239, 230, 0.26);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Overlaid message ------------------------------------------------------- */
+
+.veil {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1.35rem;
+  padding: clamp(3.5rem, 8vw, 6rem) 1.5rem clamp(4rem, 9vw, 6rem);
+  text-align: center;
+  animation: fade 1200ms ease both;
+}
+
+.eyebrow {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: clamp(0.66rem, 1.4vw, 0.76rem);
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 230, 0.82);
+  margin: 0;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.4);
+}
+
+.headline {
+  font-family: var(--font-display, Georgia, "Times New Roman", serif);
+  font-weight: 400;
+  font-size: clamp(3.1rem, 9vw, 6rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--light);
+  text-shadow: 0 2px 30px rgba(0, 0, 0, 0.42);
+}
+
+.headline em {
+  font-style: italic;
+  color: var(--gold);
+}
+
+.sub {
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: clamp(0.95rem, 1.7vw, 1.08rem);
+  line-height: 1.75;
+  color: rgba(244, 239, 230, 0.9);
+  max-width: 32rem;
+  margin: 0;
+  text-shadow: 0 1px 18px rgba(0, 0, 0, 0.45);
+}
+
+.rule {
+  width: 46px;
+  height: 1px;
+  background: rgba(244, 239, 230, 0.5);
+  margin: 0.4rem 0 0;
+  border: 0;
+}
+
+.foot {
+  position: absolute;
+  bottom: clamp(1.6rem, 4vw, 2.6rem);
+  left: 0;
+  right: 0;
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.68rem;
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: rgba(244, 239, 230, 0.7);
+  margin: 0;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.5);
+}
+
+@keyframes drift {
+  from {
+    transform: scale(1.05);
+  }
+  to {
+    transform: scale(1.16) translateY(-1.5%);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* On phones a wall of thin slivers reads poorly — show the lead look only. */
+@media (max-width: 760px) {
+  .pane:nth-child(n + 2) {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .photo {
+    animation: none;
+    transform: scale(1.05);
+  }
+  .veil {
+    animation: none;
+  }
+}

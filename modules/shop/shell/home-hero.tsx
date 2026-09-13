@@ -13,10 +13,7 @@ export async function ShopHomeHero() {
     <section className="relative min-h-[560px] w-full overflow-hidden bg-greige md:h-[88vh]">
       <div className="absolute inset-0 border-b border-ink/10" aria-hidden />
       <div className="absolute bottom-14 start-0 z-10 max-w-[640px] px-6 text-ink md:start-12 md:px-0">
-        <p
-          className="mb-3.5 font-urdu text-[17px] italic tracking-[0.08em] text-ink/80"
-          lang="ur"
-        >
+        <p className="mb-3.5 text-[13px] uppercase tracking-[0.14em] text-ink/80">
           {t("eyebrow")}
         </p>
         <h1 className="mb-[18px] font-display text-[clamp(38px,5.5vw,72px)] font-medium leading-[1.05]">

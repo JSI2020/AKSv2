@@ -1,12 +1,14 @@
 "use server";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/packages/db/client";
 import {
   designs,
   dressGeneratedChart,
+  fitProfiles,
+  garmentCategories,
   sizeBlockRows,
   sizeBlockCells,
 } from "@/packages/db/schema";
@@ -343,6 +345,47 @@ export async function applyStandardStyle(
         })),
       );
     });
+
+    const pieceCategoryKey = category.toUpperCase();
+    const [designRow] = await db
+      .select({
+        fitProfileIds: designs.fitProfileIds,
+        components: designs.components,
+      })
+      .from(designs)
+      .where(eq(designs.id, designId))
+      .limit(1);
+
+    if (designRow) {
+      const fitProfileIds = { ...(designRow.fitProfileIds ?? {}) };
+      if (!fitProfileIds[pieceCategoryKey]) {
+        const [garmentCat] = await db
+          .select({ id: garmentCategories.id })
+          .from(garmentCategories)
+          .where(eq(garmentCategories.key, pieceCategoryKey))
+          .limit(1);
+        if (garmentCat) {
+          const [defaultProfile] = await db
+            .select({ id: fitProfiles.id })
+            .from(fitProfiles)
+            .where(
+              and(
+                eq(fitProfiles.categoryId, garmentCat.id),
+                eq(fitProfiles.active, true),
+              ),
+            )
+            .orderBy(asc(fitProfiles.sortOrder))
+            .limit(1);
+          if (defaultProfile) {
+            fitProfileIds[pieceCategoryKey] = defaultProfile.id;
+            await db
+              .update(designs)
+              .set({ fitProfileIds, updatedAt: new Date() })
+              .where(eq(designs.id, designId));
+          }
+        }
+      }
+    }
 
     revalidatePath(`/admin/designs/${designId}`);
 

@@ -25,12 +25,11 @@ export default async function LocaleLayout({ children, params }: Props) {
 
   setRequestLocale(locale);
   const messages = await getMessages();
-  const dir = locale === "ur" ? "rtl" : "ltr";
 
   return (
     <NextIntlClientProvider messages={messages}>
-      <LocaleDocumentAttributes locale={locale} />
-      <div lang={locale} dir={dir} className="min-h-dvh">
+      <LocaleDocumentAttributes />
+      <div lang="en" dir="ltr" className="min-h-dvh">
         {children}
       </div>
     </NextIntlClientProvider>

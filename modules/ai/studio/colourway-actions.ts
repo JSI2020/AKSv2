@@ -21,6 +21,7 @@ import {
   getMonthlySpendCapUsdMicros,
   getMonthlySpendUsdMicros,
 } from "@/modules/ai/generation/spend-cap";
+import { formatActionError } from "@/modules/platform/action-error";
 import { createPresignedReadUrl } from "@/modules/platform/assets";
 import { requirePermission } from "@/modules/auth";
 import {
@@ -92,6 +93,7 @@ const ANGLE_LABEL: Record<RenderAngle, string> = {
 };
 
 function revalidateColourways(designId: string) {
+  revalidatePath(`/admin/designs/${designId}`);
   revalidatePath(`/admin/studio/${designId}/colourways`);
   revalidatePath(`/admin/studio/${designId}/publish`);
   revalidatePath(`/admin/studio/${designId}`);
@@ -468,18 +470,19 @@ async function nextColourwayAttemptN(
 async function enqueueColourwayBatch(
   designId: string,
   colourwayId: string,
-  attemptN: number,
+  attemptN?: number,
   tx?: Parameters<typeof enqueueDesignGeneration>[1],
   options?: {
     angles?: readonly RenderAngle[];
     posePrompt?: string | null;
+    backgroundPrompt?: string | null;
     manualStudio?: boolean;
   },
 ): Promise<void> {
   const contexts = await buildColourwayBatchContexts(
     designId,
     colourwayId,
-    attemptN,
+    attemptN ?? 1,
     options,
   );
 
@@ -499,8 +502,9 @@ async function enqueueColourwayBatch(
         inputAssetIds: ctx.inputAssetIds,
         sourceImageUrl: ctx.sourceImageUrl,
         seed: ctx.batchSeed,
-        attemptN,
+        ...(attemptN != null ? { attemptN } : {}),
         skipHeroLock: Boolean(options?.manualStudio),
+        manualStudio: Boolean(options?.manualStudio),
       },
       tx,
     );
@@ -583,9 +587,16 @@ export async function generateColourways(payload: {
   angles?: RenderAngle[];
   /** Commercial pose prompt appended — design + model stay fixed. */
   posePrompt?: string | null;
+  /** Real-world scene / backdrop for manual studio. */
+  backgroundPrompt?: string | null;
 }): Promise<ActionResult> {
   try {
-    const session = await requirePermission("designs.create");
+    const { seedStudioSettings } = await import("./defaults");
+    await seedStudioSettings();
+
+    const session = await requirePermission(
+      payload.manualStudio ? "designs.edit" : "designs.create",
+    );
     const status = await getDesignPipelineStatus(payload.designId);
     const pipelineOk =
       status === "ANGLES_LOCKED" ||
@@ -647,6 +658,7 @@ export async function generateColourways(payload: {
     const angleOpts = {
       angles: payload.angles,
       posePrompt: payload.posePrompt,
+      backgroundPrompt: payload.backgroundPrompt,
       manualStudio: Boolean(payload.manualStudio),
     };
 
@@ -664,14 +676,10 @@ export async function generateColourways(payload: {
       }
 
       for (const colourwayId of targetIds) {
-        const attemptN = await nextColourwayAttemptN(
-          payload.designId,
-          colourwayId,
-        );
         await enqueueColourwayBatch(
           payload.designId,
           colourwayId,
-          attemptN,
+          undefined,
           tx as never,
           angleOpts,
         );
@@ -683,7 +691,7 @@ export async function generateColourways(payload: {
   } catch (e) {
     return {
       ok: false,
-      error: e instanceof Error ? e.message : "Generation failed",
+      error: formatActionError(e),
     };
   }
 }

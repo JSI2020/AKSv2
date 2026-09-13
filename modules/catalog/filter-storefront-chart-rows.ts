@@ -52,8 +52,14 @@ export function filterStorefrontChartRows(
     displayed.map((r) => [r.measurementKey, r.label] as const),
   );
 
+  // Keep chart rows that don't map to the mannequin overlay (e.g. Dupatta WIDTH)
+  // so the storefront table still shows the full admin size chart.
   const filtered = rows
-    .filter((row) => visibleKeys.has(row.measurementKey))
+    .filter(
+      (row) =>
+        visibleKeys.has(row.measurementKey) ||
+        !measurementKeyToPomKey(row.measurementKey),
+    )
     .map((row) => ({
       ...row,
       label: labelByKey.get(row.measurementKey) ?? row.label,

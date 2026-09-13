@@ -8,6 +8,7 @@ export type CommercialPose = {
   label: string;
   category:
     | "Standing"
+    | "Leaning"
     | "Walking"
     | "Seated"
     | "Editorial"
@@ -46,14 +47,6 @@ export const COMMERCIAL_POSES: CommercialPose[] = [
       "Pose: standing three-quarter turn, weight on back leg, front foot soft, one hand lightly adjusting sleeve or dupatta — editorial catalogue energy, not stiff front-on.",
   },
   {
-    id: "lean-wall",
-    label: "Lean on wall",
-    category: "Standing",
-    cameraAngle: "THREE_QUARTER",
-    prompt:
-      "Pose: casually leaning one shoulder against a wall or pillar, weight on one leg, relaxed commercial fashion stance.",
-  },
-  {
     id: "weight-shift",
     label: "Weight shift",
     category: "Standing",
@@ -76,6 +69,87 @@ export const COMMERCIAL_POSES: CommercialPose[] = [
     cameraAngle: "THREE_QUARTER",
     prompt:
       "Pose: body toward camera, face turned softly away / profile glance, calm editorial stillness.",
+  },
+  // Leaning
+  {
+    id: "lean-wall",
+    label: "Lean · shoulder on wall",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: casually leaning one shoulder against a wall or pillar, weight on one leg, free hand relaxed at the side or lightly on the thigh, relaxed commercial fashion stance — full garment readable.",
+  },
+  {
+    id: "lean-hip-wall",
+    label: "Lean · hip on wall",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: hip leaning into a wall or column, torso angled slightly toward camera, opposite shoulder open, one ankle crossed over the other, quiet luxury campaign lean — not slouching.",
+  },
+  {
+    id: "lean-back-wall",
+    label: "Lean · back to wall",
+    category: "Leaning",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: back lightly against a wall, both shoulders touching, feet a step forward, chin soft, arms relaxed — calm front-facing commercial lean that shows the full outfit.",
+  },
+  {
+    id: "lean-doorway",
+    label: "Lean · doorway",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: leaning in a doorway frame, one shoulder and hip resting on the jamb, body three-quarter to camera, elegant and modest commercial fashion lean.",
+  },
+  {
+    id: "lean-railing",
+    label: "Lean · railing",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: casually leaning forearms or one elbow on a balcony railing or low wall, weight shifted forward slightly, looking toward or past camera — outdoor lookbook lean, dress fully visible.",
+  },
+  {
+    id: "lean-counter",
+    label: "Lean · console / ledge",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: standing beside a console table or ledge, one hand resting lightly on the surface, body angled, soft weight on the near hip — interior commercial fashion lean.",
+  },
+  {
+    id: "lean-window",
+    label: "Lean · window sill",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: leaning near a window, one hand on the sill, soft side light on the face, body angled three-quarter, serene campaign mood — garment silhouette clear from neckline to hem.",
+  },
+  {
+    id: "lean-pillar-cross",
+    label: "Lean · pillar · crossed ankles",
+    category: "Leaning",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: leaning a shoulder against a pillar or column, ankles casually crossed, one hand near the waist or sleeve, front-facing commercial fashion lean with relaxed elegance.",
+  },
+  {
+    id: "lean-arch",
+    label: "Lean · arch / niche",
+    category: "Leaning",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: framed in an architectural arch or wall niche, one shoulder and hip resting into the recess, body turned slightly toward camera — editorial courtyard lean, modest and polished.",
+  },
+  {
+    id: "lean-forward-soft",
+    label: "Lean · soft forward",
+    category: "Leaning",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: standing with a soft forward lean from the hips (not a bow), weight on both feet, hands lightly clasped or resting at the front — intimate commercial portrait lean that still shows the dress.",
   },
   // Walking
   {
@@ -175,6 +249,126 @@ export const COMMERCIAL_POSES: CommercialPose[] = [
     cameraAngle: "THREE_QUARTER",
     prompt:
       "Pose: three-quarter, as if checking a mirror — one hand adjusting collar or cuff, natural fashion moment, full garment visible.",
+  },
+  {
+    id: "editorial-midturn",
+    label: "Caught mid-turn",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: captured mid-turn as in a real fashion shoot — body rotating, fabric catching slight motion, eyes finding the camera, editorial stillness with life. Full outfit readable.",
+  },
+  {
+    id: "editorial-chin-down",
+    label: "Chin down · eyes up",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: classic editorial face — chin gently down, eyes lifted toward the camera, soft closed-mouth expression, shoulders relaxed, quiet-luxury campaign portrait energy while the full garment stays visible.",
+  },
+  {
+    id: "editorial-hand-collar",
+    label: "Hand at neckline",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: one hand lightly at the neckline or collar as if settling the fabric between frames, natural photo-shoot moment, three-quarter body, modest and commercial.",
+  },
+  {
+    id: "editorial-dupatta-lift",
+    label: "Dupatta / drape lift",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: lightly lifting or settling a dupatta or outer drape with one hand so fabric arcs naturally — real lookbook motion, not stiff. Keep the base garment silhouette clear.",
+  },
+  {
+    id: "editorial-hands-behind",
+    label: "Hands behind back",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: standing front with hands loosely clasped behind the back, open chest and clear silhouette, calm editorial campaign stance — real photographer direction, not mannequin-stiff.",
+  },
+  {
+    id: "editorial-cross-ankle",
+    label: "Standing · crossed ankles",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: standing with ankles softly crossed, weight on the back foot, arms relaxed or one hand at the waist, polished lookbook framing as directed on a real set.",
+  },
+  {
+    id: "editorial-low-angle",
+    label: "Hero low angle",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: standing tall toward camera; camera placed slightly low for a hero editorial fashion-magazine frame — lengthening the silhouette, modest and powerful, full dress visible.",
+  },
+  {
+    id: "editorial-candid-glance",
+    label: "Between takes · candid",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: candid between-takes energy from a real photo shoot — soft laugh or mid-conversation glance past the camera, natural shoulders, fabric settling, still clearly a commercial fashion photograph.",
+  },
+  {
+    id: "editorial-look-down",
+    label: "Looking down at hem",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: gazing softly down toward the hem or floor as if checking the fall of the dress, one hand lightly adjusting fabric — intimate editorial moment, full length still readable.",
+  },
+  {
+    id: "editorial-profile-stop",
+    label: "Profile stop",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: full side/profile body stopped mid-stride, head in clean profile or slight turn toward lens, fashion-editorial silhouette shot as on a real outdoor set.",
+  },
+  {
+    id: "editorial-floor-sit",
+    label: "Floor sit · editorial",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: seated gracefully on a clean floor or low rug, knees angled to one side, upright torso, one hand resting on the floor for balance — magazine editorial seating that keeps the garment clear.",
+  },
+  {
+    id: "editorial-waist-frame",
+    label: "Hands frame waist",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: both hands lightly framing the waist or hip seam as a photographer would direct for shape — elegant, modest, commercial editorial, full outfit visible.",
+  },
+  {
+    id: "editorial-hair-tuck",
+    label: "Hair tuck · soft",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: one hand softly tucking hair behind an ear or settling a strand, three-quarter body, natural on-set beauty moment — keep focus on the garment silhouette.",
+  },
+  {
+    id: "editorial-power-stance",
+    label: "Power stance · feet apart",
+    category: "Editorial",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: confident fashion power stance — feet slightly apart, shoulders square to camera, chin level, arms relaxed at sides — real campaign hero frame, quiet and strong, not aggressive.",
+  },
+  {
+    id: "editorial-one-knee",
+    label: "One knee down · set",
+    category: "Editorial",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Pose: one knee down on a clean surface, other foot planted, torso upright, as directed for an editorial floor set — modest, elegant, garment folds readable.",
   },
   // Back
   {

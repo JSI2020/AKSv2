@@ -14,7 +14,7 @@ import { LayoutGrid, Settings2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type StudioTabId = "render" | "fabric" | "sizing";
+export type StudioTabId = "render" | "fabric" | "sizing" | "repose";
 
 const STUDIO_TABS: Array<{
   id: StudioTabId;
@@ -24,6 +24,7 @@ const STUDIO_TABS: Array<{
   { id: "render", label: "Sketch", target: "Look" },
   { id: "fabric", label: "Fabric", target: "Photograph" },
   { id: "sizing", label: "Garment", target: "Sizes" },
+  { id: "repose", label: "Photo", target: "Pose" },
 ];
 
 type ToastContextValue = {

@@ -1,0 +1,14 @@
+Source ID,Brand / publisher,URL,Evidence type,Critical interpretation
+SRC01,Sapphire official Pakistan,https://pk.sapphireonline.pk/pages/ready-to-wear,Official RTW size guide,Values presented by source in cm; measurement labels require product-level interpretation
+SRC02,Sapphire chart mirror,https://rilancio.pk/pages/sapphire-size-chart,Published Sapphire chart,Flat/finished garment chart; inches
+SRC03,Sana Safinaz official,https://sanasafinaz.com/pages/size-chart,Official size chart,"Explicitly states finished-apparel, one-sided measurements; inches"
+SRC04,Anokherang kurtis/sets,https://www.anokherang.com/pages/salwarsuit-size-chart,Size chart,Explicitly body measurements; inches
+SRC05,Anokherang full charts,https://www.anokherang.com/pages/size-charts,Size charts,Explicitly body measurements; inches
+SRC06,Anokherang lehenga,https://www.anokherang.com/pages/lehenga-size-chart,Lehenga chart,Explicitly body measurements; inches
+SRC07,Anokherang palazzo,https://www.anokherang.com/pages/palazzo-size-chart,Palazzo/pant chart,Explicitly body measurements; inches
+SRC08,Rangreza USA,https://rangreza.net/pages/size-guide,Pakistani style size guide,Finished/flat garment measurements; inches
+SRC09,Khaadi official global,https://global.khaadi.com/ready-to-wear/,Category/size availability,Confirms RTW categories and mixed numeric/letter sizes; not a universal chart
+SRC10,Bonanza Satrangi official,https://bonanzasatrangi.com/products/wu3ppbs25ka6j1,Unstitched 3-piece product,Fabric quantities must not be converted to XS-XXL
+SRC11,Cross Stitch official,https://www.crossstitch.pk/pages/size-chart,Official size chart,Official caveat: measurements may vary as per design
+SRC12,Maria.B official,https://www.mariab.pk/pages/size-guide,Official size guide,Product/line-specific verification required
+SRC13,Limelight official,https://www.limelight.pk/blogs/news/western-women-s-clothing-a-guide-to-finding-the-perfect-fit,Category evidence,"Confirms pants, denim, tights and skirts in western collection"

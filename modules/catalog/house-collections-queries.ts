@@ -2,6 +2,11 @@ import { asc, eq } from "drizzle-orm";
 
 import { db, houseCollections } from "@aks/db";
 
+import {
+  DEFAULT_HOUSE_COLLECTIONS,
+  getHouseCollectionBySlugSync,
+} from "./house-collections";
+
 export type HouseCollectionRow = typeof houseCollections.$inferSelect;
 
 export type HouseCollectionPublic = {
@@ -34,6 +39,32 @@ function toPublic(row: HouseCollectionRow): HouseCollectionPublic {
   };
 }
 
+function seedToPublic(
+  seed: (typeof DEFAULT_HOUSE_COLLECTIONS)[number],
+): HouseCollectionPublic {
+  return {
+    id: `seed-${seed.slug}`,
+    tag: seed.tag,
+    slug: seed.slug,
+    itemCode: seed.itemCode,
+    navLabel: seed.navLabel,
+    title: seed.title,
+    tagline: seed.tagline,
+    card: seed.card,
+    intro: seed.intro,
+    sortOrder: seed.sortOrder,
+    active: true,
+  };
+}
+
+/** DB miss — fall back to seeded defaults (dev / unseeded DB). */
+export function resolveHouseCollectionBySlug(
+  slug: string,
+): HouseCollectionPublic | null {
+  const seed = getHouseCollectionBySlugSync(slug);
+  return seed ? seedToPublic(seed) : null;
+}
+
 export async function listHouseCollections(input?: {
   activeOnly?: boolean;
 }): Promise<HouseCollectionPublic[]> {
@@ -44,7 +75,10 @@ export async function listHouseCollections(input?: {
   const rows = input?.activeOnly
     ? await query.where(eq(houseCollections.active, true))
     : await query;
-  return rows.map(toPublic);
+  if (rows.length > 0) {
+    return rows.map(toPublic);
+  }
+  return DEFAULT_HOUSE_COLLECTIONS.map(seedToPublic);
 }
 
 export async function getHouseCollectionById(
@@ -71,7 +105,7 @@ export async function getHouseCollectionBySlug(
     .from(houseCollections)
     .where(eq(houseCollections.slug, normalized))
     .limit(1);
-  return row ? toPublic(row) : null;
+  return row ? toPublic(row) : resolveHouseCollectionBySlug(normalized);
 }
 
 export async function getHouseCollectionByTag(

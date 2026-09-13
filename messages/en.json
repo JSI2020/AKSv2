@@ -1,7 +1,6 @@
 {
   "Brand": {
     "name": "AKS",
-    "nameUr": "عکس",
     "tagline": "a reflection",
     "footerBlurb": "Eastern hands, a quieter line — cut with Western restraint, in natural cloth."
   },
@@ -19,9 +18,7 @@
     "sizeGuide": "Size guide",
     "cart": "Cart",
     "search": "Search",
-    "wishlist": "Wishlist",
-    "localeEn": "EN",
-    "localeUr": "اردو"
+    "wishlist": "Wishlist"
   },
   "Utility": {
     "leadTime": "Ready to wear — dispatched in 3–5 days",
@@ -37,7 +34,7 @@
     ]
   },
   "Home": {
-    "eyebrow": "عکس · a reflection",
+    "eyebrow": "Minimalist luxury · East meets West",
     "headlineLine1": "Eastern lines,",
     "headlineLine2": "Western calm",
     "subhead": "Ready-to-wear pieces in natural cloth — Eastern silhouettes cut with Western restraint. Chosen for how they drape, and how they last.",
@@ -66,8 +63,8 @@
     "trackOrder": "Track order",
     "shipping": "Shipping",
     "returns": "Returns",
-    "whatsappShahneela": "WhatsApp Shahneela",
-    "copyright": "© 2026 AKS by Shahneela"
+    "whatsappDemo": "WhatsApp Demo",
+    "copyright": "© 2026 AKS Demo"
   },
   "ShopShell": {
     "navShop": "Shop",
@@ -95,7 +92,7 @@
     "newsletterError": "Couldn’t save that just now — please try again.",
     "whatsapp": "WhatsApp",
     "instagram": "Instagram",
-    "footerTagline": "AKS — عکس · Minimalist luxury · East meets West",
+    "footerTagline": "AKS — Minimalist luxury · East meets West",
     "footerCopyright": "© 2026 AKS"
   },
   "HomeProto": {
@@ -107,7 +104,6 @@
     "heroCta": "Enter the house",
     "heroSlotCap": "Full-bleed welcome image — uploaded & swapped from the admin portal per edition",
     "statement": "The market signals value through what it *adds*. We signal it through what remains — *proportion, drape, and finishing*. Eastern in silhouette, Western in restraint: two traditions meeting in a single clean line.",
-    "catsEyebrow": "Four doors into the house",
     "catsTitle": "Shop by category",
     "catSlotTag": "Image · admin",
     "doorEssentialsMotto": "Everyday · khaddi & cotton silk",
@@ -115,7 +111,7 @@
     "doorOccasionMotto": "Restrained · covered",
     "doorSignatureMotto": "The statement pieces",
     "exploreDoor": "Explore {name} →",
-    "editEyebrow": "The current edit · refreshed each edition",
+    "editEyebrow": "Refreshed each edition",
     "editTitle": "The current edit",
     "filterAll": "All",
     "editEmpty": "No published pieces in this door yet.",

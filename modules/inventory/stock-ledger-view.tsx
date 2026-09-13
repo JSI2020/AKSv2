@@ -10,6 +10,7 @@ import {
   resolveTimeRange,
   timeRangeNuqsParsers,
 } from "@/modules/admin/time-filter";
+import { MetresTriadBar } from "@/modules/admin/viz";
 
 import {
   movementLabel,
@@ -175,7 +176,7 @@ export function StockLedgerView({ detail }: { detail: StockLedgerDetail }) {
       <div className="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
         <div>
           <div
-            className="aspect-[4/5] border border-ink/12 bg-greige/40"
+            className="aspect-square overflow-hidden border border-ink/12 bg-greige/40"
             style={
               detail.photoUrl
                 ? undefined
@@ -194,6 +195,16 @@ export function StockLedgerView({ detail }: { detail: StockLedgerDetail }) {
             ) : null}
           </div>
           <div className="mt-6 grid grid-cols-3 gap-px border border-ink/12 bg-ink/12">
+            {figures.unit === "m" ? (
+              <div className="col-span-3 bg-milk px-3 py-4">
+                <MetresTriadBar
+                  onHand={figures.onHand}
+                  reserved={figures.reserved}
+                  available={figures.available}
+                  reorderPoint={figures.reorderPointMeters ?? 0}
+                />
+              </div>
+            ) : null}
             <div className="bg-milk px-3 py-4 text-center">
               <p className="font-sans text-[9.5px] uppercase tracking-[0.1em] text-ink/55">
                 On hand

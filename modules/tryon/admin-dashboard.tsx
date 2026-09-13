@@ -12,6 +12,7 @@ import type {
   listPendingSelfies,
   TryOnAdminDashboardData,
 } from "@/modules/tryon/queries";
+import type { ProviderBalance } from "@/modules/ai/providers/account-balances";
 
 type Props = {
   initial: TryOnAdminDashboardData;
@@ -26,6 +27,79 @@ function formatUsdMicros(micros: number): string {
 function usd(micros: number): string {
   const v = micros / 1_000_000;
   return v >= 1 ? `$${v.toFixed(2)}` : `$${v.toFixed(4)}`;
+}
+
+function formatMajor(amount: number, currency: string): string {
+  const code = currency.toUpperCase();
+  const digits = amount >= 1 ? 2 : 4;
+  if (code === "USD") return `$${amount.toFixed(digits)}`;
+  if (code === "CNY") return `¥${amount.toFixed(digits)}`;
+  return `${amount.toFixed(digits)} ${code}`;
+}
+
+const LOW_FAL_USD = 10;
+const LOW_DEEPSEEK = 1;
+
+function ProviderCreditCard({ row }: { row: ProviderBalance }) {
+  if (!row.ok) {
+    return (
+      <div className="border border-ink/12 bg-milk px-5 py-5">
+        <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
+          {row.label} credit
+        </p>
+        <p className="mt-3 font-display text-[1.6rem] font-light leading-none text-ink/40">
+          —
+        </p>
+        <p className="mt-3 text-[12px] text-madder">{row.error}</p>
+        {row.hint ? (
+          <p className="mt-1 text-[11px] leading-relaxed text-ink/50">{row.hint}</p>
+        ) : null}
+      </div>
+    );
+  }
+
+  const low =
+    (row.provider === "fal" &&
+      row.currency.toUpperCase() === "USD" &&
+      row.balance < LOW_FAL_USD) ||
+    (row.provider === "deepseek" &&
+      (row.available === false || row.balance < LOW_DEEPSEEK));
+
+  return (
+    <div className="border border-ink/12 bg-milk px-5 py-5">
+      <div className="flex items-baseline justify-between gap-3">
+        <p className="font-sans text-[10px] font-semibold uppercase tracking-[0.16em] text-ink/55">
+          {row.label} credit
+        </p>
+        {row.username ? (
+          <p className="font-sans text-[11px] text-ink/45">@{row.username}</p>
+        ) : null}
+      </div>
+      <p
+        className={`mt-3 font-display text-[2.2rem] font-light leading-none ${
+          low ? "text-madder" : "text-ink"
+        }`}
+      >
+        {formatMajor(row.balance, row.currency)}
+      </p>
+      {row.provider === "deepseek" &&
+      (row.granted != null || row.toppedUp != null) ? (
+        <p className="mt-2 font-data text-[11px] text-ink/50">
+          Granted {formatMajor(row.granted ?? 0, row.currency)} · Topped up{" "}
+          {formatMajor(row.toppedUp ?? 0, row.currency)}
+        </p>
+      ) : null}
+      {low ? (
+        <p className="mt-2 text-[12px] text-madder">
+          Low — top up on the provider dashboard before jobs start failing.
+        </p>
+      ) : (
+        <p className="mt-2 text-[11px] text-ink/50">
+          Live prepaid balance on the provider. Top up there when this runs low.
+        </p>
+      )}
+    </div>
+  );
 }
 
 export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
@@ -96,6 +170,17 @@ export function TryOnAdminDashboard({ initial, pendingSelfies }: Props) {
           {message}
         </p>
       ) : null}
+
+      {/* Live prepaid wallets on fal / DeepSeek — separate from the monthly cap. */}
+      <section className="grid gap-4 lg:grid-cols-2">
+        <ProviderCreditCard row={data.providerBalances.fal} />
+        <ProviderCreditCard row={data.providerBalances.deepseek} />
+      </section>
+      <p className="text-[11px] leading-relaxed text-ink/50">
+        Provider credit is your real prepaid balance (fal Admin key + DeepSeek
+        API key). The monthly cap above is AKS&apos;s own brake — it does not
+        change when you top up fal or DeepSeek.
+      </p>
 
       {/* Budget: this month's AI spend against the cap, and what is left. */}
       <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">

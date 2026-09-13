@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { rtwStockCapMessage } from "@/modules/inventory/rtw-stock-messages";
+
 import {
   addToCart,
   fetchCart,
@@ -26,6 +28,7 @@ type OptimisticMeta = {
   unitPriceMinor: number;
   thumbnailUrl: string | null;
   leadTimeDays: number | null;
+  maxQuantity: number | null;
 };
 
 type CartContextValue = {
@@ -41,6 +44,8 @@ type CartContextValue = {
   setLineQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
   pending: boolean;
+  cartNotice: string | null;
+  clearCartNotice: () => void;
   /** Design name for add-to-cart toast (prototype C). */
   lastAddedName: string | null;
   clearLastAdded: () => void;
@@ -66,11 +71,17 @@ function optimisticLine(input: AddToCartInput, designMeta: OptimisticMeta): Cart
     sizeMode: input.sizeMode,
     sizeLabel: input.sizeLabel,
     quantity: input.quantity,
+    maxQuantity: designMeta.maxQuantity,
     unitPriceMinor: designMeta.unitPriceMinor,
     lineTotalMinor: designMeta.unitPriceMinor * input.quantity,
     thumbnailUrl: designMeta.thumbnailUrl,
     leadTimeDays: designMeta.leadTimeDays,
   };
+}
+
+function capLineQuantity(line: CartLinePublic, quantity: number): number {
+  const cap = line.maxQuantity ?? 99;
+  return Math.max(1, Math.min(cap, quantity));
 }
 
 function mergeLineIntoCart(cart: CartPublic, line: CartLinePublic): CartPublic {
@@ -85,11 +96,15 @@ function mergeLineIntoCart(cart: CartPublic, line: CartLinePublic): CartPublic {
   const lines = existing
     ? cart.lines.map((l) =>
         l.id === existing.id
-          ? {
-              ...l,
-              quantity: l.quantity + line.quantity,
-              lineTotalMinor: l.unitPriceMinor * (l.quantity + line.quantity),
-            }
+          ? (() => {
+              const nextQty = capLineQuantity(l, l.quantity + line.quantity);
+              return {
+                ...l,
+                quantity: nextQty,
+                lineTotalMinor: l.unitPriceMinor * nextQty,
+                maxQuantity: line.maxQuantity ?? l.maxQuantity,
+              };
+            })()
           : l,
       )
     : [...cart.lines, line];
@@ -108,6 +123,7 @@ export function CartProvider({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
+  const [cartNotice, setCartNotice] = useState<string | null>(null);
   const drawerOpenRef = useRef(drawerOpen);
   drawerOpenRef.current = drawerOpen;
 
@@ -143,6 +159,7 @@ export function CartProvider({
     if (next) refreshCart();
   }, [refreshCart]);
   const clearLastAdded = useCallback(() => setLastAddedName(null), []);
+  const clearCartNotice = useCallback(() => setCartNotice(null), []);
 
   const addItem = useCallback(
     async (input: AddToCartInput, designMeta: OptimisticMeta) => {
@@ -155,6 +172,7 @@ export function CartProvider({
       const result = await addToCart(input);
       if (result.ok) {
         setCart(result.cart);
+        setCartNotice(null);
         setLastAddedName(
           `${designMeta.designName} — ${designMeta.colourwayName}`,
         );
@@ -182,22 +200,56 @@ export function CartProvider({
   );
 
   const setLineQuantity = useCallback((lineId: string, quantity: number) => {
+    let nextQuantity = quantity;
+    let blockedNotice: string | null = null;
+
     setCart((prev) => {
-      const lines = prev.lines.map((line) =>
-        line.id === lineId
+      const line = prev.lines.find((l) => l.id === lineId);
+      if (!line) return prev;
+
+      nextQuantity = capLineQuantity(line, quantity);
+      if (nextQuantity === line.quantity) {
+        if (quantity > nextQuantity && line.maxQuantity != null && line.sizeLabel) {
+          blockedNotice = rtwStockCapMessage(line.maxQuantity, line.sizeLabel);
+        }
+        return prev;
+      }
+
+      const lines = prev.lines.map((entry) =>
+        entry.id === lineId
           ? {
-              ...line,
-              quantity,
-              lineTotalMinor: line.unitPriceMinor * quantity,
+              ...entry,
+              quantity: nextQuantity,
+              lineTotalMinor: entry.unitPriceMinor * nextQuantity,
             }
-          : line,
+          : entry,
       );
       return { ...prev, lines, ...summarize(lines) };
     });
 
+    if (blockedNotice) {
+      setCartNotice(blockedNotice);
+      return;
+    }
+
     startTransition(async () => {
-      const result = await updateCartLineQuantity({ lineId, quantity });
-      if (result.ok) setCart(result.cart);
+      const result = await updateCartLineQuantity({
+        lineId,
+        quantity: nextQuantity,
+      });
+      if (result.ok) {
+        setCart(result.cart);
+        setCartNotice(null);
+        return;
+      }
+
+      try {
+        const fresh = await fetchCart();
+        setCart(fresh);
+      } catch {
+        // Keep last known server-aligned cart if refresh fails.
+      }
+      setCartNotice(result.error);
     });
   }, []);
 
@@ -224,6 +276,8 @@ export function CartProvider({
       setLineQuantity,
       removeLine,
       pending,
+      cartNotice,
+      clearCartNotice,
       lastAddedName,
       clearLastAdded,
     }),
@@ -237,6 +291,8 @@ export function CartProvider({
       setLineQuantity,
       removeLine,
       pending,
+      cartNotice,
+      clearCartNotice,
       lastAddedName,
       clearLastAdded,
     ],

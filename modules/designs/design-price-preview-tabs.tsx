@@ -6,7 +6,7 @@ import {
   inferSilhouetteFromChartRows,
 } from "@/modules/sizing/garment-size-guide";
 import { isFabricSwatchRender } from "./fabric-swatch-render";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, useEffect, type ReactNode } from "react";
 import Image from "next/image";
 
 import { STANDARD_SIZE_LABELS } from "@aks/shared";
@@ -15,7 +15,14 @@ import { getSizeBlock } from "@/modules/sizing/block-actions";
 import { resolveChart } from "@/modules/sizing/engine";
 import type { DesignCostingData } from "@/modules/money/queries";
 import type { DesignDetail } from "./actions";
+import { DesignShadeSelect } from "./design-shade-select";
+import {
+  resolveShadeCompareAtMinor,
+  resolveShadePriceMinor,
+  resolveShadeSizeLabels,
+} from "./shade-utils";
 import { photosForColourway } from "./design-render-helpers";
+import { costingBreakdownForShade } from "@/modules/money/shade-costing";
 
 function Label({ children }: { children: ReactNode }) {
   return (
@@ -37,37 +44,63 @@ export function PricingTab({
   onSave: (fd: FormData) => void;
 }) {
   const d = detail.design;
-  const displayCost = costing?.breakdown?.totalCostMinor ?? null;
 
-  const [retailPkr, setRetailPkr] = useState(
-    String(
-      Math.round(
-        (d.compareAtPriceMinor != null &&
-        d.compareAtPriceMinor > d.basePriceMinor
-          ? d.compareAtPriceMinor
-          : d.basePriceMinor) / 100,
-      ),
-    ),
+  const [shadeId, setShadeId] = useState(
+    () =>
+      detail.colourways.find((c) => c.isDefault)?.id ??
+      detail.colourways[0]?.id ??
+      "",
+  );
+  const selectedShade =
+    detail.colourways.find((c) => c.id === shadeId) ?? detail.colourways[0];
+
+  const shadeRetailMinor = selectedShade
+    ? resolveShadePriceMinor(selectedShade, d)
+    : d.basePriceMinor;
+  const shadeCompareMinor = selectedShade
+    ? resolveShadeCompareAtMinor(selectedShade, d)
+    : d.compareAtPriceMinor;
+
+  const shadeCostBreakdown = useMemo(() => {
+    if (!costing || !selectedShade) return costing?.breakdown ?? null;
+    return costingBreakdownForShade(selectedShade, d.basePriceMinor, costing);
+  }, [costing, selectedShade, d.basePriceMinor]);
+
+  const displayCost = shadeCostBreakdown?.totalCostMinor ?? null;
+
+  const [retailPkr, setRetailPkr] = useState(() =>
+    String(Math.round(shadeRetailMinor / 100)),
   );
   const [discountOn, setDiscountOn] = useState(
-    d.compareAtPriceMinor != null && d.compareAtPriceMinor > d.basePriceMinor,
+    shadeCompareMinor != null && shadeCompareMinor > shadeRetailMinor,
   );
   const [discountMode, setDiscountMode] = useState<"percent" | "pkr">(
     "percent",
   );
   const [discountValue, setDiscountValue] = useState(() => {
     if (
-      d.compareAtPriceMinor != null &&
-      d.compareAtPriceMinor > d.basePriceMinor &&
-      d.basePriceMinor > 0
+      shadeCompareMinor != null &&
+      shadeCompareMinor > shadeRetailMinor &&
+      shadeRetailMinor > 0
     ) {
-      const was = d.compareAtPriceMinor;
-      const base = d.basePriceMinor;
-      const pct = Math.round((1 - base / was) * 100);
+      const pct = Math.round((1 - shadeRetailMinor / shadeCompareMinor) * 100);
       return String(Math.max(0, pct));
     }
     return "10";
   });
+
+  useEffect(() => {
+    if (!selectedShade) return;
+    const retail = resolveShadePriceMinor(selectedShade, d);
+    const compare = resolveShadeCompareAtMinor(selectedShade, d);
+    setRetailPkr(String(Math.round(retail / 100)));
+    setDiscountOn(compare != null && compare > retail);
+    if (compare != null && compare > retail && retail > 0) {
+      setDiscountValue(
+        String(Math.max(0, Math.round((1 - retail / compare) * 100))),
+      );
+    }
+  }, [selectedShade, d]);
 
   const retailMinor = (() => {
     const pkr = Number.parseInt(retailPkr, 10);
@@ -109,6 +142,7 @@ export function PricingTab({
         e.preventDefault();
         const fd = new FormData();
         fd.set("id", d.id);
+        fd.set("colourwayId", shadeId);
         fd.set("basePriceMinor", String(sellingMinor));
         fd.set(
           "madeToMeasureSurchargeMinor",
@@ -127,8 +161,17 @@ export function PricingTab({
       }}
     >
       <section className="mb-4 border border-ink/12 bg-milk px-5 py-5">
+        {detail.colourways.length > 0 ? (
+          <div className="mb-5 max-w-xs">
+            <DesignShadeSelect
+              colourways={detail.colourways}
+              colourwayId={shadeId}
+              onSelect={setShadeId}
+            />
+          </div>
+        ) : null}
         <h3 className="mb-4 font-sans text-[10px] uppercase tracking-[0.16em] text-ink/55">
-          Price
+          Price for this shade
         </h3>
 
         <div className="mb-4 flex flex-wrap items-end gap-6">
@@ -154,7 +197,7 @@ export function PricingTab({
         </div>
 
         <div className="flex justify-between border-b border-ink/10 py-2.5 text-[13px]">
-          <span className="text-ink/55">Cost (from Costing tab)</span>
+          <span className="text-ink/55">Cost (this shade)</span>
           <span className="font-data text-ink">
             {displayCost != null ? <Money value={displayCost} /> : "—"}
           </span>
@@ -270,10 +313,6 @@ export function PreviewPublishTab({
   ) => void;
 }) {
   const d = detail.design;
-  const sizes =
-    d.availableSizeLabels?.length > 0
-      ? d.availableSizeLabels
-      : [...STANDARD_SIZE_LABELS];
 
   const [colourwayId, setColourwayId] = useState(
     () =>
@@ -281,8 +320,34 @@ export function PreviewPublishTab({
       detail.colourways[0]?.id ??
       "",
   );
+
+  const selectedCw =
+    detail.colourways.find((c) => c.id === colourwayId) ??
+    detail.colourways[0];
+
+  const sellingMinor = selectedCw
+    ? resolveShadePriceMinor(selectedCw, d)
+    : d.basePriceMinor;
+  const compareAtMinor = selectedCw
+    ? resolveShadeCompareAtMinor(selectedCw, d)
+    : d.compareAtPriceMinor;
+
+  const shadeCostBreakdown = useMemo(() => {
+    if (!costing || !selectedCw) return costing?.breakdown ?? null;
+    return costingBreakdownForShade(selectedCw, d.basePriceMinor, costing);
+  }, [costing, selectedCw, d.basePriceMinor]);
+
+  const sizes = useMemo(() => {
+    if (!selectedCw) {
+      return d.availableSizeLabels?.length > 0
+        ? [...d.availableSizeLabels]
+        : [...STANDARD_SIZE_LABELS.filter((l) => l !== "XXL")];
+    }
+    return resolveShadeSizeLabels(selectedCw, d);
+  }, [selectedCw, d]);
+
   const [activePhotoIdx, setActivePhotoIdx] = useState(0);
-  const [sizeLabel, setSizeLabel] = useState(sizes[2] ?? sizes[0] ?? "M");
+  const [sizeLabel, setSizeLabel] = useState(() => sizes[0] ?? "M");
   const [guideOpen, setGuideOpen] = useState(false);
   const [guideRows, setGuideRows] = useState<
     {
@@ -297,9 +362,18 @@ export function PreviewPublishTab({
   ]);
   const [guideBase, setGuideBase] = useState("M");
 
-  const selectedCw =
-    detail.colourways.find((c) => c.id === colourwayId) ??
-    detail.colourways[0];
+  useEffect(() => {
+    if (!sizes.includes(sizeLabel)) {
+      setSizeLabel(sizes[0] ?? "M");
+    }
+  }, [sizes, sizeLabel, colourwayId]);
+
+  const offPct =
+    compareAtMinor != null &&
+    compareAtMinor > sellingMinor &&
+    compareAtMinor > 0
+      ? Math.round((1 - sellingMinor / compareAtMinor) * 100)
+      : null;
 
   const previewPhotos = useMemo(() => {
     if (!selectedCw) return [];
@@ -349,13 +423,6 @@ export function PreviewPublishTab({
     () => inferSilhouetteFromChartRows(guideChartRows, guideBase),
     [guideChartRows, guideBase],
   );
-
-  const offPct =
-    d.compareAtPriceMinor != null &&
-    d.compareAtPriceMinor > d.basePriceMinor &&
-    d.compareAtPriceMinor > 0
-      ? Math.round((1 - d.basePriceMinor / d.compareAtPriceMinor) * 100)
-      : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -412,11 +479,10 @@ export function PreviewPublishTab({
           </span>
           <h2 className="font-display text-3xl font-light text-ink">{d.name}</h2>
           <div className="flex flex-wrap items-center gap-2 font-data text-[15px] text-ink">
-            <Money value={d.basePriceMinor} />
-            {d.compareAtPriceMinor != null &&
-            d.compareAtPriceMinor > d.basePriceMinor ? (
+            <Money value={sellingMinor} />
+            {compareAtMinor != null && compareAtMinor > sellingMinor ? (
               <span className="text-[12px] text-ink/40 line-through">
-                <Money value={d.compareAtPriceMinor} />
+                <Money value={compareAtMinor} />
               </span>
             ) : null}
             {offPct != null && offPct > 0 ? (
@@ -592,8 +658,8 @@ export function PreviewPublishTab({
             <div className="flex justify-between gap-4 py-2">
               <span className="text-ink/45">Cost</span>
               <span className="text-ink">
-                {costing?.breakdown ? (
-                  <Money value={costing.breakdown.totalCostMinor} />
+                {shadeCostBreakdown ? (
+                  <Money value={shadeCostBreakdown.totalCostMinor} />
                 ) : (
                   "—"
                 )}

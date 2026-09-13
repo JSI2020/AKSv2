@@ -15,6 +15,9 @@ import {
 import {
   reserveFabricForOrder,
   releaseFabricForOrder,
+  reserveRtwForOrder,
+  releaseRtwForOrder,
+  consumeRtwForOrder,
 } from "@/modules/inventory";
 import { createProductionJobsForOrder } from "@/modules/production/create-jobs";
 
@@ -66,6 +69,9 @@ export function registerOrderTransitions(): void {
         .returning({ id: orders.id });
 
       if (rows.length === 1) {
+        if (to === "AWAITING_DEPOSIT" && from === "DRAFT") {
+          await reserveRtwForOrder(id, tx);
+        }
         if (to === "MEASUREMENTS_CONFIRMED") {
           await reserveFabricForOrder(id, tx);
           await createProductionJobsForOrder(
@@ -73,6 +79,12 @@ export function registerOrderTransitions(): void {
             { id: "00000000-0000-7000-8000-000000000002", role: "SYSTEM" },
             tx,
           );
+        }
+        if (to === "DISPATCHED") {
+          await consumeRtwForOrder(id, tx);
+        }
+        if (to === "CANCELLED" || to === "REFUND_PENDING") {
+          await releaseRtwForOrder(id, tx);
         }
         if (
           (to === "CANCELLED" || to === "REFUND_PENDING") &&

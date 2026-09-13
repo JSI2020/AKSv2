@@ -9,7 +9,8 @@ import {
   loadMessageTemplate,
   renderTemplate,
 } from "./templates";
-import { isWhatsappConfigured, sendWhatsappText } from "./providers/whatsapp";
+import { isWhatsappConfigured, sendWhatsappTemplate, sendWhatsappText } from "./providers/whatsapp";
+import { resolveWhatsappMetaTemplateName, whatsappTemplatesEnabled } from "./providers/whatsapp-templates";
 
 /**
  * WhatsApp delivery for order-status notifications. Renders the same English
@@ -57,7 +58,21 @@ export const handleWhatsappNotify: OutboxHandler = async (payload) => {
   }
 
   try {
-    const result = await sendWhatsappText({ to, body });
+    const metaTemplate = whatsappTemplatesEnabled()
+      ? resolveWhatsappMetaTemplateName(templateKey)
+      : null;
+
+    const result = metaTemplate
+      ? await sendWhatsappTemplate({
+          to,
+          templateName: metaTemplate,
+          bodyParameters: [
+            vars.customerName ?? "there",
+            vars.orderNumber ?? "",
+            vars.trackUrl ?? "",
+          ],
+        })
+      : await sendWhatsappText({ to, body });
     await db
       .update(messageLog)
       .set({

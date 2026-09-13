@@ -23,6 +23,13 @@ export default async function ContentHubPage() {
 
   const cards = [
     {
+      href: "/admin/content/collections",
+      title: "Collections",
+      description:
+        "House doors — Essentials, Tailored, Occasion, Signature, and more.",
+      count: "Doors · tags · URLs",
+    },
+    {
       href: "/admin/content/homepage",
       title: "Homepage",
       description:

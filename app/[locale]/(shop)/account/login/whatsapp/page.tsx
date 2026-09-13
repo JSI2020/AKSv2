@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
 
 import { auth } from "@/auth";
 import { WhatsappLoginForm } from "@/modules/account/whatsapp-login-form";
@@ -8,14 +7,13 @@ import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 export default async function WhatsappLoginPage() {
   const session = await auth();
-  const locale = await getLocale();
 
   if (session?.user?.id) {
-    redirect(`/${locale}/account/orders`);
+    redirect("/account/orders");
   }
   // Feature-flagged: fall back to the main sign-in page when not configured.
   if (!whatsappLoginEnabled()) {
-    redirect(`/${locale}/account/login`);
+    redirect("/account/login");
   }
 
   return (

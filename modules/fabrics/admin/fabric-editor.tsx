@@ -11,6 +11,7 @@ import type { FabricRow } from "@/modules/sizing/fabric-archetype-actions";
 import {
   archiveFabric,
   createFabricSwatchAsset,
+  deleteFabric,
   recordFabricLot,
   saveFabric,
 } from "@/modules/sizing/fabric-admin-actions";
@@ -20,6 +21,7 @@ type EditProps = {
   fabric: FabricRow;
   stock: FabricStockDetail;
   designs: Array<{ designId: string; designName: string }>;
+  canDelete?: boolean;
 };
 
 type Props = { mode: "new" } | EditProps;
@@ -533,7 +535,7 @@ export function FabricEditor(props: Props) {
     );
   }
 
-  const { fabric, stock, designs } = props;
+  const { fabric, stock, designs, canDelete } = props;
   const weight =
     fabric.drapeClass[0] + fabric.drapeClass.slice(1).toLowerCase();
   const character =
@@ -624,27 +626,59 @@ export function FabricEditor(props: Props) {
               >
                 Cancel
               </Link>
-              <button
-                type="button"
-                onClick={() => {
-                  if (!window.confirm(`Archive ${fabric.name}?`)) return;
-                  startTransition(async () => {
-                    const result = await archiveFabric(fabric.id);
-                    if (!result.ok) setError(result.error);
-                    else {
-                      router.push("/admin/fabrics");
-                      router.refresh();
-                    }
-                  });
-                }}
-                className="ms-auto text-[12px] tracking-[0.06em] text-madder"
-              >
-                Archive fabric
-              </button>
+              <div className="ms-auto flex flex-wrap items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!window.confirm(`Archive ${fabric.name}?`)) return;
+                    startTransition(async () => {
+                      const result = await archiveFabric(fabric.id);
+                      if (!result.ok) setError(result.error);
+                      else {
+                        router.push("/admin/fabrics");
+                        router.refresh();
+                      }
+                    });
+                  }}
+                  className="text-[12px] tracking-[0.06em] text-madder"
+                >
+                  Archive fabric
+                </button>
+                {canDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const confirmed = window.confirm(
+                        `Permanently delete ${fabric.name}? Stock lots and history for this fabric will be removed. This cannot be undone.`,
+                      );
+                      if (!confirmed) return;
+                      startTransition(async () => {
+                        const result = await deleteFabric(fabric.id);
+                        if (!result.ok) setError(result.error);
+                        else {
+                          router.push("/admin/fabrics");
+                          router.refresh();
+                        }
+                      });
+                    }}
+                    className="text-[12px] tracking-[0.06em] text-madder underline"
+                  >
+                    Delete permanently
+                  </button>
+                ) : null}
+              </div>
             </div>
           </form>
 
           <Panel title="Stock">
+            <p className="mb-4">
+              <Link
+                href={`/admin/inventory/fabrics/${fabric.id}`}
+                className="text-[13px] text-ink hover:text-zari"
+              >
+                Open inventory by colour →
+              </Link>
+            </p>
             <MetresTriadBar
               className="mb-5 max-w-md"
               onHand={stock.metersOnHand}

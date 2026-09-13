@@ -16,6 +16,10 @@ const PROD_RECOMMENDED = [
   "R2_BUCKET",
   "WHATSAPP_ACCESS_TOKEN",
   "WHATSAPP_PHONE_NUMBER_ID",
+  "SAFEPAY_WEBHOOK_SECRET",
+  "SAFEPAY_SECRET_KEY",
+  "SAFEPAY_AGGREGATOR_ID",
+  "SAFEPAY_AGGREGATOR_MERCHANT_IDENTIFIER",
 ] as const;
 
 function unset(key: string): boolean {
@@ -42,6 +46,18 @@ export function validateEnv(): void {
       console.warn(
         `[env] Recommended production variable(s) unset: ${recommended.join(", ")}`,
       );
+    }
+
+    if (process.env.WHATSAPP_USE_TEMPLATES === "1") {
+      const hasTemplate = [
+        "WHATSAPP_TEMPLATE_ORDER_RECEIVED",
+        "WHATSAPP_TEMPLATE_ORDER_DISPATCHED",
+      ].some((k) => !unset(k));
+      if (!hasTemplate) {
+        console.warn(
+          "[env] WHATSAPP_USE_TEMPLATES=1 but no WHATSAPP_TEMPLATE_* names are set — Meta business-initiated sends will fail outside the 24h window.",
+        );
+      }
     }
   }
 }

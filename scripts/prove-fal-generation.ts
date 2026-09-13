@@ -14,6 +14,7 @@ config({ path: ".env" });
  * - https://fal.ai/models/fal-ai/flux-2/turbo/edit
  */
 async function main() {
+  const { execSync } = await import("node:child_process");
   const {
     db,
     designGenerations,
@@ -24,17 +25,16 @@ async function main() {
     STUDIO_SETTINGS_SINGLETON_ID,
   } = await import("@aks/db");
   const { uuidv7 } = await import("@aks/shared");
-  const { processOneOutboxMessage } = await import(
-    "@/modules/platform/outbox"
-  );
-  const { registerDesignGenerateHandler } = await import(
-    "@/modules/ai/generation"
-  );
   const { enqueueDesignGeneration } = await import(
     "@/modules/ai/generation"
   );
   const { isFalConfigured } = await import("@/modules/ai/providers");
   const { buildSketchToPhotoPrompt } = await import("@/modules/ai/prompts");
+
+  execSync("npx tsx scripts/ensure-studio-ai-models.ts", {
+    stdio: "inherit",
+    env: process.env,
+  });
 
   const mode = isFalConfigured() ? "live-fal" : "mock";
   if (mode === "mock") {
@@ -43,8 +43,6 @@ async function main() {
   } else {
     console.log("[prove-fal] FAL_KEY present — live fal generation");
   }
-
-  registerDesignGenerateHandler();
 
   const categoryId = uuidv7();
   const designId = uuidv7();
@@ -101,10 +99,10 @@ async function main() {
     attemptN: 1,
   });
 
-  const processed = await processOneOutboxMessage();
-  if (processed.kind !== "sent") {
-    throw new Error(`Outbox did not send: ${JSON.stringify(processed)}`);
-  }
+  const { handleDesignGenerate } = await import(
+    "@/modules/ai/generation/handler"
+  );
+  await handleDesignGenerate({ generationId });
 
   const [row] = await db
     .select()

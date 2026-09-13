@@ -10,7 +10,7 @@ export {
   type SizeChartComponentPublic,
   type SizeChartRowPublic,
 } from "./resolve-design-size-chart";
-export { resolveImages, buildImageTripleFromRows } from "./resolve-images";
+export { resolveImages, buildImageTripleFromRows, buildFabricPhotosFromRows } from "./resolve-images";
 export type { RenderRow } from "./resolve-images";
 export { resolveCollection } from "./resolve-collection";
 export { getPaidSalesRanking } from "./sales-ranking";
@@ -32,6 +32,7 @@ export type {
   PublishedDesignCard,
   ResolvedCollection,
   ResolvedImageTriple,
+  ResolvedGalleryImages,
   ResolvedRenderImage,
   SizeMode,
 } from "./types";
@@ -43,3 +44,5 @@ export {
 export type { HouseCollectionPublic } from "./house-collections-queries";
 export { COLLECTIONS_HUB_INTRO } from "./house-collections";
 export { CollectionsHubPage } from "./collections-hub";
+export { SearchPageView } from "./search-page-view";
+export { CatalogPagination } from "./catalog-pagination";

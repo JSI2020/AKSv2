@@ -1,7 +1,9 @@
-import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, count, eq, gte, gt, inArray, lte, sql } from "drizzle-orm";
 
 import {
+  customerProfiles,
   db,
+  designCosts,
   designs,
   orderEvents,
   orderPayments,
@@ -39,6 +41,14 @@ export type TodayStats = {
   dispatchedInRange: number;
 };
 
+/** House health tiles under the revenue / pipeline band. */
+export type OverviewSummary = {
+  publishedDesigns: number;
+  activeCustomers: number;
+  /** Average design margin in hundredths of a percent (1933 → 19.33%). */
+  avgMarginPercent: number | null;
+};
+
 const IN_PRODUCTION_STATUSES = [
   "CUTTING",
   "STITCHING",
@@ -59,6 +69,7 @@ const AT_RISK_TERMINAL: readonly OrderStatus[] = [
 export type TodayScreenData = {
   cards: TodayActionCard[];
   stats: TodayStats | null;
+  summary: OverviewSummary;
   allClear: boolean;
   range: OverviewRange;
 };
@@ -188,6 +199,44 @@ async function getOverviewOrderStats(
   };
 }
 
+async function getOverviewSummary(
+  granted: ReadonlySet<string>,
+): Promise<OverviewSummary> {
+  const publishedDesigns = can(granted, "designs.view")
+    ? await (async () => {
+        const [row] = await db
+          .select({ total: count() })
+          .from(designs)
+          .where(eq(designs.status, "PUBLISHED"));
+        return Number(row?.total ?? 0);
+      })()
+    : 0;
+
+  const activeCustomers = can(granted, "customers.view")
+    ? await (async () => {
+        const [row] = await db
+          .select({ total: count() })
+          .from(customerProfiles)
+          .where(gt(customerProfiles.totalOrdersCount, 0));
+        return Number(row?.total ?? 0);
+      })()
+    : 0;
+
+  let avgMarginPercent: number | null = null;
+  if (can(granted, "money.view") || can(granted, "designs.view")) {
+    const [row] = await db
+      .select({
+        avg: sql<number | null>`round(avg(${designCosts.marginPercent}))::int`,
+      })
+      .from(designCosts)
+      .where(gt(designCosts.sellingPriceMinor, 0));
+    avgMarginPercent =
+      row?.avg === null || row?.avg === undefined ? null : Number(row.avg);
+  }
+
+  return { publishedDesigns, activeCustomers, avgMarginPercent };
+}
+
 /** @deprecated alias — tests */
 const getTodayOrderStats = getOverviewOrderStats;
 
@@ -233,14 +282,16 @@ export async function getTodayScreenData(
 
   const cards = buildTodayActionCards(granted, counts);
 
-  let stats: TodayStats | null = null;
-  if (can(granted, "orders.view")) {
-    stats = await getOverviewOrderStats(range.from, range.to);
-  }
+  const [stats, summary] = await Promise.all([
+    can(granted, "orders.view")
+      ? getOverviewOrderStats(range.from, range.to)
+      : Promise.resolve(null),
+    getOverviewSummary(granted),
+  ]);
 
   const allClear = cards.length > 0 && cards.every((card) => card.count === 0);
 
-  return { cards, stats, allClear, range };
+  return { cards, stats, summary, allClear, range };
 }
 
 /** @internal exported for tests */

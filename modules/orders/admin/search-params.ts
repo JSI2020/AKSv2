@@ -8,7 +8,10 @@ import {
   parseAsStringLiteral,
 } from "nuqs/server";
 
-import { timeRangeParsers } from "@/modules/admin/time-filter";
+import {
+  TIME_RANGE_PRESETS,
+  timeRangeParsers,
+} from "@/modules/admin/time-filter";
 
 import {
   PAYMENT_STATUS_FILTER_VALUES,
@@ -47,6 +50,8 @@ export const orderListParsers = {
   dateFrom: parseAsIsoDateTime,
   dateTo: parseAsIsoDateTime,
   ...timeRangeParsers,
+  /** Operational list: no implicit month scope — time filter is opt-in via URL. */
+  range: parseAsStringLiteral(TIME_RANGE_PRESETS),
   page: parseAsInteger.withDefault(1),
   perPage: parseAsInteger.withDefault(25),
   view: parseAsString,

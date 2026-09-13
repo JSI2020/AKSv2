@@ -10,8 +10,8 @@ export type PromptPolishInput = {
   fabric?: string;
   feedback?: string;
   mode: "generate" | "refine";
-  /** sketch = fidelity; old-design = restyle; description = text-only invent. */
-  inputMode?: "sketch" | "old-design" | "description";
+  /** sketch = fidelity; old-design = restyle; repose = pose/model only; description = text-only invent. */
+  inputMode?: "sketch" | "old-design" | "description" | "repose";
 };
 
 export type PromptPolishResult = {
@@ -68,6 +68,17 @@ Rules:
 - Prefer short phrases suitable to append to an image prompt.
 - For refine mode, put the change request mainly in "feedback".`;
 
+const SYSTEM_REPOSE = `You polish short notes for POSE / MODEL-ONLY restaging of an existing garment PHOTO. The dress must not change.
+
+Rules:
+- Output ONLY valid JSON with keys: description, shirtColour, trouserColour, fabric, feedback (all strings; use "" if unused).
+- Never invent a new silhouette, neckline, sleeve, hem, embroidery, or colourway. Leave shirtColour, trouserColour, and fabric empty unless the user explicitly named them for locking.
+- Put pose / camera / stance requests in "feedback" as concrete commercial fashion poses.
+- Background changes are allowed only if the user asked; otherwise leave feedback focused on pose.
+- Never ask to keep the original person's face. The house model replaces them.
+- Keep modest fashion catalogue tone. No objectifying language.
+- Prefer short phrases suitable to append to an image prompt.`;
+
 const SYSTEM_DESCRIPTION = `You polish short, messy fashion notes into a clear outfit brief for TEXT-ONLY photoreal fashion generation (no sketch).
 
 Rules:
@@ -81,6 +92,7 @@ Rules:
 
 function systemFor(input: PromptPolishInput): string {
   if (input.inputMode === "old-design") return SYSTEM_OLD_DESIGN;
+  if (input.inputMode === "repose") return SYSTEM_REPOSE;
   if (input.inputMode === "description") return SYSTEM_DESCRIPTION;
   return SYSTEM_SKETCH;
 }

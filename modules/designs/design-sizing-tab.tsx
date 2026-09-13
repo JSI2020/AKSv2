@@ -59,6 +59,8 @@ import {
 } from "@/modules/sizing/garment-size-guide";
 
 import type { DesignDetail } from "./actions";
+import { DesignShadeSelect } from "./design-shade-select";
+import { resolveShadeSizeLabels } from "./shade-utils";
 
 type FormOptions = {
   categories: {
@@ -117,13 +119,37 @@ export function DesignSizingTab({
   const [pieceSizeBlocks, setPieceSizeBlocks] = useState<
     Record<string, string>
   >(() => ({ ...(d.pieceSizeBlocks ?? {}) }));
-  const [selectedSizes, setSelectedSizes] = useState<string[]>(() => {
-    const initial = d.availableSizeLabels?.length
-      ? [...d.availableSizeLabels]
-      : [...STANDARD_SIZE_LABELS];
-    if (!initial.includes("M")) initial.push("M");
-    return [...STANDARD_SIZE_LABELS].filter((s) => initial.includes(s));
-  });
+  const [shadeId, setShadeId] = useState(
+    () =>
+      detail.colourways.find((c) => c.isDefault)?.id ??
+      detail.colourways[0]?.id ??
+      "",
+  );
+  const [sizesByShade, setSizesByShade] = useState<Record<string, string[]>>(
+    () => {
+      const map: Record<string, string[]> = {};
+      for (const [i, cw] of detail.colourways.entries()) {
+        const labels = resolveShadeSizeLabels(cw, d);
+        map[cw.id] = [...STANDARD_SIZE_LABELS].filter((s) =>
+          labels.includes(s),
+        );
+        if (!map[cw.id]!.includes("M")) {
+          map[cw.id] = [...STANDARD_SIZE_LABELS].filter(
+            (s) => s === "M" || map[cw.id]!.includes(s),
+          );
+        }
+      }
+      return map;
+    },
+  );
+
+  const selectedSizes = shadeId
+    ? (sizesByShade[shadeId] ??
+      resolveShadeSizeLabels(
+        detail.colourways.find((c) => c.id === shadeId) ?? { id: shadeId, name: "" },
+        d,
+      ))
+    : [];
 
   const defaultBlockIdByCategory = useMemo(() => {
     const m = new Map<string, string>();
@@ -135,14 +161,16 @@ export function DesignSizingTab({
   }, [options.categories, options.blocks]);
 
   function toggleSize(label: string) {
-    setSelectedSizes((prev) => {
-      if (label === "M" && prev.includes("M")) return prev;
-      if (prev.includes(label)) {
-        return prev.filter((s) => s !== label);
-      }
-      return [...STANDARD_SIZE_LABELS].filter(
-        (s) => s === label || prev.includes(s),
-      );
+    if (!shadeId) return;
+    setSizesByShade((prev) => {
+      const current = prev[shadeId] ?? [];
+      if (label === "M" && current.includes("M")) return prev;
+      const next = current.includes(label)
+        ? current.filter((s) => s !== label)
+        : [...STANDARD_SIZE_LABELS].filter(
+            (s) => s === label || current.includes(s),
+          );
+      return { ...prev, [shadeId]: next };
     });
   }
 
@@ -167,15 +195,32 @@ export function DesignSizingTab({
         fd.set("sizeBlockId", primaryBlock);
         fd.set("pieceSizeBlocksJson", JSON.stringify(pieceSizeBlocks));
         fd.set("fitProfilesJson", JSON.stringify(fitProfiles));
-        fd.set("availableSizeLabelsJson", JSON.stringify(selectedSizes));
+        fd.set("shadeSizesJson", JSON.stringify(sizesByShade));
         fd.set("madeToMeasureOffered", "false");
         onSave(fd);
       }}
     >
       <section className="mb-4 border border-ink/12 bg-milk px-5 py-5">
-        <h3 className="mb-4 font-sans text-[10px] uppercase tracking-[0.16em] text-ink/55">
-          Available sizes
+        {detail.colourways.length > 0 ? (
+          <div className="mb-5 max-w-xs">
+            <DesignShadeSelect
+              colourways={detail.colourways}
+              colourwayId={shadeId}
+              onSelect={setShadeId}
+            />
+          </div>
+        ) : (
+          <p className="mb-4 text-[13px] text-ink/55">
+            Add shades in Photos before choosing sizes per shade.
+          </p>
+        )}
+        <h3 className="mb-1 font-sans text-[10px] uppercase tracking-[0.16em] text-ink/55">
+          Available sizes for this shade
         </h3>
+        <p className="mb-4 text-[12px] text-ink/45">
+          The size chart below is shared across all shades — only tick which sizes
+          you will stock for the selected shade.
+        </p>
         <div className="mb-2 flex flex-wrap gap-2">
           {STANDARD_SIZE_LABELS.map((label) => {
             const on = selectedSizes.includes(label);

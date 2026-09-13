@@ -196,6 +196,16 @@ export const colourways = pgTable(
       .notNull()
       .default({}),
     priceDeltaMinor: integer("price_delta_minor").notNull().default(0),
+    /** Standard sizes offered for this shade; empty = inherit design.availableSizeLabels. */
+    availableSizeLabels: text("available_size_labels")
+      .array()
+      .notNull()
+      .default([]),
+    /** When set, this shade's retail price; otherwise design base + priceDeltaMinor. */
+    basePriceMinor: integer("base_price_minor"),
+    compareAtPriceMinor: integer("compare_at_price_minor"),
+    /** Per-shade costing draft (same shape as design_costs piece lines). */
+    costingSnapshot: jsonb("costing_snapshot").$type<Record<string, unknown> | null>(),
     isDefault: boolean("is_default").notNull().default(false),
     sortOrder: integer("sort_order").notNull().default(0),
     active: boolean("active").notNull().default(true),

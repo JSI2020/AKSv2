@@ -4,7 +4,8 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 import { uuidv7 } from "@aks/shared";
-import { saveFabric, saveHouseModel } from "@/modules/sizing/fabric-archetype-actions";
+import { saveFabric } from "@/modules/sizing/fabric-admin-actions";
+import { saveHouseModel } from "@/modules/sizing/fabric-archetype-actions";
 import { createFitProfile } from "@/modules/sizing/fit-profile-actions";
 
 type DialogShellProps = {

@@ -25,6 +25,7 @@ type ActionResult =
 
 type ColourSet = {
   id: string;
+  name: string;
   fabrics: Record<string, string>;
 };
 
@@ -46,10 +47,14 @@ function savedComponentKeys(detail: DesignDetail): string[] {
   return detail.design.components ?? [];
 }
 
-function emptySet(components: string[]): ColourSet {
+function emptySet(components: string[], shadeIndex = 0): ColourSet {
   const fabrics: Record<string, string> = {};
   for (const c of components) fabrics[c] = "";
-  return { id: crypto.randomUUID(), fabrics };
+  return {
+    id: crypto.randomUUID(),
+    name: shadeIndex > 0 ? `Shade ${shadeIndex + 1}` : "",
+    fabrics,
+  };
 }
 
 function initSets(detail: DesignDetail, components: string[]): ColourSet[] {
@@ -65,7 +70,7 @@ function initSets(detail: DesignDetail, components: string[]): ColourSet[] {
     for (const c of components) {
       fabrics[c] = pieces[c] ?? cw.fabricId ?? "";
     }
-    return { id: cw.id, fabrics };
+    return { id: cw.id, name: cw.name, fabrics };
   });
 }
 
@@ -138,7 +143,7 @@ export function DesignPhotosTab({
     setSets((prev) => {
       const next = [...prev];
       while (next.length < count) {
-        next.push(emptySet(components));
+        next.push(emptySet(components, next.length));
       }
       return next.slice(0, count);
     });
@@ -150,7 +155,11 @@ export function DesignPhotosTab({
     if (!primary || !allFabricsChosen(fromSets, components)) return [];
     return fromSets.map((set, i) => {
       const primaryFabric = set.fabrics[primary] ?? "";
-      const name = fabricById.get(primaryFabric)?.name ?? `Set ${i + 1}`;
+      const fabricName = fabricById.get(primaryFabric)?.name;
+      const name =
+        set.name.trim() ||
+        fabricName?.trim() ||
+        `Shade ${i + 1}`;
       return {
         name,
         fabricId: primaryFabric,
@@ -160,14 +169,30 @@ export function DesignPhotosTab({
   }
 
   function defaultAlt(setIdx: number, photoN: number): string {
-    const primary = components[0];
-    const fabricName =
-      primary && sets[setIdx]
-        ? fabricById.get(sets[setIdx]!.fabrics[primary] ?? "")?.name
-        : null;
-    const parts = [detail.design.name, fabricName].filter(Boolean);
+    const shadeName = sets[setIdx]?.name.trim();
+    const parts = [detail.design.name, shadeName].filter(Boolean);
     if (photoN > 1) parts.push(`Photo ${photoN}`);
     return parts.join(" — ");
+  }
+
+  function updateShadeName(setIdx: number, name: string) {
+    setSets((prev) =>
+      prev.map((set, i) => (i === setIdx ? { ...set, name } : set)),
+    );
+  }
+
+  async function commitShadeName(setIdx: number): Promise<void> {
+    if (!allFabricsChosen(sets, components)) return;
+    setUploadingSetIdx(setIdx);
+    setUploadError(null);
+    try {
+      const ok = await syncColourways();
+      if (ok != null) router.refresh();
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Could not save shade name");
+    } finally {
+      setUploadingSetIdx(null);
+    }
   }
 
   async function syncColourways(fromSets: ColourSet[] = sets): Promise<string[] | null> {
@@ -340,17 +365,17 @@ export function DesignPhotosTab({
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="font-sans text-[10px] uppercase tracking-[0.14em] text-ink/45">
-              Colour sets · fabric per piece
+              Shades · fabric per piece
             </p>
             <p className="mt-1 text-[12px] text-ink/45">
-              Each set is one storefront colourway. Choosing a fabric adds its
+              Each shade is one storefront colourway. Choosing a fabric adds its
               inventory photo last. Add garment shots with Add photo — one is
               enough to publish.
             </p>
           </div>
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <span className="font-sans text-[10px] uppercase tracking-[0.12em] text-ink/45">
-              Sets
+              Shades
             </span>
             <select
               value={setCount}
@@ -369,19 +394,38 @@ export function DesignPhotosTab({
         <div className="flex flex-col gap-6">
           {sets.map((set, setIdx) => {
             const primary = components[0];
-            const setName =
-              primary && set.fabrics[primary]
-                ? (fabricById.get(set.fabrics[primary]!)?.name ??
-                  `Set ${setIdx + 1}`)
-                : `Set ${setIdx + 1}`;
+            const primaryFabricId =
+              primary && set.fabrics[primary] ? set.fabrics[primary] : null;
+            const fabricLabel = primaryFabricId
+              ? fabricById.get(primaryFabricId)?.name
+              : null;
             const photos = photosForColourway(detail.renders, set.id);
             const busy = uploadingSetIdx === setIdx || pending;
 
             return (
               <div key={set.id} className="border border-ink/10 bg-milk p-4">
-                <p className="font-data text-[11px] uppercase tracking-[0.12em] text-ink/45">
-                  Set {setIdx + 1} · {setName}
-                </p>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                  <label className="flex min-w-[12rem] flex-1 flex-col gap-1.5">
+                    <Label>Shade name</Label>
+                    <input
+                      type="text"
+                      value={set.name}
+                      placeholder={
+                        fabricLabel
+                          ? `e.g. ${fabricLabel}, Oatmeal, Jewel…`
+                          : "Name this shade"
+                      }
+                      disabled={busy}
+                      onChange={(e) => updateShadeName(setIdx, e.target.value)}
+                      onBlur={() => void commitShadeName(setIdx)}
+                      className={fieldClass()}
+                    />
+                  </label>
+                  <p className="text-[11px] text-ink/45">
+                    Shade {setIdx + 1}
+                    {fabricLabel ? ` · ${fabricLabel}` : ""}
+                  </p>
+                </div>
 
                 <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {components.map((comp) => (
@@ -561,8 +605,8 @@ export function DesignPhotosTab({
           Save · continue to Sizing
         </button>
         <p className="text-[12px] text-ink/45">
-          Photos save as soon as you add them. At least one photo per colour set
-          before publish.
+          Photos save as soon as you add them. Fabric swatches from inventory
+          always appear last. At least one photo per shade before publish.
         </p>
       </div>
     </div>

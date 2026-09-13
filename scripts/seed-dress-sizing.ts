@@ -1,19 +1,24 @@
-import "dotenv/config";
-import { db, sql } from "@/packages/db";
-import { seedBodyGrid } from "@/modules/dress-sizing/db/seed-grid";
-import { seedStyleTemplates } from "@/modules/dress-sizing/db/seed-templates";
+import { config } from "dotenv";
+
+config({ path: ".env.local" });
+config({ path: ".env" });
 
 async function main() {
+  const { db, sql } = await import("@/packages/db");
+  const { seedBodyGrid } = await import("@/modules/dress-sizing/db/seed-grid");
+  const { seedStyleTemplates } = await import(
+    "@/modules/dress-sizing/db/seed-templates"
+  );
+
   const grid = await seedBodyGrid(db);
   const templateCount = await seedStyleTemplates(db);
-  console.log(`Seeded dress sizing: ${grid.rowCount} grid rows, ${templateCount} templates.`);
+  console.log(
+    `Seeded dress sizing: ${grid.rowCount} grid rows, ${templateCount} templates.`,
+  );
+  await sql.end({ timeout: 5 });
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await sql.end();
-  });
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});

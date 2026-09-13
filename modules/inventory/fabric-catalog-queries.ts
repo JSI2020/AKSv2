@@ -38,7 +38,7 @@ export type FabricCatalogResult = {
   lowStockCount: number;
 };
 
-async function resolveSwatchUrl(
+export async function resolveFabricSwatchUrl(
   assetId: string | null,
 ): Promise<string | null> {
   if (!assetId) return null;
@@ -53,6 +53,12 @@ async function resolveSwatchUrl(
   } catch {
     return null;
   }
+}
+
+async function resolveSwatchUrl(
+  assetId: string | null,
+): Promise<string | null> {
+  return resolveFabricSwatchUrl(assetId);
 }
 
 export async function listFabricsCatalog(

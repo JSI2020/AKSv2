@@ -18,7 +18,11 @@
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/packages/db/client";
-import { dressGeneratedChart, dressStyle } from "@/packages/db/schema";
+import {
+  dressGeneratedChart,
+  dressStyle,
+  garmentCategories,
+} from "@/packages/db/schema";
 import {
   estimateFromPhoto,
   imageSizeFromFile,
@@ -52,6 +56,20 @@ type SilhouetteReconcile = {
   hemFullness: HemFullness;
   templateKey: GarmentType;
 };
+
+/**
+ * Does this category take a ghost mannequin? The category row owns the answer
+ * so the house can change it from Settings; the code classifier only covers a
+ * category that has no row yet.
+ */
+async function categoryWantsGhost(categoryKey: string): Promise<boolean> {
+  const [row] = await db
+    .select({ requires: garmentCategories.requiresGhostMannequin })
+    .from(garmentCategories)
+    .where(eq(garmentCategories.key, categoryKey.toUpperCase()))
+    .limit(1);
+  return row ? row.requires : supportsGhostMannequin(categoryKey);
+}
 
 /** POM keys the photo pass can measure. */
 const MEASURABLE_POMS: Record<PhotoPomKey, true> = {
@@ -415,8 +433,9 @@ export async function measureGarmentFromPhoto(
 
   // Ghost FIRST: an isolated, straight-on garment render is a much cleaner
   // surface to measure than a photo containing a model and a background.
-  const ghostSupported =
-    !input.categoryKey || supportsGhostMannequin(input.categoryKey);
+  const ghostSupported = input.categoryKey
+    ? await categoryWantsGhost(input.categoryKey)
+    : true;
   let ghostUrl: string | null = null;
   if (input.ghost !== false && ghostSupported) {
     try {

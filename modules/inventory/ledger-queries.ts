@@ -1,8 +1,9 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 
 import {
+  assets,
   colourways,
   db,
   designRenders,
@@ -22,9 +23,14 @@ import {
   trims,
 } from "@aks/db";
 import { STANDARD_SIZE_LABELS, uuidv7 } from "@aks/shared";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+
+import { resolveShadeSizeLabels } from "@/modules/designs/shade-utils";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { requirePermission } from "@/modules/auth";
+import { createPresignedReadUrl } from "@/modules/platform/assets";
 import { lotAvailableMeters } from "@/modules/inventory/lot-status";
+import { countFabricsBelowReorderPoint } from "./stock-queries";
+import { resolveFabricSwatchUrl } from "@/modules/inventory/fabric-catalog-queries";
 
 import type { LedgerMovementRow, StockLedgerDetail } from "./ledger-types";
 import { colourGradient, swatchHex } from "./ledger-types";
@@ -41,11 +47,12 @@ export async function getInventoryHubStats(): Promise<InventoryHubStats> {
   await requirePermission("inventory.view");
 
   const designRows = await db
-    .select({
-      id: designs.id,
-    })
+    .selectDistinct({ id: designs.id })
     .from(designs)
-    .where(eq(designs.status, "PUBLISHED"));
+    .innerJoin(colourways, eq(colourways.designId, designs.id))
+    .where(
+      and(eq(designs.status, "PUBLISHED"), eq(colourways.active, true)),
+    );
 
   const lowRtw = await db
     .select({ id: rtwStock.id })
@@ -68,26 +75,7 @@ export async function getInventoryHubStats(): Promise<InventoryHubStats> {
     (t) => t.quantityOnHand <= t.reorderPoint,
   ).length;
 
-  // Fabric low: any colour with available < 10m (1000 hundredths) heuristic
-  const colourLots = await db
-    .select({
-      colourwayId: fabricLots.colourwayId,
-      metersOnHand: fabricLots.metersOnHand,
-      metersReserved: fabricLots.metersReserved,
-      status: fabricLots.status,
-    })
-    .from(fabricLots)
-    .where(inArray(fabricLots.status, ["AVAILABLE", "LOW"]));
-
-  const byCw = new Map<string, number>();
-  for (const lot of colourLots) {
-    if (!lot.colourwayId) continue;
-    byCw.set(
-      lot.colourwayId,
-      (byCw.get(lot.colourwayId) ?? 0) + lotAvailableMeters(lot),
-    );
-  }
-  const fabricLow = [...byCw.values()].filter((m) => m < 1000).length;
+  const fabricLow = await countFabricsBelowReorderPoint();
 
   return {
     designs: { count: designRows.length, low: lowRtw.length },
@@ -123,9 +111,10 @@ export async function listRtwDesignCards(): Promise<RtwDesignCard[]> {
       availableSizeLabels: designs.availableSizeLabels,
     })
     .from(designs)
-    .where(inArray(designs.status, ["PUBLISHED", "READY_TO_PUBLISH", "DRAFT"]))
+    .where(eq(designs.status, "PUBLISHED"))
     .orderBy(desc(designs.updatedAt));
 
+  const collections = await listHouseCollections({ activeOnly: false });
   const houseTags = await db
     .select({
       designId: designTags.designId,
@@ -137,7 +126,7 @@ export async function listRtwDesignCards(): Promise<RtwDesignCard[]> {
         eq(designTags.kind, "FREE"),
         inArray(
           designTags.value,
-          HOUSE_COLLECTIONS.map((c) => c.tag),
+          collections.map((c) => c.tag),
         ),
       ),
     );
@@ -162,14 +151,21 @@ export async function listRtwDesignCards(): Promise<RtwDesignCard[]> {
     const lowSize = stock.some((r) => r.quantityOnHand <= r.reorderPoint);
 
     const render = await db
-      .select({ assetId: designRenders.assetId })
+      .select({ assetId: designRenders.assetId, r2Key: assets.r2Key })
       .from(designRenders)
+      .innerJoin(assets, eq(designRenders.assetId, assets.id))
       .where(eq(designRenders.designId, d.id))
       .orderBy(asc(designRenders.sortOrder))
       .limit(1);
 
-    const thumbnailUrl: string | null = null;
-    void render;
+    let thumbnailUrl: string | null = null;
+    if (render[0]?.r2Key) {
+      try {
+        thumbnailUrl = await createPresignedReadUrl(render[0].r2Key, 3600);
+      } catch {
+        thumbnailUrl = null;
+      }
+    }
 
     cards.push({
       id: d.id,
@@ -200,7 +196,9 @@ export type RtwDesignDetail = {
   colourways: {
     id: string;
     name: string;
+    fabricName: string;
     hex: string | null;
+    availableSizeLabels: string[];
     sizes: { label: string; onHand: number; reserved: number; stockId: string }[];
   }[];
 };
@@ -216,38 +214,41 @@ export async function getRtwDesignDetail(
     .limit(1);
   if (!d) return null;
 
-  const sizes =
-    d.availableSizeLabels?.length > 0
-      ? d.availableSizeLabels
-      : [...STANDARD_SIZE_LABELS];
-
   const cws = await db
-    .select()
+    .select({
+      colourway: colourways,
+      fabricName: fabrics.name,
+    })
     .from(colourways)
+    .innerJoin(fabrics, eq(colourways.fabricId, fabrics.id))
     .where(and(eq(colourways.designId, designId), eq(colourways.active, true)))
     .orderBy(asc(colourways.sortOrder));
 
   const colourwayList = [];
-  for (const cw of cws) {
+  for (const row of cws) {
+    const cw = row.colourway;
+    const labels = resolveShadeSizeLabels(cw, d);
     const sizeRows = [];
-    for (const label of sizes) {
+    for (const label of labels) {
       const stockId = await ensureRtwStockRow(designId, cw.id, label);
-      const [row] = await db
+      const [stockRow] = await db
         .select()
         .from(rtwStock)
         .where(eq(rtwStock.id, stockId))
         .limit(1);
       sizeRows.push({
         label,
-        onHand: row?.quantityOnHand ?? 0,
-        reserved: row?.quantityReserved ?? 0,
+        onHand: stockRow?.quantityOnHand ?? 0,
+        reserved: stockRow?.quantityReserved ?? 0,
         stockId,
       });
     }
     colourwayList.push({
       id: cw.id,
       name: cw.name,
+      fabricName: row.fabricName,
       hex: cw.hexApproximation,
+      availableSizeLabels: labels,
       sizes: sizeRows,
     });
   }
@@ -275,10 +276,21 @@ export async function getRtwLedger(
     .where(eq(designs.id, designId))
     .limit(1);
   const [cw] = await db
-    .select()
+    .select({
+      colourway: colourways,
+      fabricName: fabrics.name,
+    })
     .from(colourways)
+    .innerJoin(fabrics, eq(colourways.fabricId, fabrics.id))
     .where(eq(colourways.id, colourwayId))
     .limit(1);
+
+  const shadeName = cw?.colourway.name ?? "Shade";
+  const fabricName = cw?.fabricName;
+  const subtitleParts = [`Size ${sizeLabel}`];
+  if (fabricName && fabricName !== shadeName) {
+    subtitleParts.unshift(fabricName);
+  }
 
   const movs = await db
     .select()
@@ -288,10 +300,13 @@ export async function getRtwLedger(
     .limit(50);
 
   return {
-    title: `${d?.name ?? "Design"} · ${cw?.name ?? "Colour"}`,
-    subtitle: `Size ${sizeLabel}`,
+    title: `${d?.name ?? "Design"} · ${shadeName}`,
+    subtitle: subtitleParts.join(" · "),
     photoUrl: null,
-    photoGradient: colourGradient(cw?.name ?? "", cw?.hexApproximation),
+    photoGradient: colourGradient(
+      shadeName,
+      cw?.colourway.hexApproximation ?? null,
+    ),
     figures: {
       onHand: row.quantityOnHand,
       reserved: row.quantityReserved,
@@ -320,6 +335,31 @@ function mapMov(m: {
     note: m.note,
     reference: m.orderId ? `Order ${m.orderId.slice(0, 8)}` : m.note,
   };
+}
+
+/** Copy the fabric master swatch onto colourways missing their own photo. */
+export async function syncFabricColourwaySwatches(
+  fabricId: string,
+): Promise<void> {
+  const [fabric] = await db
+    .select({ swatchAssetId: fabrics.swatchAssetId })
+    .from(fabrics)
+    .where(eq(fabrics.id, fabricId))
+    .limit(1);
+  if (!fabric?.swatchAssetId) return;
+
+  await db
+    .update(fabricColourways)
+    .set({
+      swatchAssetId: fabric.swatchAssetId,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(fabricColourways.fabricId, fabricId),
+        isNull(fabricColourways.swatchAssetId),
+      ),
+    );
 }
 
 /** Ensure fabric colourways exist from lot colourNotes. */
@@ -377,6 +417,8 @@ export async function ensureFabricColourways(
       active: true,
     });
   }
+
+  await syncFabricColourwaySwatches(fabricId);
 }
 
 export type FabricInvCard = {
@@ -384,7 +426,11 @@ export type FabricInvCard = {
   name: string;
   rateMinor: number;
   colourCount: number;
-  totalMeters: number;
+  metersOnHand: number;
+  metersReserved: number;
+  metersAvailable: number;
+  reorderPointMeters: number;
+  swatchUrl: string | null;
   low: boolean;
   hexes: string[];
   gradient: string;
@@ -419,7 +465,9 @@ export async function listFabricInventoryCards(): Promise<FabricInvCard[]> {
           inArray(fabricLots.status, ["AVAILABLE", "LOW"]),
         ),
       );
-    const totalMeters = lots.reduce((s, l) => s + lotAvailableMeters(l), 0);
+    const metersOnHand = lots.reduce((s, l) => s + l.metersOnHand, 0);
+    const metersReserved = lots.reduce((s, l) => s + l.metersReserved, 0);
+    const metersAvailable = lots.reduce((s, l) => s + lotAvailableMeters(l), 0);
     const byCw = new Map<string, number>();
     for (const l of lots) {
       if (!l.colourwayId) continue;
@@ -428,13 +476,19 @@ export async function listFabricInventoryCards(): Promise<FabricInvCard[]> {
         (byCw.get(l.colourwayId) ?? 0) + lotAvailableMeters(l),
       );
     }
-    const low = [...byCw.values()].some((m) => m < 1000);
+    const low =
+      f.reorderPointMeters > 0 &&
+      metersAvailable <= f.reorderPointMeters;
     cards.push({
       id: f.id,
       name: f.name,
       rateMinor: f.costPerMeterMinor ?? 0,
       colourCount: cws.length,
-      totalMeters,
+      metersOnHand,
+      metersReserved,
+      metersAvailable,
+      reorderPointMeters: f.reorderPointMeters,
+      swatchUrl: await resolveFabricSwatchUrl(f.swatchAssetId),
       low,
       hexes: cws
         .map((c) => c.hexApproximation)
@@ -455,8 +509,11 @@ export type FabricColourCard = {
   hex: string | null;
   onHand: number;
   reserved: number;
+  available: number;
+  reorderPointMeters: number;
   low: boolean;
   gradient: string;
+  swatchUrl: string | null;
 };
 
 export async function listFabricColourCards(
@@ -495,14 +552,19 @@ export async function listFabricColourCards(
     const onHand = lots.reduce((s, l) => s + l.metersOnHand, 0);
     const reserved = lots.reduce((s, l) => s + l.metersReserved, 0);
     const available = lots.reduce((s, l) => s + lotAvailableMeters(l), 0);
+    const swatchAssetId = cw.swatchAssetId ?? f.swatchAssetId;
     colours.push({
       id: cw.id,
       colourName: cw.colourName,
       hex: cw.hexApproximation,
       onHand,
       reserved,
-      low: available < 1000,
+      available,
+      reorderPointMeters: f.reorderPointMeters,
+      low:
+        f.reorderPointMeters > 0 && available <= f.reorderPointMeters,
       gradient: colourGradient(cw.colourName, cw.hexApproximation),
+      swatchUrl: await resolveFabricSwatchUrl(swatchAssetId),
     });
   }
   return {
@@ -547,16 +609,22 @@ export async function getFabricColourLedger(
           .orderBy(desc(stockAdjustments.createdAt))
           .limit(50);
 
+  const swatchAssetId = cw.swatchAssetId ?? f.swatchAssetId;
+  const photoUrl = await resolveFabricSwatchUrl(swatchAssetId);
+
   return {
     title: `${f.name} · ${cw.colourName}`,
-    subtitle: `PKR ${Math.round((f.costPerMeterMinor ?? 0) / 100).toLocaleString()} / metre`,
-    photoUrl: null,
-    photoGradient: colourGradient(cw.colourName, cw.hexApproximation),
+    subtitle: f.composition,
+    photoUrl,
+    photoGradient: photoUrl
+      ? null
+      : colourGradient(cw.colourName, cw.hexApproximation),
     figures: {
       onHand,
       reserved,
       available: Math.max(0, onHand - reserved),
       unit: "m",
+      reorderPointMeters: f.reorderPointMeters,
     },
     movements: movs.map((m) => ({
       id: m.id,

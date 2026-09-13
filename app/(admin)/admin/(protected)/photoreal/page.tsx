@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 
-import { Eyebrow } from "@/modules/ui";
 import {
   PermissionDeniedError,
   UnauthenticatedError,
@@ -25,8 +24,7 @@ export default async function AdminPhotorealPage() {
   }
 
   return (
-    <div>
-      <Eyebrow>Photoreal</Eyebrow>
+    <div className="mx-auto max-w-[1280px] px-4 sm:px-6 lg:px-8">
       <StudioApp />
     </div>
   );

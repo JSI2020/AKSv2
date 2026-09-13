@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 
 import {
   db,
@@ -11,6 +11,7 @@ import {
 } from "@aks/db";
 
 import { auth } from "@/auth";
+import { normalizeEmail } from "@/modules/auth/otp";
 import { createPresignedReadUrl } from "@/modules/platform/assets";
 
 import type { OrderStatus } from "./constants";
@@ -170,7 +171,16 @@ export async function getCustomerOrderByNumber(
     .where(eq(orders.orderNumber, orderNumber))
     .limit(1);
 
-  if (!order || order.userId !== session.user.id) return null;
+  if (!order) return null;
+
+  const email = session.user.email
+    ? normalizeEmail(session.user.email)
+    : null;
+  const ownsOrder =
+    order.userId === session.user.id ||
+    (email && order.guestEmail && normalizeEmail(order.guestEmail) === email);
+
+  if (!ownsOrder) return null;
 
   const items = await db
     .select()
@@ -233,6 +243,10 @@ export async function listCustomerOrders(): Promise<
   const session = await auth();
   if (!session?.user?.id) return [];
 
+  const email = session.user.email
+    ? normalizeEmail(session.user.email)
+    : null;
+
   const rows = await db
     .select({
       orderNumber: orders.orderNumber,
@@ -240,7 +254,11 @@ export async function listCustomerOrders(): Promise<
       status: orders.status,
     })
     .from(orders)
-    .where(eq(orders.userId, session.user.id))
+    .where(
+      email
+        ? or(eq(orders.userId, session.user.id), eq(orders.guestEmail, email))
+        : eq(orders.userId, session.user.id),
+    )
     .orderBy(desc(orders.placedAt));
 
   return rows.map((row) => ({
@@ -282,7 +300,7 @@ export async function getOrderRecipientVars(orderId: string) {
       orderNumber: order.orderNumber,
       customerName:
         user?.name ?? order.shippingAddressSnapshot.recipientName ?? "there",
-      trackUrl: `${base}/en/track/${encodeURIComponent(order.orderNumber)}`,
+      trackUrl: `${base}/track/${encodeURIComponent(order.orderNumber)}`,
     },
   };
 }

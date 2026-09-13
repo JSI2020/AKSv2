@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import type { HouseCollectionPublic } from "@/modules/catalog/house-collections-queries";
 
 import { InventoryPhotoCard } from "./inventory-photo-card";
 import type { RtwDesignCard } from "./ledger-queries";
@@ -32,7 +32,13 @@ function chipClass(on: boolean) {
     : "border border-ink/12 px-2.5 py-1.5 text-[11px] uppercase tracking-[0.06em] text-ink/55 hover:border-ink";
 }
 
-export function RtwDesignsInventoryView({ cards }: { cards: RtwDesignCard[] }) {
+export function RtwDesignsInventoryView({
+  cards,
+  houseCollections,
+}: {
+  cards: RtwDesignCard[];
+  houseCollections: HouseCollectionPublic[];
+}) {
   const [query, setQuery] = useState("");
   const [house, setHouse] = useState<string>("all");
   const [stock, setStock] = useState<StockFilter>("all");
@@ -65,7 +71,7 @@ export function RtwDesignsInventoryView({ cards }: { cards: RtwDesignCard[] }) {
       cards: RtwDesignCard[];
     }[] = [];
 
-    for (const col of HOUSE_COLLECTIONS) {
+    for (const col of houseCollections) {
       const list = filtered.filter((c) => c.houseDoor === col.tag);
       if (list.length === 0) continue;
       sections.push({
@@ -85,7 +91,7 @@ export function RtwDesignsInventoryView({ cards }: { cards: RtwDesignCard[] }) {
     }
 
     return sections;
-  }, [filtered]);
+  }, [filtered, houseCollections]);
 
   const houseCounts = useMemo(() => {
     const m = new Map<string, number>();
@@ -124,7 +130,7 @@ export function RtwDesignsInventoryView({ cards }: { cards: RtwDesignCard[] }) {
             >
               All ({cards.length})
             </button>
-            {HOUSE_COLLECTIONS.map((col) => {
+            {houseCollections.map((col) => {
               const n = houseCounts.get(col.tag) ?? 0;
               return (
                 <button
@@ -218,6 +224,7 @@ export function RtwDesignsInventoryView({ cards }: { cards: RtwDesignCard[] }) {
                     .join(" · ")}
                   stockLabel="Total units"
                   stockValue={String(c.totalUnits)}
+                  photoUrl={c.thumbnailUrl}
                   low={c.lowSize}
                   lowTag="Low size"
                   gradient={c.gradient}

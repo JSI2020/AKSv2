@@ -30,12 +30,20 @@ export function LoginForm() {
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
+        devCode?: string;
       };
       if (!res.ok) {
         setError(data.error ?? "Could not send code");
         return;
       }
-      setMessage(data.message ?? "Check your email for a sign-in code.");
+      setMessage(
+        data.devCode
+          ? `Dev code filled below — valid 24 hours.`
+          : (data.message ?? "Check your email for a sign-in code."),
+      );
+      if (data.devCode) {
+        setOtp(data.devCode);
+      }
       setStep("otp");
     });
   }

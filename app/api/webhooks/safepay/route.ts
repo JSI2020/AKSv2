@@ -4,6 +4,7 @@ import {
   processSafepayWebhook,
   WebhookVerificationError,
 } from "@/modules/payments";
+import { captureException } from "@/modules/platform/observability";
 
 export async function POST(request: Request) {
   const rawBody = await request.text();
@@ -34,7 +35,7 @@ export async function POST(request: Request) {
     if (error instanceof WebhookVerificationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
-    console.error("[safepay-webhook]", error);
+    captureException(error, { route: "safepay-webhook" });
     return NextResponse.json({ error: "Webhook processing failed." }, {
       status: 500,
     });

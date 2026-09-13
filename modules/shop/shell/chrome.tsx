@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { Link } from "@/i18n/routing";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { listActiveAnnouncements } from "@/modules/content/announcements";
 import { listActiveNav } from "@/modules/content/nav";
 import { getSiteSettings } from "@/modules/content/site-settings";
@@ -10,10 +10,6 @@ import { AnnouncementTicker } from "./announcement-ticker";
 import { AksBrandLogo } from "./aks-brand-logo";
 import { FooterNewsletter } from "./footer-newsletter";
 import { ShopHeaderClient } from "./shop-header";
-
-const FOUR_DOORS = HOUSE_COLLECTIONS.filter((c) =>
-  ["essentials", "tailored", "occasion", "signature"].includes(c.slug),
-);
 
 /** @deprecated Prototype C uses a single header — kept for import safety. */
 export async function ShopUtilityBar() {
@@ -51,22 +47,39 @@ export async function ShopHeader() {
         : [];
 
   return (
-    <>
+    <div
+      className={
+        tickerItems.length > 0
+          ? "shop-topchrome has-ticker"
+          : "shop-topchrome"
+      }
+    >
       <AnnouncementTicker items={tickerItems} />
       <ShopHeaderClient headerNav={headerNav} />
-    </>
+    </div>
   );
 }
 
 export async function ShopFooter() {
   const t = await getTranslations("ShopShell");
-  const [settings, footerNav] = await Promise.all([
+  const [settings, footerNav, collections] = await Promise.all([
     getSiteSettings(),
     listActiveNav("FOOTER"),
+    listHouseCollections({ activeOnly: true }),
   ]);
 
   const shopLinks = footerNav.filter((n) => n.columnKey === "shop");
   const atelierLinks = footerNav.filter((n) => n.columnKey === "atelier");
+
+  const defaultDoors = collections
+    .filter((c) => c.slug !== "separates")
+    .slice(0, 4)
+    .map((c) => ({
+      id: c.slug,
+      label: c.navLabel,
+      href: `/collections/${c.slug}`,
+      columnKey: "shop",
+    }));
 
   return (
     <footer className="shop-footer">
@@ -74,7 +87,6 @@ export async function ShopFooter() {
         <div className="fbrand">
           <div className="fmark">
             <AksBrandLogo className="flogo" />
-            <span className="ur">عکس</span>
           </div>
           <div className="ftag">{t("footerTag")}</div>
           <p>{t("footerBlurb")}</p>
@@ -83,15 +95,7 @@ export async function ShopFooter() {
         <div>
           <h5>{t("footerShop")}</h5>
           <ul>
-            {(shopLinks.length > 0
-              ? shopLinks
-              : FOUR_DOORS.map((c) => ({
-                  id: c.slug,
-                  label: c.navLabel,
-                  href: `/collections/${c.slug}`,
-                  columnKey: "shop",
-                }))
-            ).map((c) => (
+            {(shopLinks.length > 0 ? shopLinks : defaultDoors).map((c) => (
               <li key={c.id}>
                 <Link href={c.href as "/collections"}>{c.label}</Link>
               </li>

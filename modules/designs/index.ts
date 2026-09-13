@@ -27,7 +27,7 @@ export type {
   CatalogueColourwayInput,
   CreatePublishedCatalogueDesignInput,
 } from "./catalogue-writer";
-export { evaluatePublishChecklist } from "./publish-checklist";
+export { evaluatePublishChecklist, resolveEffectiveBasePriceMinor } from "./publish-checklist";
 export { listStudioCatalogGrouped } from "./studio-catalog";
 export type { StudioCatalogCard, StudioCatalogGroup } from "./studio-catalog";
 export {

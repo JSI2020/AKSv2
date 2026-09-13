@@ -1,12 +1,12 @@
 import { setRequestLocale } from "next-intl/server";
 
-import { DesignCard } from "@/modules/catalog/design-card";
-import { SearchBox } from "@/modules/catalog/search-box";
 import {
   collectionSearchParamsCache,
+  getCollectionFacetOptions,
   getPublishedDesigns,
   searchParamsToFilters,
 } from "@/modules/catalog";
+import { SearchPageView } from "@/modules/catalog/search-page-view";
 import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import {
   automaticPercentForDesign,
@@ -26,13 +26,19 @@ export default async function SearchPage({ params, searchParams }: Props) {
   const parsed = collectionSearchParamsCache.parse(await searchParams);
   const { filters, sort, page } = searchParamsToFilters(parsed);
   const query = parsed.q.trim();
-
   const hasQuery = query.length > 0;
 
-  const [{ items, total }, autoDiscounts, collections] = await Promise.all([
+  const [catalog, facets, autoDiscounts, collections] = await Promise.all([
     hasQuery
       ? getPublishedDesigns({ filters, sort, page })
-      : Promise.resolve({ items: [], total: 0 }),
+      : Promise.resolve({
+          items: [],
+          total: 0,
+          page: 1,
+          pageSize: 24,
+          pageCount: 0,
+        }),
+    getCollectionFacetOptions(),
     loadActiveAutomaticPercentDiscounts(),
     listHouseCollections({ activeOnly: true }),
   ]);
@@ -44,7 +50,7 @@ export default async function SearchPage({ params, searchParams }: Props) {
     ]),
   );
 
-  const withBadges = items.map((d) => ({
+  const withBadges = catalog.items.map((d) => ({
     ...d,
     automaticPercentOff: automaticPercentForDesign({
       designId: d.id,
@@ -56,41 +62,14 @@ export default async function SearchPage({ params, searchParams }: Props) {
 
   return (
     <ShopPageContainer>
-      <div className="mx-auto max-w-[1500px] px-[2.5rem] pb-24 pt-28 max-[900px]:px-[1.4rem]">
-        <h1 className="serif mb-6 text-[clamp(1.8rem,3.5vw,2.4rem)] font-light leading-none">
-          Search
-        </h1>
-
-        <div className="max-w-[560px]">
-          <SearchBox initialQuery={query} />
-        </div>
-
-        {hasQuery ? (
-          <>
-            <p className="mb-8 mt-6 text-[13px]" style={{ color: "var(--taupe)" }}>
-              {total === 0
-                ? `Nothing matched “${query}”. Try a name, an item code, a garment like “kameez”, or a colour.`
-                : `${total} ${total === 1 ? "piece" : "pieces"} for “${query}”`}
-            </p>
-            {total > 0 ? (
-              <div className="grid">
-                {withBadges.map((design) => (
-                  <DesignCard
-                    key={design.id}
-                    design={design}
-                    doorLabels={doorLabels}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </>
-        ) : (
-          <p className="mb-8 mt-6 text-[13px]" style={{ color: "var(--taupe)" }}>
-            Search by article name or code, by garment — kameez, kurta, trouser —
-            or by colour like blue or red.
-          </p>
-        )}
-      </div>
+      <SearchPageView
+        query={query}
+        items={withBadges}
+        total={catalog.total}
+        pageCount={catalog.pageCount}
+        facets={facets}
+        doorLabels={doorLabels}
+      />
     </ShopPageContainer>
   );
 }

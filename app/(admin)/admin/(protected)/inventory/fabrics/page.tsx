@@ -45,10 +45,15 @@ export default async function InventoryFabricsPage() {
             href={`/admin/inventory/fabrics/${c.id}`}
             title={c.name}
             meta={`PKR ${Math.round(c.rateMinor / 100).toLocaleString()}/m`}
-            stockLabel="Total on hand"
-            stockValue={`${(c.totalMeters / 100).toFixed(1)} m`}
+            triad={{
+              onHand: c.metersOnHand,
+              reserved: c.metersReserved,
+              available: c.metersAvailable,
+              reorderPoint: c.reorderPointMeters,
+            }}
+            photoUrl={c.swatchUrl}
             low={c.low}
-            lowTag="Low colour"
+            lowTag="Low stock"
             gradient={c.gradient}
             hexes={c.hexes}
             square

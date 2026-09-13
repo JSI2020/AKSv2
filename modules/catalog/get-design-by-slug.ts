@@ -16,6 +16,7 @@ import {
 import { formatModelDisclosure } from "@aks/shared";
 
 import { createPresignedReadUrl } from "@/modules/platform/assets/r2";
+import { FABRIC_SWATCH_ALT } from "@/modules/designs/fabric-swatch-render";
 import { getRtwStockMapForDesign } from "@/modules/inventory/rtw-stock";
 import { STANDARD_SIZE_LABELS } from "./types";
 
@@ -51,7 +52,7 @@ export async function getDesignBySlug(
       ? row.design.availableSizeLabels
       : [...STANDARD_SIZE_LABELS];
 
-  const [tags, cwRows, opts, renderArchetypes, rtwAvailability] =
+  const [tags, cwRows, opts, renderArchetypes, rtwAvailability, swatchRenders] =
     await Promise.all([
       db.select().from(designTags).where(eq(designTags.designId, designId)),
       db
@@ -66,7 +67,11 @@ export async function getDesignBySlug(
         .innerJoin(fabrics, eq(colourways.fabricId, fabrics.id))
         .leftJoin(assets, eq(fabrics.swatchAssetId, assets.id))
         .where(
-          and(eq(colourways.designId, designId), eq(colourways.active, true)),
+          and(
+            eq(colourways.designId, designId),
+            eq(colourways.active, true),
+            eq(fabrics.active, true),
+          ),
         )
         .orderBy(asc(colourways.sortOrder)),
       db
@@ -84,7 +89,34 @@ export async function getDesignBySlug(
           ),
         ),
       getRtwStockMapForDesign(designId),
+      db
+        .select({
+          colourwayId: designRenders.colourwayId,
+          assetId: designRenders.assetId,
+          r2Key: assets.r2Key,
+        })
+        .from(designRenders)
+        .innerJoin(assets, eq(designRenders.assetId, assets.id))
+        .where(
+          and(
+            eq(designRenders.designId, designId),
+            eq(designRenders.altText, FABRIC_SWATCH_ALT),
+          ),
+        ),
     ]);
+
+  const renderSwatchByColourway = new Map<
+    string,
+    { assetId: string; r2Key: string }
+  >();
+  for (const row of swatchRenders) {
+    if (!renderSwatchByColourway.has(row.colourwayId)) {
+      renderSwatchByColourway.set(row.colourwayId, {
+        assetId: row.assetId,
+        r2Key: row.r2Key,
+      });
+    }
+  }
 
   const optionValues = await Promise.all(
     opts.map(async (option) => {
@@ -100,11 +132,23 @@ export async function getDesignBySlug(
   const colourwaysPublic = await Promise.all(
     cwRows.map(async (cw) => {
       let swatchUrl: string | null = null;
+      let swatchAssetId = cw.swatchAssetId;
       if (cw.swatchR2Key) {
         try {
           swatchUrl = await createPresignedReadUrl(cw.swatchR2Key, 3600);
         } catch {
           swatchUrl = null;
+        }
+      }
+      if (!swatchUrl) {
+        const fromRender = renderSwatchByColourway.get(cw.colourway.id);
+        if (fromRender) {
+          swatchAssetId = fromRender.assetId;
+          try {
+            swatchUrl = await createPresignedReadUrl(fromRender.r2Key, 3600);
+          } catch {
+            swatchUrl = null;
+          }
         }
       }
       return {
@@ -116,10 +160,13 @@ export async function getDesignBySlug(
         fabricName: cw.fabricName,
         hexApproximation: cw.colourway.hexApproximation,
         priceDeltaMinor: cw.colourway.priceDeltaMinor,
+        availableSizeLabels: cw.colourway.availableSizeLabels ?? [],
+        basePriceMinor: cw.colourway.basePriceMinor ?? null,
+        compareAtPriceMinor: cw.colourway.compareAtPriceMinor ?? null,
         isDefault: cw.colourway.isDefault,
         sortOrder: cw.colourway.sortOrder,
-        swatch: cw.swatchAssetId
-          ? { assetId: cw.swatchAssetId, url: swatchUrl }
+        swatch: swatchAssetId
+          ? { assetId: swatchAssetId, url: swatchUrl }
           : null,
       };
     }),

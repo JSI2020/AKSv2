@@ -20,10 +20,10 @@ export function DesignColourwayPicker({
 
   return (
     <div>
-      <div className="opt-label">
+      <div className="opt-label" id="pdp-shade-label">
         Shade <span className="val">{selected?.name ?? ""}</span>
       </div>
-      <div className="colours">
+      <div className="colours" role="group" aria-labelledby="pdp-shade-label">
         {colourways.map((cw) => {
           const active = cw.id === colourwayId;
           return (
@@ -32,7 +32,7 @@ export function DesignColourwayPicker({
               type="button"
               className={`colour${active ? " on" : ""}`}
               aria-label={cw.name}
-              aria-current={active ? "true" : undefined}
+              aria-pressed={active}
               title={cw.name}
               onClick={() => onSelect(cw.id)}
               style={
@@ -52,15 +52,19 @@ export function DesignColourwayPicker({
                 />
               ) : !cw.hexApproximation ? (
                 <span
+                  aria-hidden="true"
                   style={{
-                    fontSize: 9,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    letterSpacing: "0.02em",
+                    color: "var(--ink)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     height: "100%",
                   }}
                 >
-                  {cw.name.slice(0, 2)}
+                  {cw.name.slice(0, 2).toUpperCase()}
                 </span>
               ) : null}
             </button>

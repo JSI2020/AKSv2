@@ -12,13 +12,6 @@
  * template registered in Meta Business Manager.
  */
 
-export function isWhatsappConfigured(): boolean {
-  return Boolean(
-    process.env.WHATSAPP_ACCESS_TOKEN?.trim() &&
-      process.env.WHATSAPP_PHONE_NUMBER_ID?.trim(),
-  );
-}
-
 export async function sendWhatsappText(input: {
   to: string;
   body: string;
@@ -56,6 +49,77 @@ export async function sendWhatsappText(input: {
   if (!res.ok) {
     throw new Error(
       json.error?.message ?? `WhatsApp send failed (HTTP ${res.status})`,
+    );
+  }
+
+  return { id: json.messages?.[0]?.id ?? "sent" };
+}
+
+export function isWhatsappConfigured(): boolean {
+  return Boolean(
+    process.env.WHATSAPP_ACCESS_TOKEN?.trim() &&
+      process.env.WHATSAPP_PHONE_NUMBER_ID?.trim(),
+  );
+}
+
+/** Send a pre-approved Meta template (business-initiated, outside 24h window). */
+export async function sendWhatsappTemplate(input: {
+  to: string;
+  templateName: string;
+  languageCode?: string;
+  /** Body {{1}}, {{2}}… parameter values in order. */
+  bodyParameters: string[];
+}): Promise<{ id: string }> {
+  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
+  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
+  const version = process.env.WHATSAPP_API_VERSION?.trim() || "v21.0";
+  if (!token || !phoneNumberId) {
+    throw new Error("WhatsApp is not configured");
+  }
+
+  const components =
+    input.bodyParameters.length > 0
+      ? [
+          {
+            type: "body",
+            parameters: input.bodyParameters.map((text) => ({
+              type: "text",
+              text,
+            })),
+          },
+        ]
+      : undefined;
+
+  const res = await fetch(
+    `https://graph.facebook.com/${version}/${phoneNumberId}/messages`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to: input.to,
+        type: "template",
+        template: {
+          name: input.templateName,
+          language: { code: input.languageCode ?? "en" },
+          ...(components ? { components } : {}),
+        },
+      }),
+    },
+  );
+
+  const json = (await res.json().catch(() => ({}))) as {
+    messages?: Array<{ id: string }>;
+    error?: { message?: string };
+  };
+
+  if (!res.ok) {
+    throw new Error(
+      json.error?.message ?? `WhatsApp template send failed (HTTP ${res.status})`,
     );
   }
 

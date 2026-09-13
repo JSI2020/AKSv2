@@ -1,14 +1,18 @@
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import { getHouseCollectionByTag } from "@/modules/catalog/house-collections-queries";
 
 /** Resolve house-door tag keys used on design FREE tags. */
-export function houseDoorTagKeys(categoryKey: string): string[] {
+export async function houseDoorTagKeys(
+  categoryKey: string,
+): Promise<string[]> {
   const raw = categoryKey.trim();
   if (!raw) return [];
   const upper = raw.toUpperCase();
   const lower = raw.toLowerCase();
-  const house = HOUSE_COLLECTIONS.find(
-    (c) => c.tag === upper || c.slug === lower,
+  const house = await getHouseCollectionByTag(upper);
+  if (house) return [house.tag, house.slug, house.slug.toUpperCase()];
+  const bySlug = await import("@/modules/catalog/house-collections-queries").then(
+    (m) => m.getHouseCollectionBySlug(lower),
   );
-  if (!house) return [upper, lower];
-  return [house.tag, house.slug, house.slug.toUpperCase()];
+  if (bySlug) return [bySlug.tag, bySlug.slug, bySlug.slug.toUpperCase()];
+  return [upper, lower];
 }

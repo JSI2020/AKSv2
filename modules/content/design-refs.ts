@@ -4,9 +4,8 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, designTags, designs } from "@aks/db";
 
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
-
 import { houseDoorTagKeys } from "./house-door";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import type { PublishedDesignOption } from "./types";
 
 export type { PublishedDesignOption };
@@ -46,7 +45,8 @@ export async function listPublishedDesignOptions(): Promise<
     );
 
   const doorByDesign = new Map<string, string>();
-  const doorSet = new Set(HOUSE_COLLECTIONS.map((c) => c.tag));
+  const collections = await listHouseCollections({ activeOnly: false });
+  const doorSet = new Set(collections.map((c) => c.tag));
   for (const t of tags) {
     const upper = t.value.toUpperCase();
     if (doorSet.has(upper) && !doorByDesign.has(t.designId)) {
@@ -63,7 +63,7 @@ export async function listPublishedDesignOptions(): Promise<
 export async function countPublishedDesignsForCategory(
   categoryKey: string,
 ): Promise<number> {
-  const keys = [...new Set(houseDoorTagKeys(categoryKey))];
+  const keys = [...new Set(await houseDoorTagKeys(categoryKey))];
   if (keys.length === 0) return 0;
 
   const [row] = await db
@@ -85,7 +85,7 @@ export async function listPublishedDesignThumbsForCategory(
   categoryKey: string,
   limit = 6,
 ): Promise<Array<{ id: string; name: string; ogAssetId: string | null }>> {
-  const keys = [...new Set(houseDoorTagKeys(categoryKey))];
+  const keys = [...new Set(await houseDoorTagKeys(categoryKey))];
   if (keys.length === 0) return [];
 
   return db

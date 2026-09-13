@@ -7,16 +7,19 @@ import {
   UnauthenticatedError,
 } from "@/modules/auth";
 import { listPublishedDesignOptions } from "@/modules/content/design-refs";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { DiscountsDashboard, listDiscounts } from "@/modules/discounts";
 
 export default async function AdminDiscountsPage() {
   let rows;
   let publishedDesigns: Awaited<ReturnType<typeof listPublishedDesignOptions>> =
     [];
+  let houseCollections: Awaited<ReturnType<typeof listHouseCollections>> = [];
   try {
-    [rows, publishedDesigns] = await Promise.all([
+    [rows, publishedDesigns, houseCollections] = await Promise.all([
       listDiscounts(),
       listPublishedDesignOptions(),
+      listHouseCollections({ activeOnly: true }),
     ]);
   } catch (e) {
     if (
@@ -51,6 +54,7 @@ export default async function AdminDiscountsPage() {
             id: d.id,
             name: d.name,
           }))}
+          houseCollections={houseCollections}
         />
       </div>
     </div>

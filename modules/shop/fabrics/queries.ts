@@ -2,6 +2,8 @@ import { asc, eq } from "drizzle-orm";
 
 import { db, fabrics } from "@aks/db";
 
+import { resolveFabricSwatchUrl } from "@/modules/inventory/fabric-catalog-queries";
+
 export type FabricLibraryRow = {
   id: string;
   name: string;
@@ -9,6 +11,7 @@ export type FabricLibraryRow = {
   drapeNotes: string | null;
   careInstructions: string | null;
   drapeClass: string;
+  swatchUrl: string | null;
 };
 
 export async function listStorefrontFabrics(): Promise<FabricLibraryRow[]> {
@@ -20,6 +23,7 @@ export async function listStorefrontFabrics(): Promise<FabricLibraryRow[]> {
       drapeNotes: fabrics.drapeNotes,
       careInstructions: fabrics.careInstructions,
       drapeClass: fabrics.drapeClass,
+      swatchAssetId: fabrics.swatchAssetId,
     })
     .from(fabrics)
     .where(eq(fabrics.active, true))
@@ -33,7 +37,15 @@ export async function listStorefrontFabrics(): Promise<FabricLibraryRow[]> {
     const key = r.name.trim().toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    unique.push(r);
+    unique.push({
+      id: r.id,
+      name: r.name,
+      composition: r.composition,
+      drapeNotes: r.drapeNotes,
+      careInstructions: r.careInstructions,
+      drapeClass: r.drapeClass,
+      swatchUrl: await resolveFabricSwatchUrl(r.swatchAssetId),
+    });
   }
   return unique;
 }

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Eyebrow } from "@/modules/ui";
 import { requirePermission } from "@/modules/auth";
 import { HomepageAdmin } from "@/modules/content/admin/homepage-admin";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import {
   countPublishedDesignsForCategory,
   listPublishedDesignOptions,
@@ -17,11 +18,13 @@ import {
 export default async function HomepageContentPage() {
   await requirePermission("content.view");
   const draft = await getOrCreateDraftHomepage();
-  const [heroes, tiles, blocks, publishedDesigns] = await Promise.all([
+  const [heroes, tiles, blocks, publishedDesigns, houseCollections] =
+    await Promise.all([
     listHeroSlidesAdmin(draft.id),
     listCategoryTilesAdmin(draft.id),
     listFeaturedBlocksAdmin(draft.id),
     listPublishedDesignOptions(),
+    listHouseCollections({ activeOnly: true }),
   ]);
 
   const tilesWithCounts = await Promise.all(
@@ -68,6 +71,7 @@ export default async function HomepageContentPage() {
         tiles={tilesWithCounts}
         blocks={blocks}
         publishedDesigns={publishedDesigns}
+        houseCollections={houseCollections}
       />
     </div>
   );

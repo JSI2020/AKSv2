@@ -1,9 +1,10 @@
 "use server";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 
 import {
+  colourways,
   db,
   designCosts,
   designs,
@@ -51,6 +52,7 @@ export async function saveDesignCosting(
   try {
     const session = await requirePermission("money.edit_costs");
     const designId = String(formData.get("designId") ?? "");
+    const colourwayId = String(formData.get("colourwayId") ?? "").trim();
     let fabricId = String(formData.get("fabricId") ?? "");
     const fabricMeters = Number.parseInt(
       String(formData.get("fabricMeters") ?? ""),
@@ -87,13 +89,29 @@ export async function saveDesignCosting(
       ? Number.parseInt(totalLumpsumRaw, 10)
       : null;
 
-    // Selling price for margin comes from design retail (Price tab), not a draft here.
+    // Selling price for margin comes from shade (Price tab) or design retail.
     const [designPrice] = await db
       .select({ basePriceMinor: designs.basePriceMinor })
       .from(designs)
       .where(eq(designs.id, designId))
       .limit(1);
-    const sellingPriceMinor = designPrice?.basePriceMinor ?? 0;
+
+    let sellingPriceMinor = designPrice?.basePriceMinor ?? 0;
+    if (colourwayId) {
+      const [cw] = await db
+        .select({ basePriceMinor: colourways.basePriceMinor })
+        .from(colourways)
+        .where(
+          and(eq(colourways.id, colourwayId), eq(colourways.designId, designId)),
+        )
+        .limit(1);
+      if (!cw) {
+        return { ok: false, error: "Shade not found on this design." };
+      }
+      if (cw.basePriceMinor != null && cw.basePriceMinor > 0) {
+        sellingPriceMinor = cw.basePriceMinor;
+      }
+    }
 
     let pieceCosts: Array<{
       componentKey: string;
@@ -197,6 +215,62 @@ export async function saveDesignCosting(
       sellingPriceMinor,
       ratesById,
     });
+
+    const snapshot = {
+      fabricId,
+      fabricMeters: fabricMetersFinal,
+      embroideryRateId: embroideryRateIdFinal,
+      embroideryFlatMinor: embroideryFlatFinal,
+      stitchingRateId: stitchingRateIdFinal,
+      stitchingFlatMinor: stitchingFlatFinal,
+      packagingMinor,
+      shippingMinor,
+      overheadMinor,
+      costingMode,
+      pieceCosts,
+      totalLumpsumMinor:
+        costingMode === "TOTAL_LUMPSUM" ? totalLumpsumMinor : null,
+      totalCostMinor: breakdown.totalCostMinor,
+      marginPercent: breakdown.marginPercent,
+      sellingPriceMinor,
+    };
+
+    if (colourwayId) {
+      await db
+        .update(colourways)
+        .set({
+          costingSnapshot: snapshot,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(eq(colourways.id, colourwayId), eq(colourways.designId, designId)),
+        );
+
+      await insertAuditLog(db, {
+        id: uuidv7(),
+        actorId: session.user.id,
+        actorRole: session.user.role,
+        action: "money.design_shade_cost.save",
+        entityType: "colourway",
+        entityId: colourwayId,
+        before: null,
+        after: snapshot,
+      });
+
+      if (fabricMetersFinal > 0) {
+        await db
+          .update(designs)
+          .set({
+            fabricConsumptionMeters: fabricMetersFinal,
+            updatedAt: new Date(),
+          })
+          .where(eq(designs.id, designId));
+      }
+
+      revalidatePath(`/admin/designs/${designId}`);
+      revalidatePath("/admin/money");
+      return { ok: true, id: colourwayId };
+    }
 
     const before = await db
       .select()

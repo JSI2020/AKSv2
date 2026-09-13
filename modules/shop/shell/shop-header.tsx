@@ -121,6 +121,25 @@ export function ShopHeaderClient({
   const homeNav = ready && onHome;
 
   useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "/" || searchOpen) return;
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        (e.target as HTMLElement | null)?.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+      setSearchOpen(true);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [searchOpen]);
+
+  useEffect(() => {
     setReady(true);
     if (!onHome) {
       setSolid(true);

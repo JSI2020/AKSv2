@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { getLocale } from "next-intl/server";
 
 import { auth } from "@/auth";
 import { CustomerLoginForm } from "@/modules/account/customer-login-form";
@@ -11,10 +10,9 @@ import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 export default async function CustomerLoginPage() {
   const session = await auth();
-  const locale = await getLocale();
 
   if (session?.user?.id) {
-    redirect(`/${locale}/account/orders`);
+    redirect("/account/orders");
   }
 
   return (

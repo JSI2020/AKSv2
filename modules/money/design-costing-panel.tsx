@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 
 import { formatMoney, Money } from "@/modules/ui";
@@ -12,10 +12,27 @@ import {
   marginColorClass,
 } from "./compute";
 import type { DesignCostingData } from "./queries";
+import {
+  parseShadeCostingSnapshot,
+  savedCostingForShade,
+  type ShadeCostingSaved,
+} from "./shade-costing";
 import { CostStackBar } from "@/modules/admin/viz";
+import { DesignShadeSelect } from "@/modules/designs/design-shade-select";
+import { resolveShadePriceMinor } from "@/modules/designs/shade-utils";
+
+type ColourwayRow = {
+  id: string;
+  name: string;
+  fabricId: string;
+  pieceFabrics?: Record<string, string> | null;
+  basePriceMinor?: number | null;
+  costingSnapshot?: Record<string, unknown> | null;
+};
 
 type DesignCostingPanelProps = {
   data: DesignCostingData;
+  colourways?: ColourwayRow[];
   canViewMargin: boolean;
   canEdit: boolean;
   pieceKeys?: string[];
@@ -52,15 +69,23 @@ function fieldClass() {
 }
 
 function initPieces(
+  saved: ShadeCostingSaved | null,
   data: DesignCostingData,
   keys: string[],
+  shade?: ColourwayRow,
 ): PieceDraft[] {
-  const saved = data.saved?.pieceCosts ?? [];
-  if (saved.length > 0) {
-    return saved.map((p) => ({
+  const pieceFabrics = shade?.pieceFabrics ?? {};
+  const defaultFabric =
+    shade?.fabricId ?? data.saved?.fabricId ?? data.fabrics[0]?.id ?? "";
+
+  if (saved?.pieceCosts?.length) {
+    return saved.pieceCosts.map((p) => ({
       componentKey: p.componentKey,
       mode: p.mode,
-      fabricId: p.fabricId ?? data.fabrics[0]?.id ?? "",
+      fabricId:
+        p.fabricId ??
+        pieceFabrics[p.componentKey] ??
+        defaultFabric,
       fabricMetres:
         p.fabricMeters != null ? (p.fabricMeters / 100).toFixed(2) : "0",
       stitchingFlatPkr:
@@ -78,25 +103,45 @@ function initPieces(
   return keys.map((key, i) => ({
     componentKey: key,
     mode: "DETAILED" as const,
-    fabricId: data.saved?.fabricId ?? data.fabrics[0]?.id ?? "",
+    fabricId: pieceFabrics[key] ?? defaultFabric,
     fabricMetres:
-      i === 0 && data.saved
-        ? (data.saved.fabricMeters / 100).toFixed(2)
+      i === 0 && saved
+        ? (saved.fabricMeters / 100).toFixed(2)
         : "0",
     stitchingFlatPkr:
-      i === 0 && data.saved?.stitchingFlatMinor != null
-        ? String(Math.round(data.saved.stitchingFlatMinor / 100))
+      i === 0 && saved?.stitchingFlatMinor != null
+        ? String(Math.round(saved.stitchingFlatMinor / 100))
         : "",
     embroideryFlatPkr:
-      i === 0 && data.saved?.embroideryFlatMinor != null
-        ? String(Math.round(data.saved.embroideryFlatMinor / 100))
+      i === 0 && saved?.embroideryFlatMinor != null
+        ? String(Math.round(saved.embroideryFlatMinor / 100))
         : "",
     lumpsumPkr: "",
   }));
 }
 
+function draftFromSaved(
+  saved: ShadeCostingSaved | null,
+  data: DesignCostingData,
+  keys: string[],
+  shade?: ColourwayRow,
+) {
+  return {
+    mode: (saved?.costingMode as CostingMode) ?? "DETAILED_PER_PIECE",
+    pieces: initPieces(saved, data, keys, shade),
+    totalLumpsumPkr:
+      saved?.totalLumpsumMinor != null
+        ? String(Math.round(saved.totalLumpsumMinor / 100))
+        : "",
+    packagingPkr: String(Math.round((saved?.packagingMinor ?? 0) / 100)),
+    shippingPkr: String(Math.round((saved?.shippingMinor ?? 0) / 100)),
+    overheadPkr: String(Math.round((saved?.overheadMinor ?? 0) / 100)),
+  };
+}
+
 export function DesignCostingPanel({
   data,
+  colourways = [],
   canViewMargin,
   canEdit,
   pieceKeys,
@@ -114,24 +159,44 @@ export function DesignCostingPanel({
         ? data.components
         : ["PRIMARY"];
 
-  const [mode, setMode] = useState<CostingMode>(
-    (data.saved?.costingMode as CostingMode) ?? "DETAILED_PER_PIECE",
+  const [shadeId, setShadeId] = useState(
+    () => colourways[0]?.id ?? "",
   );
-  const [pieces, setPieces] = useState(() => initPieces(data, keys));
+  const selectedShade =
+    colourways.find((c) => c.id === shadeId) ?? colourways[0];
+
+  const savedForShade = useMemo(
+    () =>
+      selectedShade
+        ? savedCostingForShade(selectedShade, data.saved)
+        : parseShadeCostingSnapshot(null),
+    [selectedShade, data.saved],
+  );
+
+  const initialDraft = useMemo(
+    () => draftFromSaved(savedForShade, data, keys, selectedShade),
+    [savedForShade, data, keys, selectedShade],
+  );
+
+  const [mode, setMode] = useState<CostingMode>(initialDraft.mode);
+  const [pieces, setPieces] = useState(() => initialDraft.pieces);
   const [totalLumpsumPkr, setTotalLumpsumPkr] = useState(
-    data.saved?.totalLumpsumMinor != null
-      ? String(Math.round(data.saved.totalLumpsumMinor / 100))
-      : "",
+    initialDraft.totalLumpsumPkr,
   );
-  const [packagingPkr, setPackagingPkr] = useState(
-    String(Math.round((data.saved?.packagingMinor ?? 0) / 100)),
-  );
-  const [shippingPkr, setShippingPkr] = useState(
-    String(Math.round((data.saved?.shippingMinor ?? 0) / 100)),
-  );
-  const [overheadPkr, setOverheadPkr] = useState(
-    String(Math.round((data.saved?.overheadMinor ?? 0) / 100)),
-  );
+  const [packagingPkr, setPackagingPkr] = useState(initialDraft.packagingPkr);
+  const [shippingPkr, setShippingPkr] = useState(initialDraft.shippingPkr);
+  const [overheadPkr, setOverheadPkr] = useState(initialDraft.overheadPkr);
+
+  useEffect(() => {
+    setMode(initialDraft.mode);
+    setPieces(initialDraft.pieces);
+    setTotalLumpsumPkr(initialDraft.totalLumpsumPkr);
+    setPackagingPkr(initialDraft.packagingPkr);
+    setShippingPkr(initialDraft.shippingPkr);
+    setOverheadPkr(initialDraft.overheadPkr);
+    setError(null);
+    setMessage(null);
+  }, [initialDraft]);
 
   const ratesById = useMemo(
     () => new Map(data.rates.map((r) => [r.id, r])),
@@ -141,7 +206,11 @@ export function DesignCostingPanel({
   const packaging = pkrToPaisa(packagingPkr);
   const shipping = pkrToPaisa(shippingPkr);
   const overhead = pkrToPaisa(overheadPkr);
-  const selling = data.basePriceMinor;
+  const selling = selectedShade
+    ? resolveShadePriceMinor(selectedShade, {
+        basePriceMinor: data.basePriceMinor,
+      })
+    : data.basePriceMinor;
 
   const breakdown = useMemo(() => {
     if (packaging < 0 || shipping < 0 || overhead < 0) return null;
@@ -270,6 +339,7 @@ export function DesignCostingPanel({
 
     const fd = new FormData();
     fd.set("designId", data.designId);
+    if (shadeId) fd.set("colourwayId", shadeId);
     fd.set("fabricId", primaryFabric);
     fd.set("fabricMeters", "0");
     fd.set("embroideryRateId", "");
@@ -305,12 +375,20 @@ export function DesignCostingPanel({
   return (
     <section>
       <p className="text-[13px] text-ink/55">
-        Cost each piece (kameez, trouser, …) in detail or as lumpsum — or one
-        total lumpsum. Packaging, shipping, and overhead stay separate. Selling
-        price is set on the Price tab (used for margin).
+        Cost each shade separately — piece detail or lumpsum. Packaging, shipping,
+        and overhead stay per shade. Selling price comes from the Price tab (margin).
       </p>
 
       <form className="mt-4 flex flex-col gap-4" onSubmit={onSubmit}>
+        {colourways.length > 0 ? (
+          <div className="max-w-xs">
+            <DesignShadeSelect
+              colourways={colourways}
+              colourwayId={shadeId}
+              onSelect={setShadeId}
+            />
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {(
             [

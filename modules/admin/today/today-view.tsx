@@ -1,7 +1,7 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import {
   AlertTriangle,
-  ArrowRight,
   Building2,
   Check,
   Layers,
@@ -11,32 +11,59 @@ import {
   ShoppingBag,
   TrendingUp,
   Truck,
+  Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
 
 import { Money } from "@/modules/ui";
 import { cn } from "@/lib/utils";
+import { LightRevenueLine } from "@/modules/admin/viz";
 
-import type { TodayActionCard, TodayStats } from "./queries";
+import type {
+  OverviewSummary,
+  TodayActionCard,
+  TodayStats,
+} from "./queries";
 import type { OverviewCharts } from "./overview-charts";
 
-/** Card id → icon + whether it reads as an alert when it has a count. */
-const CARD_META: Record<string, { icon: LucideIcon; alert?: boolean }> = {
-  "awaiting-confirmation": { icon: ShoppingBag },
-  "measurements-unverified": { icon: Ruler },
-  "at-risk": { icon: AlertTriangle, alert: true },
-  "balance-due": { icon: Wallet, alert: true },
-  "low-stock": { icon: Layers, alert: true },
-  "bank-transfer": { icon: Building2 },
-  "designs-review": { icon: Palette },
+type CardMeta = {
+  icon: LucideIcon;
+  alert?: boolean;
+  money?: boolean;
+  priority: number;
 };
 
-function metaFor(id: string) {
-  return CARD_META[id] ?? { icon: ShoppingBag };
+const CARD_META: Record<string, CardMeta> = {
+  "at-risk": { icon: AlertTriangle, alert: true, priority: 0 },
+  "balance-due": { icon: Wallet, alert: true, money: true, priority: 1 },
+  "low-stock": { icon: Layers, alert: true, priority: 2 },
+  "awaiting-confirmation": { icon: ShoppingBag, priority: 3 },
+  "measurements-unverified": { icon: Ruler, priority: 4 },
+  "bank-transfer": { icon: Building2, money: true, priority: 5 },
+  "designs-review": { icon: Palette, priority: 6 },
+};
+
+function metaFor(id: string): CardMeta {
+  return CARD_META[id] ?? { icon: ShoppingBag, priority: 99 };
 }
 
-/** "Needs you" — icon tiles, alert cards carry a madder rail. */
+function sortCards(cards: TodayActionCard[]): TodayActionCard[] {
+  return [...cards].sort((a, b) => {
+    const ma = metaFor(a.id);
+    const mb = metaFor(b.id);
+    // Active alerts first, then other active, then quiet
+    const aHot = a.count > 0 ? 0 : 1;
+    const bHot = b.count > 0 ? 0 : 1;
+    if (aHot !== bHot) return aHot - bHot;
+    return ma.priority - mb.priority;
+  });
+}
+
+/**
+ * Needs-you grid — mockup layout with circular icon wells.
+ * Alerts: madder start-rail + madder count. Sorted by urgency.
+ */
 export function TodayActionCards({ cards }: { cards: TodayActionCard[] }) {
   if (cards.length === 0) {
     return (
@@ -45,45 +72,69 @@ export function TodayActionCards({ cards }: { cards: TodayActionCard[] }) {
       </p>
     );
   }
+  const ordered = sortCards(cards);
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {cards.map((card) => {
-        const { icon: Icon, alert } = metaFor(card.id);
-        const on = Boolean(alert) && card.count > 0;
+      {ordered.map((card) => {
+        const { icon: Icon, alert, money } = metaFor(card.id);
+        const isAlert = Boolean(alert) && card.count > 0;
+        const isMoney = Boolean(money) && card.count > 0 && !isAlert;
+        const quiet = card.count === 0;
         return (
           <Link
             key={card.id}
             href={card.href}
             className={cn(
-              "group flex items-center gap-4 border bg-milk p-4 transition-colors hover:border-ink/25",
-              on ? "border-ink/10 border-s-[3px] border-s-madder" : "border-ink/10",
+              "group flex items-center gap-3.5 border bg-milk px-4 py-4 transition-colors hover:border-ink/30",
+              isAlert
+                ? "border-ink/10 border-s-[3px] border-s-madder"
+                : "border-ink/10",
+              quiet && "opacity-50",
             )}
           >
             <div
               className={cn(
                 "flex size-10 shrink-0 items-center justify-center",
-                on ? "bg-madder/10" : "bg-ink/[0.05]",
+                isAlert
+                  ? "bg-madder/10"
+                  : isMoney
+                    ? "bg-zari/15"
+                    : "bg-ink/[0.05]",
               )}
             >
-              <Icon className={cn("size-5", on ? "text-madder" : "text-ink/45")} />
+              <Icon
+                className={cn(
+                  "size-[18px]",
+                  isAlert
+                    ? "text-madder"
+                    : isMoney
+                      ? "text-zari"
+                      : "text-ink/45",
+                )}
+              />
             </div>
-            <div className="flex flex-1 flex-col gap-0.5">
-              <p className="text-[12.5px] font-medium text-ink">{card.label}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-medium leading-snug text-ink">
+                {card.label}
+              </p>
               {card.hint ? (
-                <p className="text-[11px] text-ink/50">{card.hint}</p>
+                <p className="mt-0.5 text-[11.5px] leading-snug text-ink/45">
+                  {card.hint}
+                </p>
               ) : null}
             </div>
-            <div className="flex flex-col items-end gap-1">
-              <span
-                className={cn(
-                  "font-display text-[2rem] font-light leading-none",
-                  on ? "text-madder" : "text-ink",
-                )}
-              >
-                {card.count}
-              </span>
-              <ArrowRight className="size-3 text-ink/40 opacity-0 transition-opacity group-hover:opacity-100" />
-            </div>
+            <span
+              className={cn(
+                "shrink-0 font-display text-[2rem] font-light leading-none tabular-nums",
+                isAlert
+                  ? "text-madder"
+                  : quiet
+                    ? "text-ink/25"
+                    : "text-ink",
+              )}
+            >
+              {card.count}
+            </span>
           </Link>
         );
       })}
@@ -91,21 +142,91 @@ export function TodayActionCards({ cards }: { cards: TodayActionCard[] }) {
   );
 }
 
-/** "All clear" — compact reassurance rows. */
-export function TodayClearCards({ cards }: { cards: TodayActionCard[] }) {
+export function QuietLanes({ cards }: { cards: TodayActionCard[] }) {
   if (cards.length === 0) return null;
   return (
-    <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+    <div className="flex flex-wrap justify-center gap-2">
       {cards.map((card) => {
         const { icon: Icon } = metaFor(card.id);
         return (
-          <div
+          <span
             key={card.id}
-            className="flex items-center gap-3 border border-ink/8 bg-milk/60 px-3 py-2.5"
+            className="inline-flex items-center gap-2 border border-ink/10 bg-milk px-3 py-1.5 text-[11.5px] text-ink/55"
           >
-            <Icon className="size-4 text-chalk" />
-            <p className="flex-1 text-[11.5px] text-ink/65">{card.label}</p>
-            <Check className="size-3.5 text-ink" />
+            <Icon className="size-3.5 text-chalk" />
+            {card.label}
+            <Check className="size-3 text-ink/40" />
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+export function TodayClearCards({ cards }: { cards: TodayActionCard[] }) {
+  return <QuietLanes cards={cards} />;
+}
+
+/** Pipeline column with a vertical stem — clearer than three loose cards. */
+function PipelineColumn({
+  stats,
+  rangeLabel,
+}: {
+  stats: TodayStats;
+  rangeLabel: string;
+}) {
+  const steps: {
+    label: string;
+    value: number;
+    hint: string;
+    icon: LucideIcon;
+  }[] = [
+    {
+      label: "Orders placed",
+      value: stats.ordersPlaced,
+      hint: rangeLabel,
+      icon: ShoppingBag,
+    },
+    {
+      label: "In production",
+      value: stats.inProduction,
+      hint: "Currently in workshop",
+      icon: Package,
+    },
+    {
+      label: "Dispatched",
+      value: stats.dispatchedInRange,
+      hint: "Out for delivery",
+      icon: Truck,
+    },
+  ];
+
+  return (
+    <div className="relative flex flex-col gap-3">
+      {/* Stem behind the tiles */}
+      <span
+        className="pointer-events-none absolute start-5 top-6 bottom-6 w-px bg-ink/12"
+        aria-hidden
+      />
+      {steps.map((step) => {
+        const Icon = step.icon;
+        return (
+          <div
+            key={step.label}
+            className="relative flex items-center gap-3 border border-ink/12 bg-milk px-4 py-4"
+          >
+            <div className="relative z-[1] flex size-9 shrink-0 items-center justify-center bg-ink/[0.05]">
+              <Icon className="size-4 text-ink/45" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-sans text-[10px] uppercase tracking-[0.14em] text-ink/50">
+                {step.label}
+              </p>
+              <p className="mt-0.5 font-data text-[1.4rem] leading-none text-ink">
+                {step.value}
+              </p>
+              <p className="mt-1 text-[11px] text-ink/45">{step.hint}</p>
+            </div>
           </div>
         );
       })}
@@ -113,122 +234,149 @@ export function TodayClearCards({ cards }: { cards: TodayActionCard[] }) {
   );
 }
 
-function KpiTile({
-  label,
-  value,
-  hint,
-  icon: Icon,
-}: {
-  label: string;
-  value: string;
-  hint: string;
-  icon: LucideIcon;
-}) {
-  return (
-    <div className="flex items-center gap-4 border border-ink/12 bg-milk px-4 py-4">
-      <div className="flex size-10 shrink-0 items-center justify-center bg-ink/[0.05]">
-        <Icon className="size-5 text-ink/45" />
-      </div>
-      <div className="flex-1">
-        <p className="font-sans text-[10px] uppercase tracking-[0.14em] text-ink/50">
-          {label}
-        </p>
-        <p className="font-data text-[1.35rem] leading-tight text-ink">{value}</p>
-        <p className="text-[10px] text-ink/45">{hint}</p>
-      </div>
-    </div>
-  );
-}
-
-/** Revenue trend (2-col) + the three flow KPIs beside it. */
+/**
+ * Middle band: revenue line (2/3) + pipeline stem (1/3).
+ */
 export function TodayNumbers({
   stats,
   charts,
   showRevenue,
+  rangeLabel,
 }: {
   stats: TodayStats;
   charts: OverviewCharts;
   showRevenue: boolean;
+  rangeLabel: string;
 }) {
   const trend = charts.dailyRevenue;
-  const max = Math.max(1, ...trend.map((d) => d.revenueMinor));
   const total = trend.reduce((s, d) => s + d.revenueMinor, 0);
   const orders = trend.reduce((s, d) => s + d.orders, 0);
 
   return (
     <div className="grid gap-3 lg:grid-cols-3">
       <section className="flex flex-col border border-ink/12 bg-milk p-5 lg:col-span-2">
-        <div className="mb-4 flex items-start justify-between">
+        <div className="mb-4 flex items-start justify-between gap-3">
           <div>
-            <p className="font-sans text-[10px] uppercase tracking-[0.14em] text-ink/50">
+            <p className="font-sans text-[10px] uppercase tracking-[0.16em] text-ink/50">
               Revenue trend
             </p>
-            <p className="mt-1 font-display text-[1.9rem] font-light leading-none text-ink">
+            <p className="mt-1.5 font-display text-[2.1rem] font-light leading-none text-ink">
               {showRevenue ? <Money value={total} /> : "—"}
             </p>
-            <p className="mt-1 text-[11px] text-ink/50">
-              Last 14 days · {orders} order{orders === 1 ? "" : "s"}
+            <p className="mt-1.5 text-[12px] text-ink/50">
+              {rangeLabel} · {orders} order{orders === 1 ? "" : "s"} total
             </p>
           </div>
-          <TrendingUp className="size-5 text-zari" />
+          <TrendingUp className="size-5 text-zari" aria-hidden />
         </div>
         {showRevenue ? (
-          <>
-            <div className="flex h-[120px] items-end gap-1.5">
-              {trend.map((d) => {
-                const h = d.revenueMinor > 0 ? Math.max((d.revenueMinor / max) * 100, 6) : 2;
-                return (
-                  <div
-                    key={d.day}
-                    className="group relative flex flex-1 flex-col items-center justify-end"
-                    title={`${d.day}: ${(d.revenueMinor / 100).toLocaleString()} · ${d.orders} orders`}
-                  >
-                    <div
-                      className={cn(
-                        "w-full transition-all",
-                        d.revenueMinor > 0 ? "bg-indigo/70 hover:bg-indigo" : "bg-ink/[0.08]",
-                      )}
-                      style={{ height: `${h}%` }}
-                    />
-                  </div>
-                );
+          <div className="mt-auto">
+            <LightRevenueLine
+              points={trend.map((d) => {
+                const rupees = (d.revenueMinor / 100).toLocaleString();
+                return {
+                  key: d.day,
+                  label: d.day.slice(8),
+                  value: d.revenueMinor,
+                  title: `${d.day}: ${rupees} · ${d.orders} orders`,
+                };
               })}
-            </div>
-            <div className="mt-2 flex gap-1.5">
-              {trend.map((d) => (
-                <span key={d.day} className="flex-1 text-center text-[8px] text-ink/40">
-                  {d.day.slice(8)}
-                </span>
-              ))}
-            </div>
-          </>
+            />
+          </div>
         ) : (
-          <p className="py-10 text-center text-[12px] text-ink/45">
-            You don’t have access to revenue figures.
+          <p className="flex flex-1 items-center justify-center py-12 text-[12px] text-ink/45">
+            You do not have access to revenue figures.
           </p>
         )}
       </section>
 
-      <div className="flex flex-col gap-3">
-        <KpiTile
-          label="Orders placed"
-          value={String(stats.ordersPlaced)}
-          hint="in the selected range"
-          icon={ShoppingBag}
-        />
-        <KpiTile
-          label="In production"
-          value={String(stats.inProduction)}
-          hint="currently in the workshop"
-          icon={Package}
-        />
-        <KpiTile
-          label="Dispatched"
-          value={String(stats.dispatchedInRange)}
-          hint="out for delivery"
-          icon={Truck}
-        />
+      <PipelineColumn stats={stats} rangeLabel={rangeLabel} />
+    </div>
+  );
+}
+
+function SummaryTile({
+  label,
+  value,
+  icon: Icon,
+  href,
+  accent,
+}: {
+  label: string;
+  value: ReactNode;
+  icon: LucideIcon;
+  href?: string;
+  accent?: boolean;
+}) {
+  const inner = (
+    <>
+      <div className="flex items-center justify-between gap-2">
+        <p className="font-sans text-[10px] uppercase tracking-[0.16em] text-ink/50">
+          {label}
+        </p>
+        <span
+          className={cn(
+            "flex size-8 items-center justify-center",
+            accent ? "bg-zari/15" : "bg-ink/[0.05]",
+          )}
+        >
+          <Icon
+            className={cn("size-4", accent ? "text-zari" : "text-ink/40")}
+            aria-hidden
+          />
+        </span>
       </div>
+      <p className="mt-4 font-display text-[2.15rem] font-light leading-none text-ink">
+        {value}
+      </p>
+    </>
+  );
+
+  const className =
+    "block border border-ink/12 bg-milk px-5 py-5 transition-colors hover:border-ink/25";
+
+  if (href) {
+    return (
+      <Link href={href} className={className}>
+        {inner}
+      </Link>
+    );
+  }
+  return <div className={className}>{inner}</div>;
+}
+
+export function OverviewSummaryRow({
+  summary,
+  showMargin,
+}: {
+  summary: OverviewSummary;
+  showMargin: boolean;
+}) {
+  const margin =
+    showMargin && summary.avgMarginPercent !== null
+      ? `${(summary.avgMarginPercent / 100).toFixed(1)}%`
+      : "—";
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      <SummaryTile
+        label="Published designs"
+        value={summary.publishedDesigns}
+        icon={Palette}
+        href="/admin/designs?status=PUBLISHED"
+      />
+      <SummaryTile
+        label="Active customers"
+        value={summary.activeCustomers}
+        icon={Users}
+        href="/admin/customers"
+      />
+      <SummaryTile
+        label="Avg margin"
+        value={margin}
+        icon={TrendingUp}
+        accent={showMargin && summary.avgMarginPercent !== null}
+      />
     </div>
   );
 }

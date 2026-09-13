@@ -45,13 +45,42 @@ function stampAnonCookie(
 }
 
 /**
+ * Pre-launch holding gate. While the storefront isn't live, set the env var
+ * COMING_SOON (1 / true / on) and every shop URL serves /coming-soon. Admin,
+ * API and Next internals stay reachable so the shop can be run behind the
+ * curtain. Unset COMING_SOON (or set it 0) to open the real store — no other
+ * change required.
+ */
+function launchGated(): boolean {
+  const v = process.env.COMING_SOON?.trim().toLowerCase();
+  return v === "1" || v === "true" || v === "on" || v === "yes";
+}
+
+/**
  * Admin: Auth.js JWT gate (matcher historically `/admin` only).
- * Storefront: next-intl locale prefix + RTL-ready routing.
+ * Storefront: next-intl (English-only, no locale prefix).
  */
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const anonId = ensureAnonId(req);
   const reqWithAnon = withAnonRequest(req, anonId);
+
+  if (
+    launchGated() &&
+    !pathname.startsWith("/admin") &&
+    !pathname.startsWith("/api") &&
+    pathname !== "/coming-soon"
+  ) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/coming-soon";
+    return stampAnonCookie(
+      NextResponse.rewrite(url, {
+        request: { headers: reqWithAnon.headers },
+      }),
+      req,
+      anonId,
+    );
+  }
 
   if (pathname.startsWith("/admin") || pathname.startsWith("/api")) {
     return stampAnonCookie(NextResponse.next({

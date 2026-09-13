@@ -22,6 +22,10 @@ export default async function ProtectedAdminLayout({
     redirect("/admin/login");
   }
 
+  if (session.user.role === "CUSTOMER") {
+    redirect("/account/login");
+  }
+
   if (
     rolesRequiring2fa(session.user.role) &&
     !session.user.twoFactorEnabled &&

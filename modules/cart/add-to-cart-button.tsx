@@ -7,6 +7,11 @@ import type {
   ResolvedImageTriple,
 } from "@/modules/catalog/types";
 
+import {
+  rtwLowStockMessage,
+  rtwStockCapMessage,
+} from "@/modules/inventory/rtw-stock-messages";
+
 import { useCart } from "./cart-context";
 import type { CartCustomizationSelections } from "./types";
 import { trackAddToCart } from "@/modules/analytics";
@@ -14,10 +19,10 @@ import { trackAddToCart } from "@/modules/analytics";
 type Props = {
   design: DesignDetailPublic;
   colourwayId: string;
-  sizeMode: "STANDARD" | "MADE_TO_MEASURE";
+  sizeMode: "STANDARD";
   sizeLabel: string | null;
   quantity: number;
-  measurementProfileId: string | null;
+  availableUnits: number;
   customizationSelections: CartCustomizationSelections;
   displayPriceMinor: number;
   images: ResolvedImageTriple;
@@ -29,7 +34,7 @@ export function AddToCartButton({
   sizeMode,
   sizeLabel,
   quantity,
-  measurementProfileId,
+  availableUnits,
   customizationSelections,
   displayPriceMinor,
   images,
@@ -40,10 +45,10 @@ export function AddToCartButton({
   const colourway =
     design.colourways.find((c) => c.id === colourwayId) ?? design.colourways[0]!;
 
-  const canAdd =
-    sizeMode === "STANDARD"
-      ? Boolean(sizeLabel)
-      : Boolean(measurementProfileId);
+  const canAdd = Boolean(sizeLabel) && availableUnits >= quantity;
+  const lowStockMessage =
+    sizeLabel != null ? rtwLowStockMessage(availableUnits, sizeLabel) : null;
+  const soldOut = sizeLabel != null && availableUnits <= 0;
 
   async function handleClick() {
     setError(null);
@@ -52,9 +57,9 @@ export function AddToCartButton({
       {
         designId: design.id,
         colourwayId,
-        sizeMode,
+        sizeMode: "STANDARD",
         sizeLabel,
-        measurementProfileId,
+        measurementProfileId: null,
         customizationSelections,
         quantity,
       },
@@ -65,6 +70,7 @@ export function AddToCartButton({
         unitPriceMinor: displayPriceMinor,
         thumbnailUrl: images.FRONT?.url ?? null,
         leadTimeDays: design.leadTimeDaysOverride,
+        maxQuantity: availableUnits,
       },
     );
 
@@ -81,6 +87,11 @@ export function AddToCartButton({
     });
   }
 
+  const statusStyle = {
+    marginTop: "0.6rem",
+    fontSize: "13px",
+  } as const;
+
   return (
     <div>
       <button
@@ -89,30 +100,32 @@ export function AddToCartButton({
         disabled={pending || !canAdd}
         onClick={() => void handleClick()}
       >
-        Add to bag
+        {soldOut ? "Sold out" : "Add to bag"}
       </button>
-      {!canAdd ? (
-        <p
-          style={{
-            marginTop: "0.6rem",
-            fontSize: "13px",
-            color: "var(--taupe)",
-          }}
-        >
-          {sizeMode === "STANDARD"
-            ? "Choose a size to continue."
-            : "Complete your measurements to add this piece."}
-        </p>
-      ) : null}
+      {/* Status changes as the shopper picks a size/qty — announce them. */}
+      <div aria-live="polite">
+        {lowStockMessage ? (
+          <p style={{ ...statusStyle, color: "var(--oxblood)" }}>
+            {lowStockMessage}
+          </p>
+        ) : null}
+        {!canAdd && !soldOut ? (
+          <p style={{ ...statusStyle, color: "var(--taupe)" }}>
+            {sizeLabel
+              ? availableUnits > 0 && availableUnits < quantity
+                ? `${rtwStockCapMessage(availableUnits, sizeLabel)} Reduce the quantity.`
+                : "Choose a size to continue."
+              : "Choose a size to continue."}
+          </p>
+        ) : null}
+        {soldOut ? (
+          <p style={{ ...statusStyle, color: "var(--taupe)" }}>
+            This size is sold out. Pick another size or check back later.
+          </p>
+        ) : null}
+      </div>
       {error ? (
-        <p
-          style={{
-            marginTop: "0.6rem",
-            fontSize: "13px",
-            color: "var(--oxblood)",
-          }}
-          role="alert"
-        >
+        <p style={{ ...statusStyle, color: "var(--oxblood)" }} role="alert">
           {error}
         </p>
       ) : null}

@@ -10,21 +10,28 @@ import {
 import { timeRangeNuqsParsers } from "./search-params";
 
 type AdminTimeFilterProps = {
-  /** When set, only these URL keys are written (same parsers). */
   className?: string;
+  /** When false, omit the opt-out chip (finance/insights keep implicit month). */
+  showAllTime?: boolean;
+  /** Match the page's nuqs parsers — orders uses no default range. */
+  parsers?: typeof timeRangeNuqsParsers;
 };
 
 /**
  * Today | 7 days | This month | This quarter | This year | Custom range.
  * Syncs `range`, `from`, `to` in the URL via nuqs.
  */
-export function AdminTimeFilter({ className }: AdminTimeFilterProps) {
-  const [params, setParams] = useQueryStates(timeRangeNuqsParsers, {
+export function AdminTimeFilter({
+  className,
+  showAllTime = false,
+  parsers = timeRangeNuqsParsers,
+}: AdminTimeFilterProps) {
+  const [params, setParams] = useQueryStates(parsers, {
     history: "push",
     shallow: false,
   });
 
-  const preset = params.range ?? "month";
+  const preset = params.range ?? (showAllTime ? null : "month");
 
   return (
     <div
@@ -32,6 +39,22 @@ export function AdminTimeFilter({ className }: AdminTimeFilterProps) {
         .filter(Boolean)
         .join(" ")}
     >
+      {showAllTime ? (
+        <button
+          type="button"
+          className={[
+            "border px-3 py-2 text-[11.5px] transition-colors",
+            preset === null
+              ? "border-ink bg-ink text-milk"
+              : "border-ink/12 bg-milk text-ink/55 hover:border-ink hover:text-ink",
+          ].join(" ")}
+          onClick={() => {
+            void setParams({ range: null, from: null, to: null });
+          }}
+        >
+          All time
+        </button>
+      ) : null}
       {TIME_RANGE_PRESETS.map((key) => (
         <button
           key={key}

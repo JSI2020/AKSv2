@@ -32,7 +32,7 @@ export default async function AdminPhotorealDesignPage({ params }: Props) {
 
   return (
     <div>
-      <Eyebrow>Photoreal · Design</Eyebrow>
+      <Eyebrow>AI Studio · Design</Eyebrow>
       <DesignDetailClient designId={id} />
     </div>
   );

@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "AKS",
-  description: "AKS by Shahneela",
+  description: "AKS Demo — quiet-luxury pret",
 };
 
 export default function RootLayout({

@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 
 import {
   db,
@@ -56,21 +56,33 @@ export async function listSizeGuideCharts(): Promise<SizeGuideChartPublic[]> {
     .where(and(eq(sizeBlocks.active, true), eq(sizeBlocks.isDefault, true)))
     .orderBy(asc(garmentCategories.name), asc(sizeBlocks.name));
 
+  if (blocks.length === 0) return [];
+
+  const blockIds = blocks.map((b) => b.id);
+  const allRows = await db
+    .select({
+      blockId: sizeBlockRows.blockId,
+      measurementKey: sizeBlockRows.measurementKey,
+      baseValue: sizeBlockRows.baseValue,
+      gradeIncrement: sizeBlockRows.gradeIncrement,
+      gradeOverrides: sizeBlockRows.gradeOverrides,
+      sortOrder: sizeBlockRows.sortOrder,
+    })
+    .from(sizeBlockRows)
+    .where(inArray(sizeBlockRows.blockId, blockIds))
+    .orderBy(asc(sizeBlockRows.sortOrder));
+
+  const rowsByBlock = new Map<string, typeof allRows>();
+  for (const row of allRows) {
+    const list = rowsByBlock.get(row.blockId) ?? [];
+    list.push(row);
+    rowsByBlock.set(row.blockId, list);
+  }
+
   const charts: SizeGuideChartPublic[] = [];
 
   for (const block of blocks) {
-    const rows = await db
-      .select({
-        measurementKey: sizeBlockRows.measurementKey,
-        baseValue: sizeBlockRows.baseValue,
-        gradeIncrement: sizeBlockRows.gradeIncrement,
-        gradeOverrides: sizeBlockRows.gradeOverrides,
-        sortOrder: sizeBlockRows.sortOrder,
-      })
-      .from(sizeBlockRows)
-      .where(eq(sizeBlockRows.blockId, block.id))
-      .orderBy(asc(sizeBlockRows.sortOrder));
-
+    const rows = rowsByBlock.get(block.id) ?? [];
     if (rows.length === 0) continue;
 
     const labels =

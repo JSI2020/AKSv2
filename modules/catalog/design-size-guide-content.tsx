@@ -33,7 +33,8 @@ export function DesignSizeGuideContent({
   const sizeColumns = useMemo(() => {
     if (!chart) return [...availableSizeLabels];
     const allowed = new Set(availableSizeLabels);
-    return chart.sizeLabels.filter((label) => allowed.has(label));
+    const overlap = chart.sizeLabels.filter((label) => allowed.has(label));
+    return overlap.length > 0 ? overlap : [...chart.sizeLabels];
   }, [chart, availableSizeLabels]);
 
   const hasVisibleRows = useMemo(

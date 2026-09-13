@@ -15,6 +15,7 @@ import {
   outbox,
   permissions,
   rolePermissions,
+  rtwStock,
   sizeBlockRows,
   sizeBlocks,
   sql,
@@ -193,7 +194,18 @@ async function seedOrderFixture() {
     active: true,
   });
 
-  return { designId, colourwayId, sizeLabel: "M" as const };
+  const sizeLabel = "M" as const;
+  await db.insert(rtwStock).values({
+    id: uuidv7(),
+    designId,
+    colourwayId,
+    sizeLabel,
+    quantityOnHand: 10,
+    quantityReserved: 0,
+    reorderPoint: 2,
+  });
+
+  return { designId, colourwayId, sizeLabel };
 }
 
 describe("manual order entry", () => {

@@ -181,3 +181,132 @@ export function HealthFill({
     </div>
   );
 }
+
+/** Light-ground spark bars for Overview (milk / ink). */
+export function LightSparkBars({
+  points,
+  emptyLabel = "No activity in this range.",
+}: {
+  points: { key: string; label: string; value: number; title?: string }[];
+  emptyLabel?: string;
+}) {
+  if (points.length === 0) {
+    return (
+      <p className="py-8 text-center text-[12px] text-ink/45">{emptyLabel}</p>
+    );
+  }
+  const max = Math.max(1, ...points.map((p) => p.value));
+  return (
+    <div className="flex h-[120px] items-end gap-1">
+      {points.map((p) => {
+        const h = p.value > 0 ? Math.max((p.value / max) * 100, 5) : 2;
+        return (
+          <div
+            key={p.key}
+            className="flex flex-1 flex-col items-center justify-end"
+            title={p.title ?? `${p.label}: ${p.value}`}
+          >
+            <div
+              className={cn(
+                "w-full",
+                p.value > 0 ? "bg-indigo" : "bg-ink/[0.08]",
+              )}
+              style={{ height: `${h}%` }}
+            />
+            <span className="mt-1 truncate text-[8px] text-ink/40">
+              {p.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** SVG line chart for Overview revenue trend — indigo stroke, no fill. */
+export function LightRevenueLine({
+  points,
+  emptyLabel = "No revenue in this range.",
+}: {
+  points: { key: string; label: string; value: number; title?: string }[];
+  emptyLabel?: string;
+}) {
+  if (points.length === 0) {
+    return (
+      <p className="py-10 text-center text-[12px] text-ink/45">{emptyLabel}</p>
+    );
+  }
+
+  const W = 560;
+  const H = 148;
+  const padX = 10;
+  const padY = 14;
+  const max = Math.max(1, ...points.map((p) => p.value));
+  const n = points.length;
+  const step = n <= 1 ? 0 : (W - padX * 2) / (n - 1);
+
+  const coords = points.map((p, i) => {
+    const x = padX + i * step;
+    const y = H - padY - (p.value / max) * (H - padY * 2);
+    return { x, y, ...p };
+  });
+
+  const poly = coords.map((c) => `${c.x},${c.y}`).join(" ");
+  const guides = [0.25, 0.5, 0.75].map((t) => padY + (1 - t) * (H - padY * 2));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="h-[148px] w-full"
+        role="img"
+        aria-label="Revenue trend"
+      >
+        {guides.map((y) => (
+          <line
+            key={y}
+            x1={padX}
+            x2={W - padX}
+            y1={y}
+            y2={y}
+            stroke="#16181D"
+            strokeOpacity="0.08"
+            strokeWidth="1"
+          />
+        ))}
+        <polyline
+          fill="none"
+          stroke="#1B2547"
+          strokeWidth="2"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+          points={poly}
+        />
+        {coords.map((c) =>
+          c.value > 0 ? (
+            <circle key={c.key} cx={c.x} cy={c.y} r="3.5" fill="#B08D4C">
+              <title>{c.title ?? `${c.label}: ${c.value}`}</title>
+            </circle>
+          ) : null,
+        )}
+      </svg>
+      <div className="flex justify-between gap-1 px-1">
+        {points.map((p, i) => {
+          const show =
+            points.length <= 10 ||
+            i === 0 ||
+            i === points.length - 1 ||
+            i % Math.ceil(points.length / 8) === 0;
+          return (
+            <span
+              key={p.key}
+              className="flex-1 truncate text-center text-[9px] text-ink/40"
+            >
+              {show ? p.label : ""}
+            </span>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

@@ -2,12 +2,12 @@
 
 import { useEffect } from "react";
 
-/** Sets document language and direction for the active locale (RTL for `ur`). */
-export function LocaleDocumentAttributes({ locale }: { locale: string }) {
+/** Keeps document language and direction aligned with the English-only storefront. */
+export function LocaleDocumentAttributes() {
   useEffect(() => {
-    document.documentElement.lang = locale;
-    document.documentElement.dir = locale === "ur" ? "rtl" : "ltr";
-  }, [locale]);
+    document.documentElement.lang = "en";
+    document.documentElement.dir = "ltr";
+  }, []);
 
   return null;
 }

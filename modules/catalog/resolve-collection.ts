@@ -7,7 +7,10 @@ import {
   titleFromTagValue,
   type ResolvedCollection,
 } from "./types";
-import { getHouseCollectionBySlug } from "./house-collections-queries";
+import {
+  getHouseCollectionBySlug,
+  resolveHouseCollectionBySlug,
+} from "./house-collections-queries";
 import { getPaidSalesRanking } from "./sales-ranking";
 
 const NEW_ARRIVAL_DAYS = 30;
@@ -22,7 +25,20 @@ export async function resolveCollection(
   const normalized = slug.trim().toLowerCase();
   if (!normalized) return null;
 
-  const house = await getHouseCollectionBySlug(normalized);
+  if (normalized === "all" || normalized === "shop") {
+    return {
+      kind: "attribute",
+      slug: "all",
+      title: "All pieces",
+      description: COLLECTION_INTRO,
+      baseFilters: {},
+      defaultSort: "newest",
+    };
+  }
+
+  const house =
+    (await getHouseCollectionBySlug(normalized)) ??
+    resolveHouseCollectionBySlug(normalized);
   if (house) {
     const freeTags = [house.tag];
     if (house.slug === "signature") {
@@ -41,7 +57,9 @@ export async function resolveCollection(
 
   // Alias: former White Collection → Signature
   if (normalized === "white-collection") {
-    const signature = await getHouseCollectionBySlug("signature");
+    const signature =
+      (await getHouseCollectionBySlug("signature")) ??
+      resolveHouseCollectionBySlug("signature");
     if (!signature) return null;
     return {
       kind: "attribute",

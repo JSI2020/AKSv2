@@ -19,6 +19,8 @@ import {
 import { uuidv7 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
 import { refreshFabricLotStatus } from "@/modules/inventory/lot-status";
+import { revalidateFabricStockPaths } from "@/modules/inventory/revalidate-fabric-paths";
+import { ensureRtwStockRowTx } from "@/modules/inventory/rtw-stock";
 
 import {
   deltaFromMovementType,
@@ -86,7 +88,7 @@ export async function recordStockMovement(input: {
         actorRole: session.user.role,
       });
     } else {
-      await applyFabricColourMovement({
+      const fabricId = await applyFabricColourMovement({
         colourwayId: input.stockId,
         deltaMeters: delta,
         type: input.type,
@@ -94,6 +96,7 @@ export async function recordStockMovement(input: {
         actorId: session.user.id,
         actorRole: session.user.role,
       });
+      revalidateFabricStockPaths(fabricId);
     }
 
     revalidatePath("/admin/inventory", "layout");
@@ -201,7 +204,7 @@ async function applyFabricColourMovement(args: {
   note: string | null;
   actorId: string;
   actorRole: string;
-}) {
+}): Promise<string> {
   const [cw] = await db
     .select()
     .from(fabricColourways)
@@ -284,6 +287,8 @@ async function applyFabricColourMovement(args: {
 
     await refreshFabricLotStatus(tx as never, lot!.id);
   });
+
+  return cw.fabricId;
 }
 
 /** Ensure a trim stock row exists (no colour or for a colourway). */
@@ -324,29 +329,13 @@ export async function ensureRtwStockRow(
   sizeLabel: string,
 ): Promise<string> {
   await requirePermission("inventory.view");
-  const existing = await db
-    .select({ id: rtwStock.id })
-    .from(rtwStock)
-    .where(
-      and(
-        eq(rtwStock.designId, designId),
-        eq(rtwStock.colourwayId, colourwayId),
-        eq(rtwStock.sizeLabel, sizeLabel),
-      ),
-    )
-    .limit(1);
-  if (existing[0]) return existing[0].id;
-  const id = uuidv7();
-  await db.insert(rtwStock).values({
-    id,
+  const row = await ensureRtwStockRowTx(
+    db as never,
     designId,
     colourwayId,
     sizeLabel,
-    quantityOnHand: 0,
-    quantityReserved: 0,
-    reorderPoint: 2,
-  });
-  return id;
+  );
+  return row.id;
 }
 
 export async function sumMovementDeltas(

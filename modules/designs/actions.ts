@@ -451,12 +451,45 @@ export async function updateDesignDetails(
   }
 }
 
+/** Mirror default / first priced shade onto the design row for list + header. */
+async function syncDesignRetailFromShades(designId: string) {
+  const shades = await db
+    .select({
+      basePriceMinor: colourways.basePriceMinor,
+      compareAtPriceMinor: colourways.compareAtPriceMinor,
+      isDefault: colourways.isDefault,
+      sortOrder: colourways.sortOrder,
+    })
+    .from(colourways)
+    .where(eq(colourways.designId, designId))
+    .orderBy(asc(colourways.sortOrder));
+
+  const defaultShade = shades.find((s) => s.isDefault) ?? shades[0] ?? null;
+  const priced =
+    defaultShade?.basePriceMinor != null && defaultShade.basePriceMinor > 0
+      ? defaultShade
+      : shades.find(
+          (s) => s.basePriceMinor != null && (s.basePriceMinor ?? 0) > 0,
+        );
+  if (!priced?.basePriceMinor) return;
+
+  await db
+    .update(designs)
+    .set({
+      basePriceMinor: priced.basePriceMinor,
+      compareAtPriceMinor: priced.compareAtPriceMinor,
+      updatedAt: new Date(),
+    })
+    .where(eq(designs.id, designId));
+}
+
 export async function updateDesignPricing(
   formData: FormData,
 ): Promise<DesignActionResult> {
   try {
     const session = await requirePermission("designs.edit");
     const id = String(formData.get("id") ?? "");
+    const colourwayId = String(formData.get("colourwayId") ?? "").trim();
     const basePriceMinor = Number.parseInt(
       String(formData.get("basePriceMinor") ?? ""),
       10,
@@ -497,28 +530,55 @@ export async function updateDesignPricing(
     await db
       .update(designs)
       .set({
-        basePriceMinor,
-        compareAtPriceMinor,
         madeToMeasureSurchargeMinor,
         fabricConsumptionMeters,
         leadTimeDaysOverride,
         updatedAt: new Date(),
+        ...(colourwayId
+          ? {}
+          : {
+              basePriceMinor,
+              compareAtPriceMinor,
+            }),
       })
       .where(eq(designs.id, id));
+
+    if (colourwayId) {
+      const [cw] = await db
+        .select({ id: colourways.id })
+        .from(colourways)
+        .where(and(eq(colourways.id, colourwayId), eq(colourways.designId, id)))
+        .limit(1);
+      if (!cw) {
+        return { ok: false, error: "Shade not found on this design." };
+      }
+      await db
+        .update(colourways)
+        .set({
+          basePriceMinor,
+          compareAtPriceMinor,
+          updatedAt: new Date(),
+        })
+        .where(eq(colourways.id, colourwayId));
+      await syncDesignRetailFromShades(id);
+    }
 
     await insertAuditLog(db, {
       id: uuidv7(),
       actorId: session.user.id,
       actorRole: session.user.role,
-      action: "design.update_pricing",
+      action: colourwayId ? "design.update_shade_pricing" : "design.update_pricing",
       entityType: "design",
       entityId: id,
       before: null,
-      after: { basePriceMinor, compareAtPriceMinor, fabricConsumptionMeters },
+      after: colourwayId
+        ? { colourwayId, basePriceMinor, compareAtPriceMinor }
+        : { basePriceMinor, compareAtPriceMinor, fabricConsumptionMeters },
     });
 
     revalidatePath(`/admin/designs/${id}`);
     revalidatePath("/admin/inventory");
+    revalidatePath("/", "layout");
     return { ok: true, id };
   } catch (e) {
     return {
@@ -538,6 +598,7 @@ export async function updateDesignSizing(
     const fitProfilesRaw = String(formData.get("fitProfilesJson") ?? "").trim();
     const fitProfileId = String(formData.get("fitProfileId") ?? "") || null;
     const sizesRaw = String(formData.get("availableSizeLabelsJson") ?? "").trim();
+    const shadeSizesRaw = String(formData.get("shadeSizesJson") ?? "").trim();
     const pieceBlocksRaw = String(
       formData.get("pieceSizeBlocksJson") ?? "",
     ).trim();
@@ -571,8 +632,28 @@ export async function updateDesignSizing(
       if (cat[0]) fitProfileIds = { [cat[0].key]: fitProfileId };
     }
 
+    let shadeSizes: Record<string, string[]> = {};
+    if (shadeSizesRaw) {
+      try {
+        const parsed = JSON.parse(shadeSizesRaw) as Record<string, string[]>;
+        for (const [colourwayId, labels] of Object.entries(parsed)) {
+          shadeSizes[colourwayId] = labels.filter((v) =>
+            (STANDARD_SIZE_LABELS as readonly string[]).includes(v),
+          );
+        }
+      } catch {
+        return { ok: false, error: "Invalid shade sizes" };
+      }
+    }
+
     let availableSizeLabels = existingDesign.availableSizeLabels ?? [];
-    if (sizesRaw) {
+    if (Object.keys(shadeSizes).length > 0) {
+      availableSizeLabels = [
+        ...new Set(Object.values(shadeSizes).flat()),
+      ].filter((v) =>
+        (STANDARD_SIZE_LABELS as readonly string[]).includes(v),
+      );
+    } else if (sizesRaw) {
       try {
         const parsed = JSON.parse(sizesRaw) as string[];
         availableSizeLabels = parsed.filter((v) =>
@@ -618,6 +699,18 @@ export async function updateDesignSizing(
           updatedAt: new Date(),
         })
         .where(eq(designs.id, id));
+
+      for (const [colourwayId, labels] of Object.entries(shadeSizes)) {
+        await tx
+          .update(colourways)
+          .set({
+            availableSizeLabels: labels,
+            updatedAt: new Date(),
+          })
+          .where(
+            and(eq(colourways.id, colourwayId), eq(colourways.designId, id)),
+          );
+      }
 
       if (
         existingDesign.status === "PUBLISHED" ||

@@ -151,10 +151,35 @@ export async function getPublishedDesigns(
             .where(
               and(
                 eq(colourways.designId, designs.id),
+                eq(colourways.active, true),
                 or(
                   ilike(colourways.name, like),
                   ilike(colourways.nameUr, like),
                 ),
+              ),
+            ),
+        ),
+        exists(
+          db
+            .select({ one: colourways.id })
+            .from(colourways)
+            .innerJoin(fabrics, eq(colourways.fabricId, fabrics.id))
+            .where(
+              and(
+                eq(colourways.designId, designs.id),
+                eq(colourways.active, true),
+                ilike(fabrics.name, like),
+              ),
+            ),
+        ),
+        exists(
+          db
+            .select({ one: designTags.designId })
+            .from(designTags)
+            .where(
+              and(
+                eq(designTags.designId, designs.id),
+                ilike(designTags.value, like),
               ),
             ),
         ),

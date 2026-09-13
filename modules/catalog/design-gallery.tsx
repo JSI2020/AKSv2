@@ -1,13 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { GalleryAngle, ResolvedImageTriple } from "./types";
+import type { GalleryAngle, ResolvedGalleryImages } from "./types";
 import { GALLERY_ANGLES } from "./design-detail-search-params";
-import {
-  ImageSlotPlaceholder,
-} from "@/modules/shop/home/silhouette-svg";
+import { ImageSlotPlaceholder } from "@/modules/shop/home/silhouette-svg";
 import { silhouetteForCategory } from "./category-silhouette";
 
 const ANGLE_LABELS: Record<GalleryAngle, string> = {
@@ -17,14 +15,14 @@ const ANGLE_LABELS: Record<GalleryAngle, string> = {
 };
 
 type Props = {
-  images: ResolvedImageTriple;
+  images: ResolvedGalleryImages;
   angle: GalleryAngle;
   designName: string;
   categoryKey: string;
   onAngleChange: (angle: GalleryAngle) => void;
 };
 
-function showAiLabel(images: ResolvedImageTriple): boolean {
+function showAiLabel(images: ResolvedGalleryImages): boolean {
   return (["FRONT", "THREE_QUARTER", "BACK"] as const).some(
     (a) => images[a]?.isAiGenerated,
   );
@@ -39,6 +37,11 @@ export function DesignGallery({
 }: Props) {
   const touchStartX = useRef<number | null>(null);
   const sil = silhouetteForCategory(categoryKey);
+  const [fabricIdx, setFabricIdx] = useState<number | null>(null);
+
+  useEffect(() => {
+    setFabricIdx(null);
+  }, [images, angle]);
 
   useEffect(() => {
     for (const a of GALLERY_ANGLES) {
@@ -48,18 +51,42 @@ export function DesignGallery({
         img.src = url;
       }
     }
+    for (const photo of images.fabricPhotos) {
+      if (photo.url) {
+        const img = new window.Image();
+        img.src = photo.url;
+      }
+    }
   }, [images]);
 
-  const cycleAngle = useCallback(
+  const activeFabric =
+    fabricIdx != null ? (images.fabricPhotos[fabricIdx] ?? null) : null;
+
+  const allSlides = [
+    ...GALLERY_ANGLES.map((a) => ({ kind: "angle" as const, angle: a })),
+    ...images.fabricPhotos.map((_, i) => ({ kind: "fabric" as const, index: i })),
+  ];
+
+  const activeSlideIdx =
+    fabricIdx != null
+      ? GALLERY_ANGLES.length + fabricIdx
+      : GALLERY_ANGLES.indexOf(angle);
+
+  const cycleSlide = useCallback(
     (direction: 1 | -1) => {
-      const idx = GALLERY_ANGLES.indexOf(angle);
+      if (allSlides.length === 0) return;
       const next =
-        GALLERY_ANGLES[
-          (idx + direction + GALLERY_ANGLES.length) % GALLERY_ANGLES.length
-        ];
-      if (next) onAngleChange(next);
+        (activeSlideIdx + direction + allSlides.length) % allSlides.length;
+      const slide = allSlides[next];
+      if (!slide) return;
+      if (slide.kind === "angle") {
+        setFabricIdx(null);
+        onAngleChange(slide.angle);
+      } else {
+        setFabricIdx(slide.index);
+      }
     },
-    [angle, onAngleChange],
+    [activeSlideIdx, allSlides, onAngleChange],
   );
 
   return (
@@ -74,39 +101,52 @@ export function DesignGallery({
           const endX = e.changedTouches[0]?.clientX ?? touchStartX.current;
           const delta = endX - touchStartX.current;
           if (Math.abs(delta) > 48) {
-            cycleAngle(delta < 0 ? 1 : -1);
+            cycleSlide(delta < 0 ? 1 : -1);
           }
           touchStartX.current = null;
         }}
       >
-        {GALLERY_ANGLES.map((a) => {
-          const img = images[a];
-          const visible = a === angle;
-          return (
-            <div
-              key={a}
-              aria-hidden={!visible}
-              className="layer"
-              style={{ opacity: visible ? 1 : 0 }}
-            >
-              {img?.url ? (
-                <Image
-                  src={img.url}
-                  alt={img.altText || `${designName} — ${ANGLE_LABELS[a]}`}
-                  fill
-                  sizes="(max-width: 768px) 100vw, 55vw"
-                  className="object-cover"
-                  priority={a === "FRONT"}
-                  unoptimized
-                />
-              ) : (
-                <ImageSlotPlaceholder silhouette={sil} />
-              )}
-            </div>
-          );
-        })}
+        {activeFabric?.url ? (
+          <div className="layer" style={{ opacity: 1 }}>
+            <Image
+              src={activeFabric.url}
+              alt={activeFabric.altText || `${designName} — fabric`}
+              fill
+              sizes="(max-width: 768px) 100vw, 55vw"
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+        ) : (
+          GALLERY_ANGLES.map((a) => {
+            const img = images[a];
+            const visible = fabricIdx == null && a === angle;
+            return (
+              <div
+                key={a}
+                aria-hidden={!visible}
+                className="layer"
+                style={{ opacity: visible ? 1 : 0 }}
+              >
+                {img?.url ? (
+                  <Image
+                    src={img.url}
+                    alt={img.altText || `${designName} — ${ANGLE_LABELS[a]}`}
+                    fill
+                    sizes="(max-width: 768px) 100vw, 55vw"
+                    className="object-cover"
+                    priority={a === "FRONT"}
+                    unoptimized
+                  />
+                ) : (
+                  <ImageSlotPlaceholder silhouette={sil} />
+                )}
+              </div>
+            );
+          })
+        )}
 
-        {showAiLabel(images) ? (
+        {showAiLabel(images) && fabricIdx == null ? (
           <span className="slot-tag">AI visualization</span>
         ) : null}
       </div>
@@ -114,7 +154,7 @@ export function DesignGallery({
       <div className="pdp-angles">
         {GALLERY_ANGLES.map((a) => {
           const img = images[a];
-          const active = a === angle;
+          const active = fabricIdx == null && a === angle;
           return (
             <button
               key={a}
@@ -122,7 +162,10 @@ export function DesignGallery({
               className={`a${active ? " on" : ""}`}
               aria-label={ANGLE_LABELS[a]}
               aria-current={active ? "true" : undefined}
-              onClick={() => onAngleChange(a)}
+              onClick={() => {
+                setFabricIdx(null);
+                onAngleChange(a);
+              }}
             >
               {img?.url ? (
                 <Image
@@ -134,7 +177,39 @@ export function DesignGallery({
                   unoptimized
                 />
               ) : (
-                <ImageSlotPlaceholder silhouette={sil} fill="rgba(244,238,225,.85)" />
+                <ImageSlotPlaceholder
+                  silhouette={sil}
+                  fill="rgba(244,238,225,.85)"
+                />
+              )}
+            </button>
+          );
+        })}
+        {images.fabricPhotos.map((photo, idx) => {
+          const active = fabricIdx === idx;
+          return (
+            <button
+              key={`fabric-${photo.assetId}-${idx}`}
+              type="button"
+              className={`a${active ? " on" : ""}`}
+              aria-label="Fabric"
+              aria-current={active ? "true" : undefined}
+              onClick={() => setFabricIdx(idx)}
+            >
+              {photo.url ? (
+                <Image
+                  src={photo.url}
+                  alt=""
+                  fill
+                  sizes="120px"
+                  className="object-cover"
+                  unoptimized
+                />
+              ) : (
+                <ImageSlotPlaceholder
+                  silhouette={sil}
+                  fill="rgba(244,238,225,.85)"
+                />
               )}
             </button>
           );

@@ -10,17 +10,17 @@ export function AksSvgSprite() {
       <defs>
         <linearGradient
           id="aksGold"
-          x1="0"
-          y1="0"
-          x2="1"
-          y2="0"
+          x1="0%"
+          y1="0%"
+          x2="100%"
+          y2="0%"
           gradientUnits="objectBoundingBox"
         >
-          <stop offset="0" stopColor="#7A5A28" />
-          <stop offset="0.28" stopColor="#B48B41" />
-          <stop offset="0.52" stopColor="#D8B667" />
-          <stop offset="0.78" stopColor="#B48B41" />
-          <stop offset="1" stopColor="#7A5A28" />
+          <stop offset="0%" stopColor="#8a6a34" />
+          <stop offset="28%" stopColor="#a8853f" />
+          <stop offset="52%" stopColor="#cba95e" />
+          <stop offset="78%" stopColor="#a8853f" />
+          <stop offset="100%" stopColor="#8a6a34" />
         </linearGradient>
         <g
           id="aks-flourish-geo"
@@ -70,6 +70,10 @@ export function AksSvgSprite() {
         </symbol>
         <symbol id="logo-mono" viewBox="0 -6 372 194">
           <use href="#aks-art" />
+        </symbol>
+        <symbol id="logo-mark" viewBox="0 0 372 194">
+          <use href="#aks-flourish-geo" />
+          <use href="#aks-ink-geo" fill="#2b2926" />
         </symbol>
         <symbol id="logo-word" viewBox="0 198 372 92">
           <use href="#aks-art" />

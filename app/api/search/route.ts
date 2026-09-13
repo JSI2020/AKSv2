@@ -19,9 +19,9 @@ export async function GET(request: Request) {
 
   const { items, total } = await getPublishedDesigns({
     filters: { query: q },
-    sort: "best_selling",
+    sort: "newest",
     page: 1,
-    pageSize: 6,
+    pageSize: 8,
   });
 
   const products = items.map((d) => ({

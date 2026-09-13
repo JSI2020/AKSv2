@@ -5,9 +5,9 @@ config({ path: ".env.local" });
 config({ path: ".env" });
 
 /**
- * Idempotent schema-ensure for the storefront newsletter list. Mirrors the
- * other `db:ensure:*` scripts — safe to run repeatedly on the live DB whose
- * migration snapshots have drifted.
+ * @deprecated Schema is now in migration 0038_newsletter_subscribers.sql.
+ * Use `npm run db:migrate` on fresh databases. Kept for drift recovery on
+ * legacy DBs that pre-date the migration.
  */
 async function main() {
   const url = process.env.DATABASE_URL;

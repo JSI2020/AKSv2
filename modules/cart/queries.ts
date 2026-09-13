@@ -13,6 +13,10 @@ import {
 
 import { createPresignedReadUrl } from "@/modules/platform/assets/r2";
 import { formatLeadTime } from "@/modules/catalog/types";
+import {
+  getRtwAvailableByLine,
+  rtwStockLineKey,
+} from "@/modules/inventory/rtw-stock";
 
 import type { CartPublic } from "./types";
 import { formatCartLeadTime } from "./types";
@@ -139,16 +143,49 @@ export async function hydrateCart(cartId: string): Promise<CartPublic | null> {
     lines.map((line) => loadThumbnailUrl(line.designId, line.colourwayId)),
   );
 
+  const standardStockLines = lines
+    .filter((line) => line.sizeMode === "STANDARD" && line.sizeLabel?.trim())
+    .map((line) => ({
+      designId: line.designId,
+      colourwayId: line.colourwayId,
+      sizeLabel: line.sizeLabel!.trim(),
+    }));
+  const availableByLine = await getRtwAvailableByLine(standardStockLines);
+
   let subtotalMinor = 0;
   let itemCount = 0;
   let maxLeadTimeDays: number | null = null;
+  const publicLines: CartPublic["lines"] = [];
 
-  const publicLines = lines.map((line, index) => {
+  for (const [index, line] of lines.entries()) {
     const design = designById.get(line.designId);
     const colourway = colourwayById.get(line.colourwayId);
-    const lineTotalMinor = line.unitPriceMinor * line.quantity;
+
+    const maxQuantity =
+      line.sizeMode === "STANDARD" && line.sizeLabel?.trim()
+        ? (availableByLine.get(
+            rtwStockLineKey(
+              line.designId,
+              line.colourwayId,
+              line.sizeLabel.trim(),
+            ),
+          ) ?? 0)
+        : null;
+
+    let quantity = line.quantity;
+    if (maxQuantity != null && quantity > maxQuantity) {
+      quantity = Math.max(0, maxQuantity);
+      if (quantity > 0) {
+        await db
+          .update(cartLines)
+          .set({ quantity, updatedAt: new Date() })
+          .where(eq(cartLines.id, line.id));
+      }
+    }
+
+    const lineTotalMinor = line.unitPriceMinor * quantity;
     subtotalMinor += lineTotalMinor;
-    itemCount += line.quantity;
+    itemCount += quantity;
 
     const leadDays = design?.leadTimeDaysOverride ?? null;
     if (leadDays != null) {
@@ -156,7 +193,7 @@ export async function hydrateCart(cartId: string): Promise<CartPublic | null> {
         maxLeadTimeDays == null ? leadDays : Math.max(maxLeadTimeDays, leadDays);
     }
 
-    return {
+    publicLines.push({
       id: line.id,
       designId: line.designId,
       designSlug: design?.slug ?? "",
@@ -165,13 +202,14 @@ export async function hydrateCart(cartId: string): Promise<CartPublic | null> {
       colourwayName: colourway?.name ?? "",
       sizeMode: line.sizeMode as "STANDARD" | "MADE_TO_MEASURE",
       sizeLabel: line.sizeLabel,
-      quantity: line.quantity,
+      quantity,
+      maxQuantity,
       unitPriceMinor: line.unitPriceMinor,
       lineTotalMinor,
       thumbnailUrl: thumbnails[index] ?? null,
       leadTimeDays: leadDays,
-    };
-  });
+    });
+  }
 
   return {
     id: cart.id,

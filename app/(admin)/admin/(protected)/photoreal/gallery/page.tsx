@@ -26,7 +26,7 @@ export default async function AdminPhotorealGalleryPage() {
 
   return (
     <div>
-      <Eyebrow>Photoreal · Gallery</Eyebrow>
+      <Eyebrow>AI Studio · Gallery</Eyebrow>
       <GalleryClient />
     </div>
   );

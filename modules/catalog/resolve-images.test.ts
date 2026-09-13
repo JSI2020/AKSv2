@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildImageTripleFromRows,
+  buildFabricPhotosFromRows,
   type RenderRow,
 } from "./resolve-images";
 
@@ -81,6 +82,32 @@ describe("buildImageTripleFromRows", () => {
     expect(triple.FRONT).not.toBeNull();
     expect(triple.THREE_QUARTER).toBeNull();
     expect(triple.BACK).toBeNull();
+  });
+});
+
+describe("buildFabricPhotosFromRows", () => {
+  it("extracts fabric swatch renders in sort order", () => {
+    const photos = buildFabricPhotosFromRows([
+      {
+        angle: "DETAIL",
+        assetId: "sw1",
+        altText: "__aks_fabric_swatch__",
+        r2Key: "renders/swatch.jpg",
+        sortOrder: 4,
+        isAiGenerated: false,
+      },
+      {
+        angle: "DETAIL",
+        assetId: "detail",
+        altText: "Extra detail shot",
+        r2Key: "renders/detail.jpg",
+        sortOrder: 3,
+        isAiGenerated: false,
+      },
+    ]);
+
+    expect(photos).toHaveLength(1);
+    expect(photos[0]?.assetId).toBe("sw1");
   });
 });
 

@@ -1,6 +1,11 @@
 import { notFound, redirect } from "next/navigation";
 
-import { PermissionDeniedError, UnauthenticatedError } from "@/modules/auth";
+import { auth } from "@/auth";
+import {
+  PermissionDeniedError,
+  UnauthenticatedError,
+  userHasPermission,
+} from "@/modules/auth";
 import { FabricEditor } from "@/modules/fabrics/admin/fabric-editor";
 import { getFabric } from "@/modules/sizing/fabric-admin-actions";
 import { getFabricStockDetail } from "@/modules/inventory";
@@ -32,12 +37,18 @@ export default async function EditFabricPage({
   }
   if (!fabric || !stock) notFound();
 
+  const session = await auth();
+  const canDelete = session?.user?.id
+    ? await userHasPermission(session.user.id, "fabric.delete")
+    : false;
+
   return (
     <FabricEditor
       mode="edit"
       fabric={fabric}
       stock={stock}
       designs={related?.designs ?? []}
+      canDelete={canDelete}
     />
   );
 }

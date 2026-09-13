@@ -21,7 +21,7 @@ export type HouseModel = ModelPersona & {
   cue: string;
 };
 
-/** 12 house models — clearly differentiated looks, modest commercial tone. */
+/** House models — clearly differentiated looks, modest commercial tone. */
 export const HOUSE_MODELS: HouseModel[] = [
   {
     id: "ayesha",
@@ -129,6 +129,105 @@ export const HOUSE_MODELS: HouseModel[] = [
     description:
       "Distinct face identity: young Pakistani woman, light wheatish clear skin, minimal modern features, soft brown eyes, neat blunt shoulder-length dark hair with almost no wave, barely-there makeup, tranquil gentle smile. Ultra-minimal styling — not glamorous or dramatic.",
     seed: 5_738_162,
+    lockSeed: true,
+  },
+  {
+    id: "meher",
+    name: "Meher",
+    cue: "Soft square · medium olive · half-up braid",
+    description:
+      "Distinct face identity: young Pakistani woman, medium olive skin, soft square jaw with gentle cheek fullness, warm brown eyes, dark hair in a neat half-up braid with the rest falling in soft waves past the shoulders, calm closed-mouth smile. Braided half-up look — not a full bun or ponytail.",
+    seed: 36_741_208,
+    lockSeed: true,
+  },
+  {
+    id: "sadia",
+    name: "Sadia",
+    cue: "Long face · cool fair · soft curls",
+    description:
+      "Distinct face identity: young South Asian woman, cool fair skin with soft pink undertone, longer narrow face, refined nose, grey-brown soft eyes, dark hair in loose soft curls to mid-back with a gentle off-centre part, serene half-smile. Cooler undertone and curls — not straight or warm-golden skin.",
+    seed: 71_592_443,
+    lockSeed: true,
+  },
+  {
+    id: "anaya",
+    name: "Anaya",
+    cue: "Round cheerful · caramel · shoulder braid",
+    description:
+      "Distinct face identity: young Pakistani woman, caramel-tan skin, cheerful round face, bright wide-set dark eyes, thick brows, dark hair in a single loose braid draped over one shoulder with a few face-framing wisps, warm open smile. Single shoulder braid and caramel tone — not fair or severe.",
+    seed: 14_308_976,
+    lockSeed: true,
+  },
+  {
+    id: "bisma",
+    name: "Bisma",
+    cue: "Diamond face · warm bronze · curtain bangs",
+    description:
+      "Distinct face identity: young South Asian woman, warm bronze complexion, diamond-shaped face with wider cheekbones and a narrower chin, dark expressive eyes, black hair with soft curtain bangs and length to the collarbone, subtle smile. Curtain bangs and bronze skin must stay distinct from blunt or swept-back styles.",
+    seed: 58_267_031,
+    lockSeed: true,
+  },
+  {
+    id: "emaan",
+    name: "Emaan",
+    cue: "Polished oval · ivory fair · French twist",
+    description:
+      "Distinct face identity: young Pakistani woman, ivory-fair luminous skin, polished oval face, arched brows, soft brown eyes, dark hair in a neat low French twist with a clean hairline, refined closed-mouth smile. Upswept twist styling — not loose hair or a simple ponytail.",
+    seed: 93_815_620,
+    lockSeed: true,
+  },
+  {
+    id: "hania",
+    name: "Hania",
+    cue: "Soft heart · peach beige · messy bun tendrils",
+    description:
+      "Distinct face identity: young Pakistani woman, peach-beige skin, soft heart-shaped face, large soft brown eyes, dark hair in a loose messy top bun with soft tendrils framing the cheeks and neck, gentle natural smile. Messy bun with tendrils — not sleek or straightened.",
+    seed: 22_459_187,
+    lockSeed: true,
+  },
+  {
+    id: "kiran",
+    name: "Kiran",
+    cue: "Angular cool · cool brown · side-swept long",
+    description:
+      "Distinct face identity: young South Asian woman, cool medium-brown skin, angular cheekbones, straighter brows, deep-set dark eyes, very long sleek black hair swept to one side with volume at the crown, composed soft smile. Cool undertone and dramatic side sweep — not warm golden or short hair.",
+    seed: 67_104_852,
+    lockSeed: true,
+  },
+  {
+    id: "laila",
+    name: "Laila",
+    cue: "Fuller features · rich medium · voluminous waves",
+    description:
+      "Distinct face identity: young Pakistani woman, rich medium-brown skin, fuller soft features with a wider smile-ready mouth, warm dark eyes, thick black hair in voluminous mid-length waves with lots of body and a soft centre part, friendly closed-mouth smile. Volume and fuller features — not delicate or flat hair.",
+    seed: 41_736_509,
+    lockSeed: true,
+  },
+  {
+    id: "nadia",
+    name: "Nadia",
+    cue: "Rectangular · light golden · chin-length crop",
+    description:
+      "Distinct face identity: young South Asian woman, light golden skin, longer rectangular face with a straighter jaw, thoughtful brown eyes, dark hair in a sleek chin-length crop with a soft side part, quiet intelligent smile. Short chin-length crop — must not look shoulder-length or longer.",
+    seed: 8_921_374,
+    lockSeed: true,
+  },
+  {
+    id: "yusra",
+    name: "Yusra",
+    cue: "Soft oval · warm olive · layered waterfall",
+    description:
+      "Distinct face identity: young Pakistani woman, warm olive skin, soft oval face, gentle brows, amber-brown eyes, dark hair cut in long layered waterfall lengths that move past the shoulders, soft half-smile. Layered movement and warm olive — not a blunt cut or deep complexion.",
+    seed: 75_608_291,
+    lockSeed: true,
+  },
+  {
+    id: "zoya",
+    name: "Zoya",
+    cue: "Petite round · fair rosy · soft side plaits",
+    description:
+      "Distinct face identity: young South Asian woman, fair rosy skin, petite round face, large soft eyes, fine features, dark hair styled in two soft loose side plaits resting forward on the shoulders, bright gentle smile. Twin soft plaits and petite scale — not a single braid or statuesque look.",
+    seed: 33_184_760,
     lockSeed: true,
   },
 ];

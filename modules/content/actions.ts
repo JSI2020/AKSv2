@@ -25,7 +25,7 @@ import {
   saveFeaturedAndSections,
 } from "./homepage";
 import { countPublishedDesignsForCategory } from "./design-refs";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import { getHouseCollectionBySlug, getHouseCollectionByTag } from "@/modules/catalog/house-collections-queries";
 import {
   CONTENT_PAGE_ALLOW,
   getContentList,
@@ -262,11 +262,9 @@ export async function publishCategoryGateAction(input: {
       input.categoryKey,
     );
 
-    const house = HOUSE_COLLECTIONS.find(
-      (c) =>
-        c.tag === input.categoryKey.toUpperCase() ||
-        c.slug === input.categoryKey.toLowerCase(),
-    );
+    const house =
+      (await getHouseCollectionByTag(input.categoryKey)) ??
+      (await getHouseCollectionBySlug(input.categoryKey));
     const linkValue = house?.slug ?? input.categoryKey.toLowerCase();
 
     const id = await publishCategoryGate({

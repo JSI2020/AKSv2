@@ -41,11 +41,11 @@ export default async function AdminInsightsPage({
   return (
     <AdminNuqsProvider>
       <div>
-        <Eyebrow>Insights</Eyebrow>
+        <Eyebrow>Money · Insights</Eyebrow>
         <h1 className="mt-1 font-display text-3xl text-greige">Insights</h1>
         <p className="mt-2 max-w-[640px] text-[13px] leading-relaxed text-chalk">
-          Derived reports from real orders — filterable, exportable, every row
-          links to its entity.
+          Every number below is derived from real orders. Easy charts first —
+          every table row links to its entity.
         </p>
         <div className="mt-6">
           <InsightsDashboard data={data} />

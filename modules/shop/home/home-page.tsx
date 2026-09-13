@@ -4,6 +4,7 @@ import { cloneElement, isValidElement } from "react";
 import { getPublishedDesigns } from "@/modules/catalog/queries";
 import { getContentList } from "@/modules/content/pages";
 import { loadStorefrontHomepage } from "@/modules/content/homepage";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import {
   automaticPercentForDesign,
   loadActiveAutomaticPercentDiscounts,
@@ -22,28 +23,43 @@ function sectionOn(enabled: Record<string, boolean>, key: string): boolean {
 
 export async function HomePage() {
   const t = await getTranslations("HomeProto");
-  const [homepage, autoDiscounts] = await Promise.all([
+  const [homepage, autoDiscounts, collections] = await Promise.all([
     loadStorefrontHomepage(),
     loadActiveAutomaticPercentDiscounts(),
+    listHouseCollections({ activeOnly: true }),
   ]);
+
+  const doorLabels = Object.fromEntries(
+    collections.flatMap((c) => [[c.tag, c.navLabel]]),
+  );
+  doorLabels.WHITE_COLLECTION = "Signature";
+
+  const editDoorFilters = collections
+    .filter((c) => c.slug !== "separates")
+    .slice(0, 4)
+    .map((c) => ({ label: c.navLabel, tag: c.tag }));
 
   const editMode = homepage?.edit.mode ?? "auto";
   const handpicked = homepage?.edit.designIds ?? [];
 
   let designs;
   if (editMode === "handpicked" && handpicked.length > 0) {
-    const all = await getPublishedDesigns({ sort: "newest", pageSize: 48 });
-    const byId = new Map(all.items.map((d) => [d.id, d]));
+    const { items } = await getPublishedDesigns({
+      filters: { designIds: handpicked },
+      sort: "newest",
+      pageSize: Math.min(48, handpicked.length),
+    });
+    const byId = new Map(items.map((d) => [d.id, d]));
     designs = handpicked
       .map((id) => byId.get(id))
       .filter(Boolean)
-      .slice(0, 12) as typeof all.items;
+      .slice(0, 12) as typeof items;
   } else {
     const { items } = await getPublishedDesigns({
       sort: "newest",
-      pageSize: 12,
+      pageSize: 48,
     });
-    designs = items.slice(0, 12);
+    designs = items;
   }
 
   designs = designs.map((d) => ({
@@ -90,13 +106,19 @@ export async function HomePage() {
     categories: (
       <CategoryDoors
         tiles={tiles}
-        eyebrow={t("catsEyebrow")}
+        fallbackDoors={collections}
+        eyebrow={t("heroEyebrow")}
         title={t("catsTitle")}
-        slotTag={t("catSlotTag")}
         exploreTemplate={(name) => t("exploreDoor", { name })}
       />
     ),
-    edit: <EditGrid designs={designs} />,
+    edit: (
+      <EditGrid
+        designs={designs}
+        doorFilters={editDoorFilters}
+        doorLabels={doorLabels}
+      />
+    ),
     fabric: <FabricLibrary />,
     atelier: (
       <Atelier

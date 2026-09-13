@@ -12,6 +12,8 @@ export type CartLinePublic = {
   sizeMode: SizeMode;
   sizeLabel: string | null;
   quantity: number;
+  /** Max purchasable units for this colourway × size; null = no RTW cap (e.g. MTM). */
+  maxQuantity: number | null;
   unitPriceMinor: number;
   lineTotalMinor: number;
   thumbnailUrl: string | null;

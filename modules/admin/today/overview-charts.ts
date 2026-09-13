@@ -23,23 +23,55 @@ function ymd(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
+function eachDayKeys(from: Date, to: Date, maxDays = 31): string[] {
+  const start = new Date(from);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(0, 0, 0, 0);
+
+  const keys: string[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end && keys.length < maxDays) {
+    keys.push(ymd(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  // If range > maxDays, keep the most recent window ending at `to`.
+  if (end > start) {
+    const totalDays =
+      Math.floor((end.getTime() - start.getTime()) / 86_400_000) + 1;
+    if (totalDays > maxDays) {
+      const trimmed: string[] = [];
+      const c = new Date(end);
+      for (let i = 0; i < maxDays; i++) {
+        trimmed.unshift(ymd(c));
+        c.setDate(c.getDate() - 1);
+      }
+      return trimmed;
+    }
+  }
+  return keys;
+}
+
 /**
- * Dashboard visuals: a trailing 14-day revenue/orders trend (independent of the
- * picker so it always tells a story), plus top designs and category split for
- * the selected range.
+ * Dashboard visuals for the selected Overview range:
+ * daily revenue/orders (capped at 31 days), top designs, category split.
  */
 export async function getOverviewCharts(range: {
   from: Date;
   to: Date;
 }): Promise<OverviewCharts> {
-  const end = new Date();
-  const start = new Date();
-  start.setDate(end.getDate() - 13);
-  start.setHours(0, 0, 0, 0);
+  const dayKeys = eachDayKeys(range.from, range.to, 31);
+  const seriesFrom = new Date(`${dayKeys[0]}T00:00:00`);
+  const seriesTo = range.to;
 
   const placedInRange = and(
     gte(orders.placedAt, range.from),
     lte(orders.placedAt, range.to),
+  );
+
+  const placedInSeries = and(
+    gte(orders.placedAt, seriesFrom),
+    lte(orders.placedAt, seriesTo),
   );
 
   const [dailyRaw, topDesigns, byCategory] = await Promise.all([
@@ -50,7 +82,7 @@ export async function getOverviewCharts(range: {
         orders: sql<number>`count(*)::int`,
       })
       .from(orders)
-      .where(gte(orders.placedAt, start))
+      .where(placedInSeries)
       .groupBy(sql`to_char(${orders.placedAt}, 'YYYY-MM-DD')`),
     db
       .select({
@@ -80,20 +112,15 @@ export async function getOverviewCharts(range: {
       .limit(6),
   ]);
 
-  // Fill every day in the trailing window so the trend has no gaps.
   const byDay = new Map(dailyRaw.map((r) => [r.day, r]));
-  const dailyRevenue: DailyPoint[] = [];
-  for (let i = 0; i < 14; i++) {
-    const d = new Date(start);
-    d.setDate(start.getDate() + i);
-    const key = ymd(d);
+  const dailyRevenue: DailyPoint[] = dayKeys.map((key) => {
     const hit = byDay.get(key);
-    dailyRevenue.push({
+    return {
       day: key,
       revenueMinor: hit?.revenueMinor ?? 0,
       orders: hit?.orders ?? 0,
-    });
-  }
+    };
+  });
 
   return {
     dailyRevenue,

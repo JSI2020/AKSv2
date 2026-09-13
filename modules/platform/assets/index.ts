@@ -4,6 +4,8 @@ export {
   ensureBucket,
   createPresignedUploadUrl,
   createPresignedReadUrl,
+  createAiExternalReadUrl,
+  ensureObjectInR2,
   deleteObject,
   getObjectBytes,
   uploadBufferToR2,
@@ -11,5 +13,6 @@ export {
   deleteAsset,
   purgeExpiredAssets,
   uploadKeyOwnedByPrefix,
+  saveLocalDevAsset,
 } from "./r2";
 export type { CompleteUploadInput } from "./r2";

@@ -53,9 +53,6 @@ export async function Atelier({
           <h2 className="serif">{title}</h2>
           <p>{p1}</p>
           <p>{p2}</p>
-          <div className="ur urdu" lang="ur">
-            عکس
-          </div>
           {aksLine ? <p style={{ fontSize: "13px" }}>{aksLine}</p> : null}
         </div>
         <div className="signatures">

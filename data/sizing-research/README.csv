@@ -1,0 +1,8 @@
+Topic,Detail
+What this is,Research evidence pack: observed numeric tables are separated from category taxonomy.
+Use raw data first,Raw_Size_Observations contains only figures extracted from cited source results.
+Do not average brands,A size label is not universal. Finished/flat garment charts and body charts are not comparable without conversion.
+Taxonomy status,Confirmed = category/offer verified; Measured = a numeric chart exists; Proposed = valid configurable category but no verified universal numeric chart included.
+Best app import,"Import Categories.csv and Measurement_Keys.csv. Store Raw_Size_Observations.csv as evidence, not as universal defaults."
+Unstitched rule,"Fabric-cut products use metres/width, never XS-XXL."
+Research limit,Public sites often use JavaScript/product-level tables; this pack records only verifiable retrieved data and flags limits.

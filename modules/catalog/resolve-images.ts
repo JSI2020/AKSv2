@@ -1,10 +1,16 @@
-import { and, asc, eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { assets, db, designRenders } from "@aks/db";
 
+import { isFabricSwatchRender } from "@/modules/designs/fabric-swatch-render";
 import { createPresignedReadUrl } from "@/modules/platform/assets/r2";
 
-import type { GalleryAngle, ResolvedImageTriple, ResolvedRenderImage } from "./types";
+import type {
+  GalleryAngle,
+  ResolvedGalleryImages,
+  ResolvedImageTriple,
+  ResolvedRenderImage,
+} from "./types";
 
 const GALLERY_ANGLES = ["FRONT", "THREE_QUARTER", "BACK"] as const satisfies readonly GalleryAngle[];
 
@@ -47,6 +53,21 @@ export function buildImageTripleFromRows(rows: RenderRow[]): ResolvedImageTriple
   };
 }
 
+export function buildFabricPhotosFromRows(
+  rows: RenderRow[],
+): NonNullable<ResolvedRenderImage>[] {
+  return rows
+    .filter((r) => isFabricSwatchRender(r))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.assetId.localeCompare(b.assetId))
+    .map((row) => ({
+      assetId: row.assetId,
+      r2Key: row.r2Key,
+      altText: row.altText,
+      url: null,
+      isAiGenerated: row.isAiGenerated,
+    }));
+}
+
 async function presignTriple(triple: ResolvedImageTriple): Promise<ResolvedImageTriple> {
   const entries = await Promise.all(
     GALLERY_ANGLES.map(async (angle) => {
@@ -64,14 +85,30 @@ async function presignTriple(triple: ResolvedImageTriple): Promise<ResolvedImage
   return Object.fromEntries(entries) as ResolvedImageTriple;
 }
 
+async function presignFabricPhotos(
+  photos: NonNullable<ResolvedRenderImage>[],
+): Promise<NonNullable<ResolvedRenderImage>[]> {
+  return Promise.all(
+    photos.map(async (img) => {
+      let url: string | null = null;
+      try {
+        url = await createPresignedReadUrl(img.r2Key, 3600);
+      } catch {
+        url = null;
+      }
+      return { ...img, url };
+    }),
+  );
+}
+
 /**
  * Reads cached design_renders only — never generates images.
- * Returns presigned URLs for FRONT, THREE_QUARTER, and BACK.
+ * Returns presigned URLs for FRONT, THREE_QUARTER, BACK, plus fabric swatches last.
  */
 export async function resolveImages(
   designId: string,
   colourwayId: string,
-): Promise<ResolvedImageTriple> {
+): Promise<ResolvedGalleryImages> {
   const rows = await db
     .select({
       angle: designRenders.angle,
@@ -87,11 +124,20 @@ export async function resolveImages(
       and(
         eq(designRenders.designId, designId),
         eq(designRenders.colourwayId, colourwayId),
-        inArray(designRenders.angle, [...GALLERY_ANGLES]),
+        eq(designRenders.isAiGenerated, false),
       ),
     )
     .orderBy(asc(designRenders.sortOrder));
 
   const triple = buildImageTripleFromRows(rows);
-  return presignTriple(triple);
+  const fabricPhotos = buildFabricPhotosFromRows(rows);
+  const [signedTriple, signedFabric] = await Promise.all([
+    presignTriple(triple),
+    presignFabricPhotos(fabricPhotos),
+  ]);
+
+  return {
+    ...signedTriple,
+    fabricPhotos: signedFabric,
+  };
 }

@@ -31,13 +31,14 @@ export function buildTodayActionCards(
       {
         id: "awaiting-confirmation",
         label: "Orders awaiting confirmation",
+        hint: "New orders needing your review",
         count: counts.awaitingConfirmation,
         href: "/admin/orders?production=RECEIVED",
       },
       {
         id: "measurements-unverified",
-        label: "Awaiting size confirmation",
-        hint: "Confirm standard size before cutting",
+        label: "Measurements not verified",
+        hint: "Blocks cutting — verify to proceed",
         count: counts.measurementsUnverified,
         href: "/admin/orders?production=CONFIRMED",
       },
@@ -51,6 +52,7 @@ export function buildTodayActionCards(
       {
         id: "balance-due",
         label: "Balance payments outstanding",
+        hint: "Deposits received, balance pending",
         count: counts.balanceDue,
         href: "/admin/orders?payment=BALANCE_DUE",
       },
@@ -61,6 +63,7 @@ export function buildTodayActionCards(
     cards.push({
       id: "low-stock",
       label: "Fabric below reorder point",
+      hint: "Restock before stock runs out",
       count: counts.lowStock,
       href: "/admin/fabrics?lowStock=true",
     });
@@ -70,6 +73,7 @@ export function buildTodayActionCards(
     cards.push({
       id: "bank-transfer",
       label: "Bank transfers to verify",
+      hint: "Confirm receipt before processing",
       count: counts.bankTransfer,
       href: "/admin/payments/verification",
     });
@@ -78,7 +82,8 @@ export function buildTodayActionCards(
   if (can(granted, "designs.view")) {
     cards.push({
       id: "designs-review",
-      label: "Designs awaiting review or publish",
+      label: "Designs awaiting review",
+      hint: "Drafts not yet published",
       count: counts.designsReview,
       href: "/admin/designs?awaitingReview=true",
     });

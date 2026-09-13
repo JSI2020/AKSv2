@@ -11,7 +11,7 @@ import { uuidv7 } from "@aks/shared";
 
 import { getPublishedDesigns } from "@/modules/catalog/queries";
 import { resolveCollection } from "@/modules/catalog/resolve-collection";
-import { HOUSE_COLLECTIONS } from "@/modules/catalog/house-collections";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import type { DbTx } from "@/modules/platform/types";
 
 import {
@@ -51,6 +51,7 @@ export type EvaluateDiscountsResult =
 async function buildCollectionDesignMap(
   rows: (typeof discounts.$inferSelect)[],
 ): Promise<Map<string, Set<string>>> {
+  const collections = await listHouseCollections({ activeOnly: false });
   const slugs = [
     ...new Set(
       rows
@@ -60,10 +61,9 @@ async function buildCollectionDesignMap(
         )
         .flatMap((row) =>
           row.targetIds.map((id) => {
-            // CATEGORY stores house-door tags (ESSENTIALS); collections use slugs.
             const lower = id.toLowerCase();
             if (row.appliesTo === "CATEGORY") {
-              const house = HOUSE_COLLECTIONS.find(
+              const house = collections.find(
                 (c) => c.tag === id.toUpperCase() || c.slug === lower,
               );
               return house?.slug ?? lower;
@@ -205,11 +205,12 @@ async function loadActiveDiscountCandidates(
 function collectionDesignIdsForDiscount(
   discount: typeof discounts.$inferSelect,
   collectionMap: Map<string, Set<string>>,
+  collections: Awaited<ReturnType<typeof listHouseCollections>>,
 ): Set<string> {
   const ids = new Set<string>();
   for (const raw of discount.targetIds) {
     const lower = raw.toLowerCase();
-    const house = HOUSE_COLLECTIONS.find(
+    const house = collections.find(
       (c) => c.tag === raw.toUpperCase() || c.slug === lower,
     );
     const key = house?.slug ?? lower;
@@ -239,6 +240,7 @@ export async function evaluateCheckoutDiscounts(
   const candidates = codeDiscount ? [...automatic, codeDiscount] : automatic;
 
   const collectionMap = await buildCollectionDesignMap(candidates);
+  const collections = await listHouseCollections({ activeOnly: false });
   const hasPriorOrder = await customerHasPriorOrder({
     userId: input.userId,
     guestEmail: input.guestEmail,
@@ -265,7 +267,7 @@ export async function evaluateCheckoutDiscounts(
     const collectionDesignIds =
       discount.appliesTo === "COLLECTION" ||
         discount.appliesTo === "CATEGORY"
-        ? collectionDesignIdsForDiscount(discount, collectionMap)
+        ? collectionDesignIdsForDiscount(discount, collectionMap, collections)
         : new Set<string>();
 
     const scopedSubtotal = applicableSubtotalMinor(

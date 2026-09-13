@@ -10,6 +10,10 @@ import {
 } from "@aks/db";
 
 import { requirePermission } from "@/modules/auth";
+import {
+  fetchProviderBalances,
+  type ProviderBalancesSnapshot,
+} from "@/modules/ai/providers/account-balances";
 
 import { getTryonSettings } from "./defaults";
 import { getPurgeJobStatus } from "./purge";
@@ -45,6 +49,8 @@ export type TryOnAdminDashboardData = {
   purgeStatus: Awaited<ReturnType<typeof getPurgeJobStatus>>;
   spend: Awaited<ReturnType<typeof getTryOnSpendSummary>>;
   conversionRate: number;
+  /** Live prepaid wallets on fal / DeepSeek (not the internal monthly cap). */
+  providerBalances: ProviderBalancesSnapshot;
 };
 
 export async function getTryOnAdminDashboard(): Promise<TryOnAdminDashboardData> {
@@ -53,6 +59,7 @@ export async function getTryOnAdminDashboard(): Promise<TryOnAdminDashboardData>
   const settings = await getTryonSettings();
   const purgeStatus = await getPurgeJobStatus();
   const spend = await getTryOnSpendSummary();
+  const providerBalances = await fetchProviderBalances();
 
   const sessionsRaw = await db
     .select({
@@ -135,6 +142,7 @@ export async function getTryOnAdminDashboard(): Promise<TryOnAdminDashboardData>
     purgeStatus,
     spend,
     conversionRate,
+    providerBalances,
   };
 }
 

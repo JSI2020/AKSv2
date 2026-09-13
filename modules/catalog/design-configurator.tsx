@@ -11,13 +11,18 @@ import { DesignGallery } from "./design-gallery";
 import { DesignSizeGuideModal } from "./design-size-guide-modal";
 import { DesignSizePicker } from "./design-size-picker";
 import { AddToCartButton } from "@/modules/cart/add-to-cart-button";
+import {
+  resolveShadePriceMinor,
+  resolveShadeCompareAtMinor,
+  resolveShadeSizeLabels,
+} from "@/modules/designs/shade-utils";
 import { DesignSizingPanel } from "./design-sizing-panel";
 import { resolveDisplayPrice } from "./pricing";
 import type {
   ConfiguratorState,
   DesignDetailPublic,
   GalleryAngle,
-  ResolvedImageTriple,
+  ResolvedGalleryImages,
   SizeMode,
 } from "./types";
 import type { DesignSizeChartPublic } from "./resolve-design-size-chart";
@@ -30,7 +35,7 @@ import {
 type Props = {
   design: DesignDetailPublic;
   sizeChart: DesignSizeChartPublic | null;
-  imagesByColourway: Record<string, ResolvedImageTriple>;
+  imagesByColourway: Record<string, ResolvedGalleryImages>;
   initialColourwayParam: string | null;
   initialAngle: GalleryAngle;
   initialSizeMode: SizeMode;
@@ -105,32 +110,47 @@ export function DesignConfigurator({
     design.colourways.find((c) => c.id === state.colourwayId) ??
     design.colourways[0]!;
 
+  const shadeSizeLabels = useMemo(
+    () => resolveShadeSizeLabels(selectedColourway, design),
+    [selectedColourway, design],
+  );
+
   const availabilityBySize = useMemo(() => {
     const byColourway = design.rtwAvailability[state.colourwayId] ?? {};
     const map: Record<string, number> = {};
-    for (const label of design.availableSizeLabels) {
+    for (const label of shadeSizeLabels) {
       map[label] = byColourway[label] ?? 0;
     }
     return map;
-  }, [design.availableSizeLabels, design.rtwAvailability, state.colourwayId]);
+  }, [shadeSizeLabels, design.rtwAvailability, state.colourwayId]);
 
-  const selectedAvailable =
-    state.sizeLabel != null ? (availabilityBySize[state.sizeLabel] ?? 0) : 0;
+  const colourwaySoldOut = useMemo(
+    () =>
+      shadeSizeLabels.length > 0 &&
+      shadeSizeLabels.every((label) => (availabilityBySize[label] ?? 0) <= 0),
+    [availabilityBySize, shadeSizeLabels],
+  );
+
+  const retailBaseMinor = resolveShadePriceMinor(selectedColourway, design);
 
   const displayPrice = useMemo(
     () =>
       resolveDisplayPrice({
-        basePriceMinor: design.basePriceMinor,
-        compareAtPriceMinor: design.compareAtPriceMinor,
+        basePriceMinor: retailBaseMinor,
+        compareAtPriceMinor:
+          resolveShadeCompareAtMinor(selectedColourway, design) ??
+          design.compareAtPriceMinor,
         compareAtStartsAt: design.compareAtStartsAt,
         compareAtEndsAt: design.compareAtEndsAt,
       }),
-    [design],
+    [design, retailBaseMinor, selectedColourway.compareAtPriceMinor],
   );
 
   const displayPriceMinor =
-    displayPrice.priceMinor +
-    selectedColourway.priceDeltaMinor;
+    displayPrice.priceMinor + selectedColourway.priceDeltaMinor;
+
+  const selectedAvailable =
+    state.sizeLabel != null ? (availabilityBySize[state.sizeLabel] ?? 0) : 0;
 
   const images =
     imagesByColourway[state.colourwayId] ??
@@ -218,12 +238,21 @@ export function DesignConfigurator({
         <DesignSizePicker
           sizeMode={state.sizeMode}
           sizeLabel={state.sizeLabel}
-          sizes={design.availableSizeLabels}
+          sizes={shadeSizeLabels}
           availabilityBySize={availabilityBySize}
           onSizeModeChange={(sizeMode) => patchState({ sizeMode })}
           onSizeLabelChange={(sizeLabel) => patchState({ sizeLabel })}
           onOpenSizeGuide={() => setSizeGuideOpen(true)}
         />
+
+        {colourwaySoldOut ? (
+          <p
+            className="pdp-desc"
+            style={{ marginTop: "0.75rem", color: "var(--taupe)" }}
+          >
+            This colour is sold out. Try another swatch.
+          </p>
+        ) : null}
 
         <DesignSizeGuideModal
           open={sizeGuideOpen}
@@ -231,7 +260,7 @@ export function DesignConfigurator({
           chart={sizeChart}
           ghostUrl={design.sizingGhostUrl}
           placements={design.sizingOverlay ?? undefined}
-          availableSizeLabels={design.availableSizeLabels}
+          availableSizeLabels={shadeSizeLabels}
           selectedSizeLabel={state.sizeLabel}
           onSelectSize={handleSelectSizeFromGuide}
         />
@@ -273,7 +302,7 @@ export function DesignConfigurator({
           chart={sizeChart}
           ghostUrl={design.sizingGhostUrl}
           placements={design.sizingOverlay ?? undefined}
-          availableSizeLabels={design.availableSizeLabels}
+          availableSizeLabels={shadeSizeLabels}
           selectedSizeLabel={state.sizeLabel}
           onSelectSize={(sizeLabel) =>
             patchState({ sizeMode: "STANDARD", sizeLabel })

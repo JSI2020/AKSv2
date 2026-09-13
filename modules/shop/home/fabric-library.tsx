@@ -30,9 +30,18 @@ export async function FabricLibrary() {
         <div className="fabrics">
           {fabrics.map((f, i) => (
             <div key={f.id} className="fab">
-              <div
-                className={`sw ${WEAVE_CLASSES[i % WEAVE_CLASSES.length]}`}
-              />
+              {f.swatchUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={f.swatchUrl}
+                  alt=""
+                  className="sw object-cover"
+                />
+              ) : (
+                <div
+                  className={`sw ${WEAVE_CLASSES[i % WEAVE_CLASSES.length]}`}
+                />
+              )}
               <h4 className="serif">{f.name}</h4>
               <div className="ch">{f.drapeNotes || f.composition}</div>
               <div className="where">{f.composition}</div>

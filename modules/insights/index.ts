@@ -20,6 +20,9 @@ export { getInsightsReportData } from "./queries-reports";
 export type {
   InsightsReportData,
   InsightsDateRange,
+  SalesByProvinceRow,
+  SalesBySourceRow,
+  DailyTrendPoint,
 } from "./queries-reports";
 
 export {

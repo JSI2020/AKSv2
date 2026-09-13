@@ -1,0 +1,42 @@
+Measurement Key,Label,Default unit
+ARMHOLE,Armhole,inches unless noted
+BORDER_HEM,Border Hem,inches unless noted
+BOTTOM_FABRIC_LENGTH,Bottom Fabric Length,inches unless noted
+BOTTOM_HIP,Bottom Hip,inches unless noted
+BOTTOM_LENGTH,Bottom Length,inches unless noted
+BOTTOM_OPENING,Bottom Opening,inches unless noted
+BOTTOM_RISE,Bottom Rise,inches unless noted
+BOTTOM_WAIST,Bottom Waist,inches unless noted
+BUST,Bust,inches unless noted
+CHEST,Chest,inches unless noted
+CROSS_BACK,Cross Back,inches unless noted
+DAMAN,Daman,inches unless noted
+DAMAN_SHORT,Daman Short,inches unless noted
+DUPATTA_LENGTH,Dupatta Length,inches unless noted
+FABRIC_LENGTH,Fabric Length,inches unless noted
+FABRIC_WIDTH,Fabric Width,inches unless noted
+FULL_SHIRT_LENGTH,Full Shirt Length,inches unless noted
+HIP,Hip,inches unless noted
+KNEE_ROUND,Knee Round,inches unless noted
+LENGTH,Length,inches unless noted
+LENGTH_FRONT,Length Front,inches unless noted
+LOWER_WAIST,Lower Waist,inches unless noted
+NECK_DEPTH_BACK,Neck Depth Back,inches unless noted
+NECK_DEPTH_FRONT,Neck Depth Front,inches unless noted
+RISE,Rise,inches unless noted
+SECOND_FABRIC_LENGTH,Second Fabric Length,inches unless noted
+SHIRT_FABRIC_LENGTH,Shirt Fabric Length,inches unless noted
+SHOULDER,Shoulder,inches unless noted
+SLEEVES,Sleeves,inches unless noted
+SLEEVE_LENGTH,Sleeve Length,inches unless noted
+SLEEVE_LONG,Sleeve Long,inches unless noted
+SLEEVE_OPENING,Sleeve Opening,inches unless noted
+SWEEP,Sweep,inches unless noted
+THIGH,Thigh,inches unless noted
+TOP_BUST,Top Bust,inches unless noted
+TOP_HIP,Top Hip,inches unless noted
+TOP_LENGTH,Top Length,inches unless noted
+TOP_WAIST,Top Waist,inches unless noted
+UPPER_WAIST,Upper Waist,inches unless noted
+WAIST,Waist,inches unless noted
+WIDTH,Width,inches unless noted

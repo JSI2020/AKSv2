@@ -25,6 +25,8 @@ export type StockLedgerFigures = {
   available: number;
   /** Display unit: pcs | m (metres shown as decimal from hundredths). */
   unit: "pcs" | "m";
+  /** Fabric only — hundredths of a metre; drives madder on the triad bar. */
+  reorderPointMeters?: number;
 };
 
 export type StockLedgerDetail = {

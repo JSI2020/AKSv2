@@ -3,6 +3,7 @@ import { and, eq, lte, sql } from "drizzle-orm";
 import { db, outbox } from "@aks/db";
 
 import { getHandler } from "./handlers";
+import { alertOutboxDead } from "@/modules/platform/observability";
 
 const MAX_ATTEMPTS = 5;
 
@@ -52,6 +53,12 @@ export async function processOneOutboxMessage(): Promise<ProcessResult> {
             updatedAt: new Date(),
           })
           .where(eq(outbox.id, row.id));
+        void alertOutboxDead({
+          id: row.id,
+          topic: row.topic,
+          attempts,
+          lastError: `No handler registered for topic "${row.topic}"`,
+        });
         return {
           kind: "dead",
           id: row.id,
@@ -107,6 +114,12 @@ export async function processOneOutboxMessage(): Promise<ProcessResult> {
             updatedAt: new Date(),
           })
           .where(eq(outbox.id, row.id));
+        void alertOutboxDead({
+          id: row.id,
+          topic: row.topic,
+          attempts,
+          lastError: message,
+        });
         return {
           kind: "dead",
           id: row.id,

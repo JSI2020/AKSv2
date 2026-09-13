@@ -22,6 +22,12 @@ const SKETCH_ANCHOR =
 const OLD_DESIGN_ANCHOR =
   "Photorealistic fashion photograph that looks like a real camera shot. The attached image is an OLD DESIGN PHOTO for garment inspiration only. Recreate the outfit as a fresh real photograph: keep the garment type, silhouette, and key dress details, but improve fabric realism, colour richness, and fit. CRITICAL: do NOT keep the original person, face, body, hair, skin tone, or identity from the photo — completely replace them with the house model described below.";
 
+/**
+ * Photo → Pose — hard garment lock. Only pose, camera, and house-model identity may change.
+ */
+const REPOSE_ANCHOR =
+  "Photorealistic fashion photograph that looks like a real camera shot. The attached image is the SOURCE GARMENT PHOTO. Reproduce the dress EXACTLY as shown — identical silhouette, neckline, sleeves, hem length, embroidery placement, colourways, fabric appearance, and construction details. Do not redesign, restyle, recolour, shorten, lengthen, or invent new embellishment. CRITICAL: replace the original person completely with the house model below, and restage only pose and camera framing.";
+
 /** Text-only — invent garment from the user's description. */
 const DESCRIPTION_ANCHOR =
   "Photorealistic fashion photograph that looks like a real commercial campaign shot. Create the outfit from the user's written description only — no sketch or reference photo. Invent a coherent modest South Asian / Pakistani women's outfit (e.g. kameez, shalwar/palazzo, dupatta if mentioned) that matches the colours, fabric, and style notes. Show it on the house model in a varied commercial pose (not always standing front-on).";
@@ -56,7 +62,10 @@ export const DEFAULT_NEGATIVE_PROMPT =
 export const OLD_DESIGN_NEGATIVE_PROMPT =
   `same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
 
-export type PromptMode = "sketch" | "old-design" | "description";
+export const REPOSE_NEGATIVE_PROMPT =
+  `altered dress, redesigned garment, new embroidery, colour shift, different hem, different neckline, different silhouette, same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
+
+export type PromptMode = "sketch" | "old-design" | "description" | "repose";
 
 export const INPUT_SOURCE_TABS = [
   {
@@ -118,8 +127,14 @@ function trimOrEmpty(value?: string | null): string {
   return value?.trim() ?? "";
 }
 
-function joinNonEmpty(parts: string[], separator = " "): string {
-  return parts.map((p) => p.trim()).filter(Boolean).join(separator);
+function joinNonEmpty(
+  parts: Array<string | null | undefined | false>,
+  separator = " ",
+): string {
+  return parts
+    .map((p) => (typeof p === "string" ? p.trim() : ""))
+    .filter(Boolean)
+    .join(separator);
 }
 
 export function feedbackRequestsBackground(feedback?: string): boolean {
@@ -180,7 +195,9 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       ? "old-design"
       : input.mode === "description"
         ? "description"
-        : "sketch";
+        : input.mode === "repose"
+          ? "repose"
+          : "sketch";
   const persona = getModelPersona(input.persona);
   const description = trimOrEmpty(input.description);
   const feedback = trimOrEmpty(input.feedback);
@@ -204,22 +221,26 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       description &&
         (mode === "description"
           ? `Garment brief: ${description}.`
-          : `User direction: ${description}.`),
-      garmentNotes,
+          : mode === "repose"
+            ? `Pose / camera note only (do not change the dress): ${description}.`
+            : `User direction: ${description}.`),
+      mode === "repose" ? null : garmentNotes,
       feedback &&
         (wantsBg
           ? `BACKGROUND CHANGE — apply clearly, replace the entire environment with a real photographic setting: ${feedback}. Keep the same house model and the same dress.`
           : wantsPose
             ? `POSE / ANGLE CHANGE — apply clearly with a new real commercial fashion-photography stance: ${feedback}. Keep the same house model and the same dress; do not return a near-copy of the previous frame.`
-            : mode === "old-design" || mode === "description"
-              ? `Apply this change clearly (do not return a near-copy): ${feedback}.`
-              : `Refinement: ${feedback}.`),
+            : mode === "repose"
+              ? `Apply this pose/camera change only; keep the dress identical: ${feedback}.`
+              : mode === "old-design" || mode === "description"
+                ? `Apply this change clearly (do not return a near-copy): ${feedback}.`
+                : `Refinement: ${feedback}.`),
     ],
     " ",
   );
 
   const modelLine =
-    mode === "old-design"
+    mode === "old-design" || mode === "repose"
       ? `House model (MUST use this exact distinct person — not anyone from the reference photo, and not a generic similar face): ${persona.description}`
       : `House model (keep this exact distinct identity — do not genericise into a lookalike): ${persona.description}`;
 
@@ -236,9 +257,11 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
   const anchor =
     mode === "old-design"
       ? OLD_DESIGN_ANCHOR
-      : mode === "description"
-        ? DESCRIPTION_ANCHOR
-        : SKETCH_ANCHOR;
+      : mode === "repose"
+        ? REPOSE_ANCHOR
+        : mode === "description"
+          ? DESCRIPTION_ANCHOR
+          : SKETCH_ANCHOR;
 
   const prompt = joinNonEmpty(
     [
@@ -251,6 +274,11 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       EXPRESSION,
       CAMERA,
       STYLE,
+      ...(mode === "repose"
+        ? [
+            "GARMENT LOCK: if pose or model conflicts with the dress, keep the dress and adjust pose only.",
+          ]
+        : []),
     ],
     " ",
   );
@@ -260,7 +288,9 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
     negativePrompt:
       mode === "old-design"
         ? OLD_DESIGN_NEGATIVE_PROMPT
-        : DEFAULT_NEGATIVE_PROMPT,
+        : mode === "repose"
+          ? REPOSE_NEGATIVE_PROMPT
+          : DEFAULT_NEGATIVE_PROMPT,
     seed: resolvePersonaSeed(persona),
     mode,
     poseId: pose?.id,
@@ -279,7 +309,8 @@ export function resolvePromptMode(input: {
   if (
     input.sourceMode === "sketch" ||
     input.sourceMode === "old-design" ||
-    input.sourceMode === "description"
+    input.sourceMode === "description" ||
+    input.sourceMode === "repose"
   ) {
     return input.sourceMode;
   }

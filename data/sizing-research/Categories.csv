@@ -1,0 +1,35 @@
+Category Key,Category,Definition,Type,Typical range,Measurement keys,Evidence status
+KAMEEZ,Kameez,Core eastern shirt/top,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|SLEEVE_OPENING|ARMHOLE|NECK_DEPTH_FRONT|NECK_DEPTH_BACK|LENGTH|SWEEP,Confirmed
+KURTA,Kurta,Women’s kurta/top,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Confirmed
+KURTI,Kurti,Long/short/floor kurti,wearable,XS-7XL,BUST|UPPER_WAIST|HIP|SHOULDER|LENGTH,Measured
+A_LINE_SHIRT,A-line Shirt,Flared shirt silhouette,wearable,XS-XL,BUST|SHOULDER|LENGTH|SWEEP,Confirmed
+STRAIGHT_SHIRT,Straight Shirt,Straight shirt silhouette,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH,Proposed
+ANGRAKHA,Angrakha,Wrap/tie-front top/dress,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Proposed
+TROUSER,Trouser,Regular trouser,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|LENGTH|BOTTOM_OPENING,Confirmed
+SHALWAR,Shalwar,Traditional lower garment,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|LENGTH|BOTTOM_OPENING,Confirmed
+PANT,Pant,Straight/cigarette/fusion pant,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|LENGTH|BOTTOM_OPENING,Measured
+PALAZZO,Palazzo,Wide-leg bottom,wearable,XS-7XL,LOWER_WAIST|LENGTH,Measured
+CULOTTE,Culotte,Wide cropped bottom,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|LENGTH|BOTTOM_OPENING,Confirmed
+CAPRI,Capri,Cropped bottom,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|LENGTH|BOTTOM_OPENING,Proposed
+SKIRT,Skirt,Fusion/Western skirt,wearable,XS-XXL,WAIST|HIP|LENGTH|SWEEP,Confirmed
+LEHENGA,Lehenga,Festive/bridal skirt set,wearable,XS-7XL,BUST|UPPER_WAIST|HIP|LOWER_WAIST|LENGTH,Measured
+GHARARA,Gharara,Festive flared bottom,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|KNEE_ROUND|LENGTH|BOTTOM_OPENING,Proposed
+SHARARA,Sharara,Festive flared bottom,wearable,XS-XXL,WAIST|HIP|THIGH|RISE|LENGTH|BOTTOM_OPENING|SWEEP,Proposed
+GOWN,Gown,Formal long dress,wearable,XXS-XL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Confirmed
+MAXI_DRESS,Maxi Dress,Long dress,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Proposed
+FROCK,Frock,Flared dress,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Proposed
+ANARKALI,Anarkali,Fitted bodice/flared dress,wearable,XS-XXL,BUST|UPPER_WAIST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Proposed
+PESHWAAS,Peshwaas,Long festive dress,wearable,XS-XXL,BUST|UPPER_WAIST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Proposed
+KAFTAN,Kaftan,Loose dress/top,wearable,XS-XXL/Free,BUST|HIP|SHOULDER|ARMHOLE|LENGTH|SWEEP,Proposed
+ABAYA,Abaya,Modest outer dress,wearable,S-XL/Free,BUST|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH|SWEEP,Confirmed
+CAPE,Cape,Outer layer,wearable,Free/XS-XXL,SHOULDER|LENGTH|SWEEP,Proposed
+JACKET,Jacket,Layering piece,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|SLEEVE_LENGTH|ARMHOLE|LENGTH,Proposed
+WAISTCOAT,Waistcoat,Sleeveless layer,wearable,XS-XXL,BUST|WAIST|HIP|SHOULDER|ARMHOLE|LENGTH,Proposed
+CO_ORD_SET,Co-ord Set,Matched top and bottom,set,XS-XXL,TOP_BUST|TOP_WAIST|TOP_HIP|TOP_LENGTH|BOTTOM_WAIST|BOTTOM_HIP|BOTTOM_RISE|BOTTOM_LENGTH,Confirmed
+BLOUSE_CHOLI,Blouse/Choli,Saree/lehenga top,wearable,XS-XXL,BUST|UPPER_WAIST|WAIST|SHOULDER|ARMHOLE|SLEEVE_LENGTH|LENGTH,Measured
+SAREE,Saree,Draped fabric,fabric,One size + blouse,LENGTH|WIDTH,Confirmed
+DUPATTA,Dupatta,Scarf component,accessory,One size,LENGTH|WIDTH,Confirmed
+SHAWL,Shawl,Wrap/accessory,accessory,One size,LENGTH|WIDTH,Confirmed
+UNSTITCHED_1PC,Unstitched 1-piece,Fabric cut,fabric,Fabric cut,FABRIC_LENGTH|FABRIC_WIDTH,Confirmed
+UNSTITCHED_2PC,Unstitched 2-piece,Shirt+bottom or dupatta,fabric,Fabric cut,SHIRT_FABRIC_LENGTH|SECOND_FABRIC_LENGTH|FABRIC_WIDTH,Confirmed
+UNSTITCHED_3PC,Unstitched 3-piece,Shirt+bottom+dupatta,fabric,Fabric cut,SHIRT_FABRIC_LENGTH|BOTTOM_FABRIC_LENGTH|DUPATTA_LENGTH|FABRIC_WIDTH,Confirmed

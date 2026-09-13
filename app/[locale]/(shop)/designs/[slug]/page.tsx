@@ -9,9 +9,6 @@ import {
   resolveImages,
 } from "@/modules/catalog";
 import type { GalleryAngle, SizeMode } from "@/modules/catalog";
-import { resolveMeasurementProfileId } from "@/modules/cart/queries";
-import { auth } from "@/auth";
-import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { DesignViewTracker } from "@/modules/analytics";
 import { getSiteSettings } from "@/modules/content/site-settings";
 
@@ -54,21 +51,13 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
 
   const sizeChart = await resolveDesignSizeChart({
     sizeBlockId: design.sizeBlockId,
+    pieceSizeBlocks: design.pieceSizeBlocks,
     components: design.components,
     primaryCategoryKey: design.garmentCategory.key,
+    availableSizeLabels: design.availableSizeLabels,
   });
 
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
-  const anonId = await getOrSetAnonToken();
-  const [measurementProfileId, settings] = await Promise.all([
-    resolveMeasurementProfileId({
-      designId: design.id,
-      userId,
-      anonId,
-    }),
-    getSiteSettings(),
-  ]);
+  const settings = await getSiteSettings();
 
   return (
     <main className="pdp-page">
@@ -87,7 +76,6 @@ export default async function DesignDetailPage({ params, searchParams }: Props) 
         initialSizeMode={sizeMode}
         initialSizeLabel={sizeLabel}
         initialQuantity={quantity}
-        measurementProfileId={measurementProfileId}
         leadTimePromise={settings.leadTimePromise}
       />
     </main>

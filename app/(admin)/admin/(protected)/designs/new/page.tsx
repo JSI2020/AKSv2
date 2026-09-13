@@ -31,8 +31,8 @@ export default async function NewDesignPage() {
           New design
         </h1>
         <p className="mt-1 max-w-xl text-[13.5px] text-ink/55">
-          Starts as a draft — then Details, Photos, Sizing, Costing, Price, and
-          Preview, same as every other design.
+          Name and article type to start — saved as a draft, then Details,
+          Photos, Sizing, Costing, Price, and Preview.
         </p>
       </div>
       <CreateDesignForm options={options} />

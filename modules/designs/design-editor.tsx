@@ -25,7 +25,12 @@ import {
   PricingTab,
   PreviewPublishTab,
 } from "./design-price-preview-tabs";
+import { resolveEffectiveBasePriceMinor } from "./publish-checklist";
 import { tabReadiness } from "./tab-readiness";
+import {
+  resolveShadeCompareAtMinor,
+  resolveShadePriceMinor,
+} from "./shade-utils";
 
 type FormOptions = {
   categories: {
@@ -318,6 +323,7 @@ export function DesignEditor({
   const components = componentKeysOf(detail);
   const doorTags = new Set(options.houseDoors.map((d) => d.tag.toUpperCase()));
   const houseDoor = houseDoorFromTags(detail.tags, doorTags);
+  const displayPriceMinor = resolveEffectiveBasePriceMinor(d, detail.colourways);
   const readiness = tabReadiness({
     design: {
       name: d.name,
@@ -327,7 +333,12 @@ export function DesignEditor({
       fitProfileIds: d.fitProfileIds,
       components: savedComponents,
     },
-    colourways: detail.colourways.map((c) => ({ id: c.id, name: c.name })),
+    colourways: detail.colourways.map((c) => ({
+      id: c.id,
+      name: c.name,
+      basePriceMinor: c.basePriceMinor,
+      costingSnapshot: c.costingSnapshot,
+    })),
     renders: detail.renders.map((r) => ({
       colourwayId: r.colourwayId,
       angle: r.angle,
@@ -389,11 +400,11 @@ export function DesignEditor({
           <span>{piecesMeta(components)}</span>
           <span aria-hidden>·</span>
           <span>{statusLabel(d.status, isArchived)}</span>
-          {d.basePriceMinor > 0 ? (
+          {displayPriceMinor > 0 ? (
             <>
               <span aria-hidden>·</span>
               <span className="font-data text-ink/70">
-                <Money value={d.basePriceMinor} />
+                <Money value={displayPriceMinor} />
               </span>
             </>
           ) : null}
@@ -584,6 +595,7 @@ export function DesignEditor({
             costing ? (
               <DesignCostingPanel
                 data={costing}
+                colourways={detail.colourways}
                 canViewMargin={canViewMargin}
                 canEdit={canEditCosts}
                 pieceKeys={components}
@@ -643,6 +655,15 @@ function PreviewColumn({
   houseDoors: FormOptions["houseDoors"];
 }) {
   const d = detail.design;
+  const previewShade =
+    detail.colourways.find((c) => c.isDefault) ?? detail.colourways[0];
+  const previewPrice = previewShade
+    ? resolveShadePriceMinor(previewShade, d)
+    : d.basePriceMinor;
+  const previewCompare = previewShade
+    ? resolveShadeCompareAtMinor(previewShade, d)
+    : d.compareAtPriceMinor;
+
   return (
     <aside className="h-fit border border-ink/12 bg-milk px-4 py-4 lg:sticky lg:top-20">
       <p className="font-sans text-[9.5px] uppercase tracking-[0.14em] text-ink/55">
@@ -658,11 +679,10 @@ function PreviewColumn({
         </p>
       ) : null}
       <div className="mt-2 font-data text-[13px] text-ink">
-        {d.basePriceMinor > 0 ? <Money value={d.basePriceMinor} /> : "—"}
-        {d.compareAtPriceMinor != null &&
-        d.compareAtPriceMinor > d.basePriceMinor ? (
+        {previewPrice > 0 ? <Money value={previewPrice} /> : "—"}
+        {previewCompare != null && previewCompare > previewPrice ? (
           <span className="ms-2 text-ink/40 line-through">
-            <Money value={d.compareAtPriceMinor} />
+            <Money value={previewCompare} />
           </span>
         ) : null}
       </div>

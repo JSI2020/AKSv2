@@ -39,8 +39,21 @@ export type SalesByCategoryRow = {
 
 export type SalesByCityRow = {
   city: string;
+  province: string | null;
   orderCount: number;
   revenueMinor: number;
+};
+
+export type SalesByProvinceRow = {
+  province: string;
+  orderCount: number;
+  revenueMinor: number;
+};
+
+export type DailyTrendPoint = {
+  day: string;
+  revenueMinor: number;
+  orders: number;
 };
 
 export type SizeDistributionRow = {
@@ -81,10 +94,19 @@ export type FabricWastageRow = {
   wastagePercent: number;
 };
 
+export type SalesBySourceRow = {
+  source: string;
+  orderCount: number;
+  revenueMinor: number;
+};
+
 export type InsightsReportData = {
   salesByDesign: SalesByDesignRow[];
   salesByCategory: SalesByCategoryRow[];
   salesByCity: SalesByCityRow[];
+  salesByProvince: SalesByProvinceRow[];
+  salesBySource: SalesBySourceRow[];
+  dailyTrend: DailyTrendPoint[];
   sizeDistribution: SizeDistributionRow[];
   avgMeasurements: AvgMeasurementRow[];
   sizeModeSplit: SizeModeSplitRow[];
@@ -113,6 +135,9 @@ export async function getInsightsReportData(
     salesByDesign,
     salesByCategory,
     salesByCity,
+    salesByProvince,
+    salesBySource,
+    dailyTrend,
     sizeDistribution,
     avgMeasurements,
     sizeModeSplitRaw,
@@ -123,6 +148,9 @@ export async function getInsightsReportData(
     loadSalesByDesign(range),
     loadSalesByCategory(range),
     loadSalesByCity(range),
+    loadSalesByProvince(range),
+    loadSalesBySource(range),
+    loadDailyTrend(range),
     loadSizeDistribution(range),
     loadAvgMeasurements(range),
     loadSizeModeSplit(range),
@@ -142,6 +170,9 @@ export async function getInsightsReportData(
     salesByDesign,
     salesByCategory,
     salesByCity,
+    salesByProvince,
+    salesBySource,
+    dailyTrend,
     sizeDistribution,
     avgMeasurements,
     sizeModeSplit,
@@ -197,19 +228,120 @@ async function loadSalesByCity(
   const rows = await db
     .select({
       city: sql<string>`${orders.shippingAddressSnapshot}->>'city'`,
+      province: sql<string | null>`${orders.shippingAddressSnapshot}->>'province'`,
       orderCount: sql<number>`count(distinct ${orders.id})::int`,
       revenueMinor: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
     })
     .from(orders)
     .where(and(placedWhere(range), isNotNull(orders.placedAt)))
-    .groupBy(sql`${orders.shippingAddressSnapshot}->>'city'`)
+    .groupBy(
+      sql`${orders.shippingAddressSnapshot}->>'city'`,
+      sql`${orders.shippingAddressSnapshot}->>'province'`,
+    )
     .orderBy(desc(sql`sum(${orders.totalMinor})`));
 
   return rows.map((r) => ({
     city: r.city || "Unknown",
+    province: r.province || null,
     orderCount: r.orderCount,
     revenueMinor: r.revenueMinor,
   }));
+}
+
+async function loadSalesBySource(
+  range?: InsightsDateRange,
+): Promise<SalesBySourceRow[]> {
+  const rows = await db
+    .select({
+      source: orders.source,
+      orderCount: sql<number>`count(*)::int`,
+      revenueMinor: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
+    })
+    .from(orders)
+    .where(and(placedWhere(range), isNotNull(orders.placedAt)))
+    .groupBy(orders.source)
+    .orderBy(desc(sql`sum(${orders.totalMinor})`));
+
+  return rows.map((r) => ({
+    source: r.source,
+    orderCount: r.orderCount,
+    revenueMinor: r.revenueMinor,
+  }));
+}
+
+async function loadSalesByProvince(
+  range?: InsightsDateRange,
+): Promise<SalesByProvinceRow[]> {
+  const rows = await db
+    .select({
+      province: sql<string>`coalesce(${orders.shippingAddressSnapshot}->>'province', 'UNKNOWN')`,
+      orderCount: sql<number>`count(distinct ${orders.id})::int`,
+      revenueMinor: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
+    })
+    .from(orders)
+    .where(and(placedWhere(range), isNotNull(orders.placedAt)))
+    .groupBy(sql`coalesce(${orders.shippingAddressSnapshot}->>'province', 'UNKNOWN')`)
+    .orderBy(desc(sql`sum(${orders.totalMinor})`));
+
+  return rows
+    .filter((r) => r.province !== "UNKNOWN")
+    .map((r) => ({
+      province: r.province,
+      orderCount: r.orderCount,
+      revenueMinor: r.revenueMinor,
+    }));
+}
+
+function ymd(d: Date): string {
+  return d.toISOString().slice(0, 10);
+}
+
+async function loadDailyTrend(
+  range?: InsightsDateRange,
+): Promise<DailyTrendPoint[]> {
+  const to = range?.to ?? new Date();
+  const from =
+    range?.from ??
+    (() => {
+      const d = new Date(to);
+      d.setDate(d.getDate() - 29);
+      d.setHours(0, 0, 0, 0);
+      return d;
+    })();
+
+  const rows = await db
+    .select({
+      day: sql<string>`to_char(${orders.placedAt}, 'YYYY-MM-DD')`,
+      revenueMinor: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
+      orders: sql<number>`count(*)::int`,
+    })
+    .from(orders)
+    .where(and(placedWhere({ from, to }), isNotNull(orders.placedAt)))
+    .groupBy(sql`to_char(${orders.placedAt}, 'YYYY-MM-DD')`);
+
+  const byDay = new Map(rows.map((r) => [r.day, r]));
+  const keys: string[] = [];
+  const cursor = new Date(from);
+  cursor.setHours(0, 0, 0, 0);
+  const end = new Date(to);
+  end.setHours(0, 0, 0, 0);
+
+  while (cursor <= end && keys.length < 62) {
+    keys.push(ymd(cursor));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // Keep last 31 days if window is longer.
+  const window = keys.length > 31 ? keys.slice(-31) : keys;
+
+  return window.map((day) => {
+    const hit = byDay.get(day);
+    return {
+      day,
+      revenueMinor: hit?.revenueMinor ?? 0,
+      orders: hit?.orders ?? 0,
+    };
+  });
 }
 
 async function loadSizeDistribution(

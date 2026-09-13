@@ -29,18 +29,33 @@ export function FabricsPageView({ fabrics, copy }: Props) {
         {fabrics.length === 0 ? (
           <p className="text-[15px] text-ink/60">{copy.empty}</p>
         ) : (
-          <ul className="grid gap-0 border-t border-greige-deep sm:grid-cols-2">
+          <ul className="grid gap-0 border-t border-greige-deep sm:grid-cols-2 lg:grid-cols-3">
             {fabrics.map((fabric) => (
               <li
                 key={fabric.id}
-                className="border-b border-e border-greige-deep p-6 md:p-8"
+                className="border-b border-e border-greige-deep"
               >
-                <h2 className="font-display text-[22px] font-medium text-ink">
-                  {fabric.name}
-                </h2>
-                <p className="mt-1 text-[13px] uppercase tracking-[0.06em] text-ink/50">
-                  {fabric.composition}
-                </p>
+                <article className="flex h-full flex-col p-6 md:p-8">
+                  <div className="relative mb-5 aspect-square overflow-hidden bg-greige-deep/30">
+                    {fabric.swatchUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={fabric.swatchUrl}
+                        alt=""
+                        className="size-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex size-full items-center justify-center text-[12px] uppercase tracking-[0.08em] text-ink/35">
+                        —
+                      </div>
+                    )}
+                  </div>
+                  <h2 className="font-display text-[22px] font-medium text-ink">
+                    {fabric.name}
+                  </h2>
+                  <p className="mt-1 text-[13px] uppercase tracking-[0.06em] text-ink/50">
+                    {fabric.composition}
+                  </p>
                 {fabric.drapeNotes ? (
                   <p className="mt-4 text-[15px] leading-relaxed text-ink/75">
                     <span className="text-[12px] uppercase tracking-[0.08em] text-ink/45">
@@ -59,6 +74,7 @@ export function FabricsPageView({ fabrics, copy }: Props) {
                     {fabric.careInstructions}
                   </p>
                 ) : null}
+                </article>
               </li>
             ))}
           </ul>

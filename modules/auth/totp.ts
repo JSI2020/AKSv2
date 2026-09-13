@@ -64,7 +64,13 @@ export async function confirmTotpEnrolment(params: {
   secret: string;
   code: string;
 }): Promise<{ recoveryCodes: string[] } | { error: string }> {
-  const result = await verify({ secret: params.secret, token: params.code });
+  // ±1 period (30s) — otplib v13 defaults to 0 (exact match only), which
+  // rejects valid codes when the phone clock is slightly off.
+  const result = await verify({
+    secret: params.secret,
+    token: params.code,
+    epochTolerance: 30,
+  });
   if (!result.valid) {
     return { error: "Invalid authenticator code" };
   }
@@ -113,7 +119,7 @@ export async function verifyTotpForUser(params: {
     return false;
   }
 
-  const result = await verify({ secret, token });
+  const result = await verify({ secret, token, epochTolerance: 30 });
   return result.valid;
 }
 

@@ -5,6 +5,7 @@ import {
   PermissionDeniedError,
   UnauthenticatedError,
 } from "@/modules/auth";
+import { MetresTriadBar } from "@/modules/admin/viz";
 import { listFabricColourCards } from "@/modules/inventory";
 
 export default async function InventoryFabricColoursPage({
@@ -61,12 +62,20 @@ export default async function InventoryFabricColoursPage({
           <Link
             key={c.id}
             href={`/admin/inventory/fabrics/${fabricId}/${c.id}`}
-            className="overflow-hidden border border-ink/12 bg-milk transition-colors hover:border-ink"
+            className="flex flex-col overflow-hidden border border-ink/12 bg-milk transition-colors hover:border-ink"
           >
             <div
-              className="relative aspect-square"
-              style={{ background: c.gradient }}
+              className="relative aspect-square bg-greige"
+              style={c.swatchUrl ? undefined : { background: c.gradient }}
             >
+              {c.swatchUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={c.swatchUrl}
+                  alt=""
+                  className="size-full object-cover"
+                />
+              ) : null}
               {c.low ? (
                 <span className="absolute top-2 inset-inline-start-2 bg-madder px-1.5 py-0.5 text-[8px] uppercase tracking-[0.08em] text-milk">
                   Reorder
@@ -77,13 +86,14 @@ export default async function InventoryFabricColoursPage({
               <p className="font-display text-[1.15rem] text-ink">
                 {c.colourName}
               </p>
-              <p
-                className={`mt-1 font-data text-[12px] ${
-                  c.low ? "text-madder" : "text-ink/55"
-                }`}
-              >
-                {(c.onHand / 100).toFixed(1)} m on hand
-              </p>
+              <div className="mt-3 border-t border-ink/10 pt-2">
+                <MetresTriadBar
+                  onHand={c.onHand}
+                  reserved={c.reserved}
+                  available={c.available}
+                  reorderPoint={c.reorderPointMeters}
+                />
+              </div>
             </div>
           </Link>
         ))}

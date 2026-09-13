@@ -9,6 +9,7 @@ import {
   collectionSearchParamsCache,
   searchParamsToFilters,
 } from "@/modules/catalog";
+import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import {
   automaticPercentForDesign,
   loadActiveAutomaticPercentDiscounts,
@@ -27,19 +28,32 @@ export default async function CollectionPage({ params, searchParams }: Props) {
   if (!collection) notFound();
 
   const parsed = collectionSearchParamsCache.parse(await searchParams);
-  const { filters, page } = searchParamsToFilters(parsed);
+  const { filters, page: requestedPage } = searchParamsToFilters(parsed);
   const sort = parsed.sort ?? collection.defaultSort;
 
-  const [{ items, total }, facets, autoDiscounts] = await Promise.all([
-    getPublishedDesigns({
-      baseFilters: collection.baseFilters,
-      filters,
-      sort,
-      page,
-    }),
-    getCollectionFacetOptions(),
-    loadActiveAutomaticPercentDiscounts(),
-  ]);
+  const [{ items, total, page, pageCount }, facets, autoDiscounts, collections] =
+    await Promise.all([
+      getPublishedDesigns({
+        baseFilters: collection.baseFilters,
+        filters,
+        sort,
+        page: requestedPage,
+      }),
+      getCollectionFacetOptions(),
+      loadActiveAutomaticPercentDiscounts(),
+      listHouseCollections({ activeOnly: true }),
+    ]);
+
+  const doorLabels = Object.fromEntries(
+    collections.flatMap((c) => [
+      [c.tag, c.navLabel],
+      ["WHITE_COLLECTION", "Signature"],
+    ]),
+  );
+  const collectionPills = collections.map((c) => ({
+    slug: c.slug,
+    label: c.navLabel,
+  }));
 
   const withBadges = items.map((d) => ({
     ...d,
@@ -54,8 +68,12 @@ export default async function CollectionPage({ params, searchParams }: Props) {
   return (
     <CollectionPageView
       collection={collection}
+      collectionPills={collectionPills}
+      doorLabels={doorLabels}
       items={withBadges}
       total={total}
+      page={page}
+      pageCount={pageCount}
       facets={facets}
     />
   );

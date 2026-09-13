@@ -197,7 +197,10 @@ function filterSizeLabels(
 ): string[] {
   if (!availableSizeLabels?.length) return [...blockLabels];
   const allowed = new Set(availableSizeLabels);
-  return blockLabels.filter((label) => allowed.has(label));
+  const overlap = blockLabels.filter((label) => allowed.has(label));
+  // Dupatta/shawl blocks often use "One size" while a design may still list
+  // XS–XL from RTW defaults — empty overlap must not blank the storefront chart.
+  return overlap.length > 0 ? overlap : [...blockLabels];
 }
 
 async function resolveBlockForComponent(

@@ -141,7 +141,14 @@ export function OrdersTable({ result, overview }: OrdersTableProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <AdminTimeFilter />
+      <AdminTimeFilter
+        showAllTime
+        parsers={{
+          range: orderListParsers.range,
+          from: orderListParsers.from,
+          to: orderListParsers.to,
+        }}
+      />
       <div className="flex gap-3">
         <input
           type="search"
@@ -322,7 +329,9 @@ export function OrdersTable({ result, overview }: OrdersTableProps) {
                   colSpan={8}
                   className="px-4 py-8 text-center text-ink/55"
                 >
-                  No orders match these filters.
+                  {overview.open > 0
+                    ? "No orders match these filters — try All time or Completed."
+                    : "No orders match these filters."}
                 </td>
               </tr>
             ) : (

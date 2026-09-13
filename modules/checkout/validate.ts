@@ -10,6 +10,7 @@ import {
 } from "@aks/db";
 
 import { computeCartLineUnitPrice } from "@/modules/cart/compute-unit-price";
+import { checkRtwLineStock } from "@/modules/inventory/rtw-stock";
 
 export type CartValidationIssue =
   | {
@@ -198,6 +199,24 @@ export async function validateCartForCheckout(
         currentMinor: price.unitPriceMinor,
         message: `The price for ${designName} changed since you added it to your cart.`,
       });
+    }
+
+    if (line.sizeMode === "STANDARD" && line.sizeLabel) {
+      const stock = await checkRtwLineStock({
+        designId: line.designId,
+        colourwayId: line.colourwayId,
+        sizeLabel: line.sizeLabel,
+        quantity: line.quantity,
+      });
+      if (!stock.ok) {
+        issues.push({
+          kind: "UNAVAILABLE",
+          lineId: line.id,
+          designName,
+          message: `${designName} — ${stock.error}`,
+        });
+        continue;
+      }
     }
 
     const lineTotalMinor = price.unitPriceMinor * line.quantity;

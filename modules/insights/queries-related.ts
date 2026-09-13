@@ -21,6 +21,7 @@ import {
   customerMeasurementProfiles,
   customerMeasurements,
   customerProfiles,
+  colourways,
   db,
   designCosts,
   designs,
@@ -555,7 +556,7 @@ export async function getFabricRelated(
 
   if (!fabric) return null;
 
-  const [supplierRow, designRows, orderRows, costRows, lotRows] =
+  const [supplierRow, costDesignRows, colourwayDesignRows, orderRows, costRows, lotRows] =
     await Promise.all([
       fabric.defaultSupplierId
         ? db
@@ -575,6 +576,16 @@ export async function getFabricRelated(
         .from(designCosts)
         .innerJoin(designs, eq(designCosts.designId, designs.id))
         .where(eq(designCosts.fabricId, fabricId))
+        .orderBy(asc(designs.name)),
+
+      db
+        .selectDistinct({
+          designId: colourways.designId,
+          designName: designs.name,
+        })
+        .from(colourways)
+        .innerJoin(designs, eq(colourways.designId, designs.id))
+        .where(eq(colourways.fabricId, fabricId))
         .orderBy(asc(designs.name)),
 
       db
@@ -633,12 +644,30 @@ export async function getFabricRelated(
     0,
   );
 
+  const designMap = new Map<string, FabricDesignRow>();
+  for (const row of costDesignRows) {
+    designMap.set(row.designId, row);
+  }
+  for (const row of colourwayDesignRows) {
+    if (!designMap.has(row.designId)) {
+      designMap.set(row.designId, {
+        designId: row.designId,
+        designName: row.designName,
+        fabricMeters: 0,
+        marginPercent: 0,
+      });
+    }
+  }
+  const mergedDesigns = [...designMap.values()].sort((a, b) =>
+    a.designName.localeCompare(b.designName),
+  );
+
   return {
     fabricId: fabric.id,
     fabricName: fabric.name,
     metresRemaining,
     supplierName: supplierRow[0]?.name ?? null,
-    designs: designRows,
+    designs: mergedDesigns,
     orders: orderRows,
     costHistory: costRows,
   };

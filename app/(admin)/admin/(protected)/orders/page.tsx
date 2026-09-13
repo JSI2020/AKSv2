@@ -26,13 +26,16 @@ export default async function AdminOrdersPage({
 }) {
   const params = orderListSearchParamsCache.parse(await searchParams);
   const filters = searchParamsToOrderFilters(params);
-  const time = resolveTimeRange({
-    preset: params.range,
-    fromKey: params.from,
-    toKey: params.to,
-  });
-  filters.dateFrom = time.from;
-  filters.dateTo = time.to;
+  // Time range is opt-in — default view shows all dates so nothing hides off-month.
+  if (params.range) {
+    const time = resolveTimeRange({
+      preset: params.range,
+      fromKey: params.from,
+      toKey: params.to,
+    });
+    filters.dateFrom = time.from;
+    filters.dateTo = time.to;
+  }
 
   // Default chip: All open (non-terminal pipeline)
   if (
@@ -76,7 +79,8 @@ export default async function AdminOrdersPage({
     params.payment.length > 0 ||
     Boolean(params.due) ||
     Boolean(params.completedThisMonth) ||
-    Boolean(params.view);
+    Boolean(params.view) ||
+    Boolean(params.range);
 
   return (
     <AdminNuqsProvider>

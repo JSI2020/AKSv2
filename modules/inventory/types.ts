@@ -36,6 +36,15 @@ export class FabricAllocationError extends Error {
   }
 }
 
+export class RtwStockError extends Error {
+  readonly code = "RTW_STOCK_ERROR" as const;
+
+  constructor(message: string) {
+    super(message);
+    this.name = "RtwStockError";
+  }
+}
+
 /**
  * Fabric is reserved when an order reaches MEASUREMENTS_CONFIRMED — the earliest
  * production-lock point before cutting. DEPOSIT_PAID only confirms payment; measurements

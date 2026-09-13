@@ -15,6 +15,7 @@ import {
 
 const POSE_CATEGORIES = [
   "Standing",
+  "Leaning",
   "Walking",
   "Seated",
   "Editorial",

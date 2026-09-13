@@ -63,9 +63,10 @@ jobs:
           cache: npm
       - name: Install
         run: npm ci
-      # NOTE: relies on migrations being reproducible (audit F1). If DB-backed
-      # tests fail here, the schema-consolidation work is the prerequisite.
-      - name: Apply schema
+      # Single source of truth: Drizzle migrations + schema verification.
+      - name: Bootstrap database
         run: npm run db:migrate
+      - name: Production preflight (non-strict)
+        run: npm run preflight:production
       - name: Test
         run: npm test
