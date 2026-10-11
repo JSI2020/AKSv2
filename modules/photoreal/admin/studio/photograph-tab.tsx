@@ -4,11 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  Check,
   Download,
   Loader2,
   MapPin,
   Move,
   PenLine,
+  Sparkles,
   Star,
   X,
   ZoomIn,
@@ -20,6 +22,7 @@ import {
   groupedStudioBackgrounds,
   STUDIO_BACKGROUND_GROUPS,
   STUDIO_BACKGROUND_PRESETS,
+  studioBackgroundPreviewSrc,
   type StudioBackgroundGroup,
 } from "@/modules/designs/studio-backgrounds";
 
@@ -40,13 +43,19 @@ import {
   type StudioDesignOption,
 } from "../../product-actions";
 import { MAX_GARMENT_REFERENCES } from "../../prompt-builder";
+import { COMMERCIAL_POSES } from "../../commercial-poses";
+import { recommendShootAction, type ShootAdvice } from "../../shoot-advisor";
 import {
+  AS_PHOTOGRAPHED,
   CLOSER_POSES,
+  MAX_SHOTS_PER_SHOOT,
+  poseCategory,
   poseForShot,
-  SHOTS,
-  STANDARD_SET,
+  poseLabel,
+  posePreviewSrc,
+  SHOT_CATEGORIES,
+  SHOT_PRESETS,
   VARIATION_POSES,
-  type ShotId,
 } from "../../shot-list";
 
 import { downloadImage } from "./download-image";
@@ -81,7 +90,8 @@ type Frame = {
   /** Original garment photos this frame must stay true to. */
   sourceUrls: string[];
   sourceKind: SourceKind;
-  shotId?: ShotId;
+  /** Pose id of the planned shot this frame came from (not variations). */
+  shotPoseId?: string;
   favourite: boolean;
 };
 
@@ -104,7 +114,10 @@ async function uploadDressPhotos(files: File[]): Promise<UploadedAsset[]> {
   }));
 }
 
-const DEFAULT_LOCATION = "studio";
+const DEFAULT_LOCATION = "studio-window";
+/** Extra tabs shown once the AI art director has read the dress. */
+const FOR_THIS_DRESS = "For this dress" as const;
+const RECOMMENDED_TAB = "Recommended";
 
 function presetLabel(id: string): string {
   return STUDIO_BACKGROUND_PRESETS.find((p) => p.id === id)?.label ?? "Custom";
@@ -136,10 +149,18 @@ export function PhotographTab({
   const [houseModelId, setHouseModelId] =
     useState<HouseModelSelection>(defaultHouseModelId);
   const [location, setLocation] = useState(DEFAULT_LOCATION);
-  const [locationGroup, setLocationGroup] =
-    useState<StudioBackgroundGroup>("Studio");
+  const [locationGroup, setLocationGroup] = useState<
+    StudioBackgroundGroup | typeof FOR_THIS_DRESS
+  >("Studio");
   const [customLocation, setCustomLocation] = useState("");
-  const [shots, setShots] = useState<ShotId[]>(["front"]);
+  const [shots, setShots] = useState<string[]>(["front-straight"]);
+  const [shotTab, setShotTab] = useState<string>("Standing");
+  // AI art director: reads the dress, then pre-selects location + shots
+  // unless the user already chose them.
+  const [advice, setAdvice] = useState<ShootAdvice | null>(null);
+  const [adviceLoading, setAdviceLoading] = useState(false);
+  const locationTouched = useRef(false);
+  const shotsTouched = useRef(false);
   const [note, setNote] = useState("");
   const [noteOpen, setNoteOpen] = useState(false);
   const [allModels, setAllModels] = useState(false);
@@ -169,7 +190,7 @@ export function PhotographTab({
   const shooting = pending.length > 0;
   const totalUsd = frames.reduce((n, f) => n + f.costUsd, 0);
   const favourites = frames.filter((f) => f.favourite);
-  const orderedShots = SHOTS.filter((s) => shots.includes(s.id));
+  const orderedShots = shots.map((id) => ({ id, label: poseLabel(id) }));
   const shootCostPkr = Math.round(orderedShots.length * perImagePkr);
 
   const addPhotos = useCallback(
@@ -199,10 +220,64 @@ export function PhotographTab({
     [photos.length],
   );
 
-  const toggleShot = (id: ShotId) =>
-    setShots((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-    );
+  const toggleShot = (id: string) => {
+    shotsTouched.current = true;
+    setShots((prev) => {
+      if (prev.includes(id)) return prev.filter((s) => s !== id);
+      if (prev.length >= MAX_SHOTS_PER_SHOOT) {
+        setError(`Up to ${MAX_SHOTS_PER_SHOOT} shots per shoot — remove one first.`);
+        return prev;
+      }
+      setError(null);
+      return [...prev, id];
+    });
+  };
+
+  const applyPreset = (ids: readonly string[]) => {
+    shotsTouched.current = true;
+    setError(null);
+    setShots([...ids].slice(0, MAX_SHOTS_PER_SHOOT));
+  };
+
+  const pickLocation = (id: string) => {
+    locationTouched.current = true;
+    setLocation(id);
+    setCustomLocation("");
+  };
+
+  // Ask the AI art director whenever the main dress photo changes.
+  const mainPhotoUrl = photos[0]?.url;
+  useEffect(() => {
+    if (!mainPhotoUrl) {
+      setAdvice(null);
+      return;
+    }
+    let cancelled = false;
+    setAdviceLoading(true);
+    void recommendShootAction({ imageUrls: photos.map((p) => p.url) })
+      .then((result) => {
+        if (cancelled) return;
+        setAdvice(result);
+        if (!locationTouched.current && result.locations[0]) {
+          setLocation(result.locations[0]);
+          setCustomLocation("");
+          setLocationGroup(FOR_THIS_DRESS);
+        }
+        if (!shotsTouched.current && result.shots.length) {
+          setShots(result.shots.slice(0, MAX_SHOTS_PER_SHOOT));
+          setShotTab(RECOMMENDED_TAB);
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => {
+        if (!cancelled) setAdviceLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Re-run only when the main photo changes, not on every added photo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainPhotoUrl]);
 
   /** Render one shot from the current brief. */
   const renderShot = async (
@@ -243,7 +318,7 @@ export function PhotographTab({
     const toFrame = (
       data: Awaited<ReturnType<typeof renderShot>>,
       label: string,
-      shotId: ShotId,
+      shotPoseId: string,
       poseId: string | null,
     ): Frame => ({
       id: data.version.id,
@@ -256,7 +331,7 @@ export function PhotographTab({
       costUsd: data.costUsd ?? data.version.costUsd ?? 0,
       sourceUrls,
       sourceKind,
-      shotId,
+      shotPoseId,
       favourite: false,
     });
 
@@ -273,7 +348,7 @@ export function PhotographTab({
     const [first, ...rest] = batch;
     let failed = 0;
     try {
-      const pose = poseForShot(first!.shot, sourceKind);
+      const pose = poseForShot(first!.shot.id, sourceKind);
       const data = await renderShot(pose, modelId, sourceUrls);
       modelId = data.houseModel.id;
       setLockedModel({ id: data.houseModel.id, name: data.houseModel.name });
@@ -287,7 +362,7 @@ export function PhotographTab({
 
     await Promise.allSettled(
       rest.map(async ({ shot, pendingId }) => {
-        const pose = poseForShot(shot, sourceKind);
+        const pose = poseForShot(shot.id, sourceKind);
         try {
           const data = await renderShot(pose, modelId, sourceUrls);
           setFrames((prev) => [...prev, toFrame(data, shot.label, shot.id, pose)]);
@@ -350,7 +425,7 @@ export function PhotographTab({
         poseId: change.poseId ?? frame.poseId,
         backgroundPreset: newBackground?.id ?? frame.backgroundPreset,
         costUsd: data.costUsd ?? data.version.costUsd ?? 0,
-        shotId: undefined,
+        shotPoseId: undefined,
         favourite: false,
       };
       // Show the variation right after the frame it came from.
@@ -404,7 +479,7 @@ export function PhotographTab({
         label: `${frame.label} · closer`,
         poseId,
         costUsd: data.costUsd ?? data.version.costUsd ?? 0,
-        shotId: undefined,
+        shotPoseId: undefined,
         favourite: false,
       };
       setFrames((prev) => {
@@ -432,7 +507,10 @@ export function PhotographTab({
     setPending([]);
     setLockedModel(null);
     setNote("");
-    setShots(["front"]);
+    setShots(["front-straight"]);
+    setAdvice(null);
+    locationTouched.current = false;
+    shotsTouched.current = false;
     setError(null);
     setPanel(null);
     setProductOpen(false);
@@ -582,10 +660,41 @@ export function PhotographTab({
             </p>
           </StudioSection>
 
+          {/* AI art director */}
+          {photos.length > 0 && (
+            <div className="mt-8 border border-zari/50 bg-milk/70 px-4 py-3 rounded-[2px]" aria-live="polite">
+              <p className="flex items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink/70">
+                <Sparkles className="size-3.5 text-zari" /> AI art director
+              </p>
+              {adviceLoading ? (
+                <p className="mt-1.5 flex items-center gap-2 text-[12.5px] text-ink/70">
+                  <Loader2 className="size-3.5 animate-spin" /> Reading your dress to plan the shoot…
+                </p>
+              ) : advice ? (
+                <>
+                  {advice.garment && (
+                    <p className="mt-1.5 text-[13px] font-semibold text-ink">
+                      {advice.garment}
+                      {advice.occasion ? <span className="font-normal text-ink/60"> · {advice.occasion}</span> : null}
+                    </p>
+                  )}
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-ink/75">{advice.reason}</p>
+                  <p className="mt-1.5 text-[11.5px] text-ink/55">
+                    Pre-selected below — marked <span className="font-semibold text-ink/75">Recommended</span>. Change anything you like.
+                  </p>
+                </>
+              ) : null}
+            </div>
+          )}
+
           {/* 3 · Location */}
           <StudioSection title="3 · Location" className="mt-8">
-            <div role="tablist" aria-label="Location type" className="mb-3 flex gap-4 border-b border-ink/10">
-              {STUDIO_BACKGROUND_GROUPS.map((g) => (
+            <div role="tablist" aria-label="Location type" className="mb-3 flex flex-wrap gap-x-4 gap-y-1 border-b border-ink/10">
+              {(
+                [...(advice ? [FOR_THIS_DRESS] : []), ...STUDIO_BACKGROUND_GROUPS] as Array<
+                  StudioBackgroundGroup | typeof FOR_THIS_DRESS
+                >
+              ).map((g) => (
                 <button
                   key={g}
                   type="button"
@@ -604,38 +713,57 @@ export function PhotographTab({
               ))}
             </div>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-              {groupedStudioBackgrounds()
-                .find((g) => g.group === locationGroup)!
-                .presets.map((p) => {
-                  const selected = location === p.id && !customLocation;
-                  return (
-                    <button
-                      key={p.id}
-                      type="button"
-                      aria-pressed={selected}
-                      title={p.prompt}
-                      onClick={() => {
-                        setLocation(p.id);
-                        setCustomLocation("");
-                      }}
-                      className={cn(
-                        "overflow-hidden border text-start transition rounded-[2px]",
-                        selected ? "border-ink ring-1 ring-ink" : "border-ink/15 hover:border-ink/40",
-                      )}
+              {(locationGroup === FOR_THIS_DRESS
+                ? (advice?.locations ?? [])
+                    .map((id) => STUDIO_BACKGROUND_PRESETS.find((p) => p.id === id))
+                    .filter((p): p is (typeof STUDIO_BACKGROUND_PRESETS)[number] => Boolean(p))
+                : (groupedStudioBackgrounds().find((g) => g.group === locationGroup)?.presets ?? [])
+              ).map((p) => {
+                const selected = location === p.id && !customLocation;
+                const recommended = advice?.locations.includes(p.id) ?? false;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={selected}
+                    title={p.prompt}
+                    onClick={() => pickLocation(p.id)}
+                    className={cn(
+                      "group overflow-hidden border text-start transition rounded-[2px]",
+                      selected ? "border-ink ring-2 ring-ink" : "border-ink/15 hover:border-ink/45",
+                    )}
+                  >
+                    <span
+                      className="relative block aspect-[4/3]"
+                      style={{ background: `linear-gradient(160deg, ${p.tone[0]} 0%, ${p.tone[1]} 100%)` }}
                     >
-                      <span
-                        aria-hidden
-                        className="block h-12"
-                        style={{
-                          background: `linear-gradient(160deg, ${p.tone[0]} 0%, ${p.tone[1]} 100%)`,
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={studioBackgroundPreviewSrc(p.id)}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 size-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
                         }}
                       />
-                      <span className="block bg-milk/80 px-2 py-1.5 text-[12px] leading-tight text-ink">
-                        {p.label}
-                      </span>
-                    </button>
-                  );
-                })}
+                      {recommended && (
+                        <span className="absolute start-1.5 top-1.5 bg-zari px-1.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.08em] text-indigo rounded-[2px]">
+                          Recommended
+                        </span>
+                      )}
+                      {selected && (
+                        <span className="absolute end-1.5 top-1.5 flex size-5 items-center justify-center bg-ink text-milk rounded-full">
+                          <Check className="size-3" />
+                        </span>
+                      )}
+                    </span>
+                    <span className="block bg-milk/85 px-2 py-1.5 text-[12px] leading-tight text-ink">
+                      {p.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
             <label className={cn(studioLabelClass, "mt-4")} htmlFor="photo-custom-location">
               Or describe a location
@@ -645,47 +773,133 @@ export function PhotographTab({
               className={studioFieldClass}
               placeholder="e.g. sunlit balcony with jasmine vines"
               value={customLocation}
-              onChange={(e) => setCustomLocation(e.target.value)}
+              onChange={(e) => {
+                locationTouched.current = true;
+                setCustomLocation(e.target.value);
+              }}
             />
           </StudioSection>
 
           {/* 4 · Shots */}
           <StudioSection title="4 · Shots" className="mt-8">
-            <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px]">
-              <button
-                type="button"
-                className="border-b border-ink/30 text-ink/75 hover:text-ink"
-                onClick={() => setShots(["front"])}
-              >
-                Just the front
-              </button>
-              <button
-                type="button"
-                className="border-b border-ink/30 text-ink/75 hover:text-ink"
-                onClick={() => setShots([...STANDARD_SET])}
-              >
-                Standard set (4)
-              </button>
+            <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1.5 text-[12px]">
+              {advice && advice.shots.length > 0 && (
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 border-b border-zari font-semibold text-ink"
+                  onClick={() => {
+                    applyPreset(advice.shots);
+                    setShotTab(RECOMMENDED_TAB);
+                  }}
+                >
+                  <Sparkles className="size-3 text-zari" /> Recommended ({advice.shots.length})
+                </button>
+              )}
+              {SHOT_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="border-b border-ink/30 text-ink/75 hover:text-ink"
+                  onClick={() => applyPreset(preset.shots)}
+                >
+                  {preset.label}
+                </button>
+              ))}
+              {shots.length > 0 && (
+                <button
+                  type="button"
+                  className="text-ink/55 hover:text-ink"
+                  onClick={() => applyPreset([])}
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {SHOTS.map((shot) => {
-                const on = shots.includes(shot.id);
+
+            {shots.length > 0 && (
+              <div className="mb-3 flex flex-wrap gap-1.5" aria-label="Selected shots, in order">
+                {shots.map((id, i) => (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => toggleShot(id)}
+                    title="Remove"
+                    className="inline-flex items-center gap-1 bg-ink py-0.5 pe-1.5 ps-2 text-[11.5px] text-milk rounded-full"
+                  >
+                    <span className="text-milk/60">{i + 1}</span> {poseLabel(id)}
+                    <X className="size-3 text-milk/70" />
+                  </button>
+                ))}
+                <span className="self-center text-[11px] text-ink/50">
+                  {shots.length}/{MAX_SHOTS_PER_SHOOT}
+                </span>
+              </div>
+            )}
+
+            <div role="tablist" aria-label="Shot type" className="mb-3 flex flex-wrap gap-x-3.5 gap-y-1 border-b border-ink/10">
+              {[...(advice ? [RECOMMENDED_TAB] : []), ...SHOT_CATEGORIES].map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  role="tab"
+                  aria-selected={shotTab === c}
+                  onClick={() => setShotTab(c)}
+                  className={cn(
+                    "-mb-px border-b-2 pb-1.5 text-[12px] font-semibold tracking-[0.03em] transition-colors",
+                    shotTab === c ? "border-zari text-ink" : "border-transparent text-ink/55 hover:text-ink",
+                  )}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+              {(shotTab === RECOMMENDED_TAB
+                ? (advice?.shots ?? [])
+                : [
+                    ...(sourceKind === "mannequin" && shotTab === "Standing" ? [AS_PHOTOGRAPHED] : []),
+                    ...COMMERCIAL_POSES.filter((pose) => pose.category === shotTab).map((pose) => pose.id),
+                  ]
+              ).map((id) => {
+                const order = shots.indexOf(id);
+                const on = order >= 0;
+                const recommended = advice?.shots.includes(id) ?? false;
                 return (
                   <button
-                    key={shot.id}
+                    key={id}
                     type="button"
                     aria-pressed={on}
-                    onClick={() => toggleShot(shot.id)}
+                    onClick={() => toggleShot(id)}
                     className={cn(
-                      "border px-2.5 py-2 text-start transition-colors rounded-[2px]",
-                      on ? "border-ink bg-ink text-milk" : "border-ink/15 bg-milk/60 text-ink hover:border-ink/40",
+                      "overflow-hidden border text-start transition rounded-[2px]",
+                      on ? "border-ink ring-2 ring-ink" : "border-ink/15 hover:border-ink/45",
                     )}
                   >
-                    <span className="block text-[12.5px] font-semibold">{shot.label}</span>
-                    <span className={cn("block text-[11px] leading-snug", on ? "text-milk/75" : "text-ink/55")}>
-                      {shot.id === "front" && sourceKind === "mannequin"
-                        ? "As photographed"
-                        : shot.hint}
+                    <span className="relative block aspect-[3/4] bg-ink/5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={posePreviewSrc(id)}
+                        alt=""
+                        loading="lazy"
+                        className="absolute inset-0 size-full object-cover"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                      {on && (
+                        <span className="absolute end-1 top-1 flex size-5 items-center justify-center bg-ink text-[10.5px] font-semibold text-milk rounded-full">
+                          {order + 1}
+                        </span>
+                      )}
+                      {recommended && !on && (
+                        <span className="absolute start-1 top-1 bg-zari px-1 text-[9px] font-semibold uppercase text-indigo rounded-[2px]">
+                          Rec.
+                        </span>
+                      )}
+                    </span>
+                    <span className="block truncate bg-milk/85 px-1.5 py-1 text-[11.5px] text-ink">
+                      {poseLabel(id)}
                     </span>
                   </button>
                 );
@@ -1129,7 +1343,11 @@ function AddToProductPanel({
     const used = new Set<ProductPhotoSlot>();
     for (const f of picked) {
       const wanted: ProductPhotoSlot =
-        f.shotId === "back" ? "back" : f.shotId === "front" ? "front" : "second";
+        f.shotPoseId && poseCategory(f.shotPoseId) === "Back"
+          ? "back"
+          : f.shotPoseId === "front-straight" || f.shotPoseId === AS_PHOTOGRAPHED
+            ? "front"
+            : "second";
       const slot = !used.has(wanted) ? wanted : order.find((s) => !used.has(s));
       if (slot) {
         used.add(slot);

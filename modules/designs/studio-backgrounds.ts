@@ -46,6 +46,22 @@ export const STUDIO_BACKGROUND_PRESETS = [
     prompt:
       "Studio backdrop of softly draped heavy fabric in a tone that complements the dress, gentle folds catching soft light, warm editorial lighting — luxury couture shoot feel.",
   },
+  {
+    id: "studio-window",
+    tone: ["#f1ece4", "#cfc4b2"],
+    group: "Studio",
+    label: "Daylight window studio",
+    prompt:
+      "Bright daylight photo studio with a tall window and sheer linen curtain, soft natural side light, warm white walls and pale oak floor — airy, clean campaign set.",
+  },
+  {
+    id: "studio-dark",
+    tone: ["#4a4440", "#1f1c1a"],
+    group: "Studio",
+    label: "Moody dark studio",
+    prompt:
+      "Moody luxury studio with a deep charcoal backdrop and a soft sculpted spotlight, rich shadows and a subtle floor glow — dramatic couture campaign lighting.",
+  },
 
   // Heritage
   {
@@ -87,6 +103,38 @@ export const STUDIO_BACKGROUND_PRESETS = [
     label: "Old-city lane",
     prompt:
       "Quiet, clean old-city lane with tall weathered facades, wooden balconies and warm late-afternoon light, softly blurred depth — editorial street location, no crowds.",
+  },
+  {
+    id: "mughal-garden",
+    tone: ["#b7c79a", "#7e6a4e"],
+    group: "Heritage",
+    label: "Mughal garden",
+    prompt:
+      "Classic Mughal garden with a long central water channel, fountains, symmetrical lawns and sandstone pavilions softly blurred behind — serene heritage location in daylight.",
+  },
+  {
+    id: "red-sandstone",
+    tone: ["#c98c66", "#7a3f2a"],
+    group: "Heritage",
+    label: "Red sandstone courtyard",
+    prompt:
+      "Red sandstone Mughal courtyard with scalloped arches and inlaid white marble details, warm afternoon light and long soft shadows — grand heritage location.",
+  },
+  {
+    id: "tiled-wall",
+    tone: ["#5b88b5", "#e8e2d4"],
+    group: "Heritage",
+    label: "Blue tile wall",
+    prompt:
+      "Wall of hand-painted blue and white Multani tiles with intricate floral patterns, soft open shade light — vibrant heritage craft backdrop.",
+  },
+  {
+    id: "haveli-staircase",
+    tone: ["#b58a5f", "#5e4330"],
+    group: "Heritage",
+    label: "Haveli staircase",
+    prompt:
+      "Old haveli interior staircase with a carved wooden balustrade, lime-plaster walls and warm light falling from a high window — atmospheric heritage interior.",
   },
 
   // Interiors
@@ -138,6 +186,38 @@ export const STUDIO_BACKGROUND_PRESETS = [
     prompt:
       "Bright fashion atelier with tall windows, linen-covered work tables, fabric rolls and dress forms softly blurred in the background — authentic designer-studio setting.",
   },
+  {
+    id: "cafe-arches",
+    tone: ["#e3d6c3", "#8f7a62"],
+    group: "Interiors",
+    label: "Café with arched windows",
+    prompt:
+      "Elegant café with tall arched windows, marble bistro tables, brass fittings and warm morning light — refined lifestyle location, softly blurred, no crowds.",
+  },
+  {
+    id: "library",
+    tone: ["#8a6a4a", "#3d2c1f"],
+    group: "Interiors",
+    label: "Classic library",
+    prompt:
+      "Classic private library with floor-to-ceiling wooden bookshelves, a leather armchair and warm lamplight mixed with window daylight — intellectual, luxurious setting.",
+  },
+  {
+    id: "hotel-suite",
+    tone: ["#e6dbcc", "#9c8a76"],
+    group: "Interiors",
+    label: "Luxury hotel suite",
+    prompt:
+      "Five-star hotel suite with velvet armchairs, soft neutral drapes, a large window and gentle daylight — polished luxury interior.",
+  },
+  {
+    id: "conservatory",
+    tone: ["#d7e2cf", "#6f8c64"],
+    group: "Interiors",
+    label: "Glass conservatory",
+    prompt:
+      "Victorian glass conservatory filled with lush green plants and potted palms, bright diffused daylight through the glass roof — fresh botanical interior.",
+  },
 
   // Outdoors
   {
@@ -188,6 +268,54 @@ export const STUDIO_BACKGROUND_PRESETS = [
     prompt:
       "Manicured green lawn of a grand estate with mature trees and a classic white facade softly blurred behind, gentle overcast light — timeless luxury outdoor setting.",
   },
+  {
+    id: "chinar-autumn",
+    tone: ["#e3a254", "#8a4b25"],
+    group: "Outdoors",
+    label: "Autumn chinar avenue",
+    prompt:
+      "Avenue of tall chinar trees in autumn with golden and rust leaves on the ground, warm low sun filtering through — romantic seasonal outdoor location.",
+  },
+  {
+    id: "cherry-blossom",
+    tone: ["#f2d4dc", "#b88a97"],
+    group: "Outdoors",
+    label: "Cherry blossom path",
+    prompt:
+      "Path lined with cherry trees in full pink blossom, petals drifting, soft spring daylight and creamy background blur — delicate romantic location.",
+  },
+  {
+    id: "wheat-field",
+    tone: ["#e9c77d", "#a67a35"],
+    group: "Outdoors",
+    label: "Golden wheat field",
+    prompt:
+      "Golden wheat field at sunset with a warm glowing horizon and soft backlight — earthy, cinematic outdoor location.",
+  },
+  {
+    id: "mountain-valley",
+    tone: ["#9fbad0", "#5e7a55"],
+    group: "Outdoors",
+    label: "Mountain valley",
+    prompt:
+      "Green northern mountain valley with snow-capped peaks in the distance, fresh clear daylight and wildflowers in the foreground — breathtaking outdoor location.",
+  },
+  {
+    id: "lakeside",
+    tone: ["#a9c4cf", "#5c6f63"],
+    group: "Outdoors",
+    label: "Lakeside jetty",
+    prompt:
+      "Calm lakeside with a wooden jetty, still reflective water and soft hills beyond, gentle early-morning light — peaceful outdoor location.",
+  },
+  {
+    id: "modern-street",
+    tone: ["#cfd1d0", "#6e7072"],
+    group: "Outdoors",
+    label: "Modern city street",
+    prompt:
+      "Clean modern city street with glass storefronts and stone pavement, soft overcast daylight and gentle urban blur — contemporary street-style location, no crowds.",
+  },
 ] as const satisfies ReadonlyArray<{
   id: string;
   /** Two colours that evoke the location — picker tile gradient only. */
@@ -199,6 +327,11 @@ export const STUDIO_BACKGROUND_PRESETS = [
 
 export type StudioBackgroundPresetId =
   (typeof STUDIO_BACKGROUND_PRESETS)[number]["id"];
+
+/** Static preview photo of the empty location (generated once, in /public). */
+export function studioBackgroundPreviewSrc(id: string): string {
+  return `/studio-locations/${id}.webp`;
+}
 
 /** Presets grouped for <optgroup> menus, in group order. */
 export function groupedStudioBackgrounds() {

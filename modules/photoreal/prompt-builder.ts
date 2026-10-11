@@ -59,6 +59,10 @@ const MATCH_SOURCE_POSE_LINE =
 const CROPPED_FRAMING_LINE =
   "FRAMING: this is a cropped close shot — frame it exactly as described (waist-up, chest-up or detail). It is correct and expected that the lower garment, hem and feet fall outside the frame; do not zoom out to show the full outfit. Every garment detail that IS in frame must match the reference exactly.";
 
+/** Detail poses: a true macro of the craft, not a portrait. */
+const DETAIL_FRAMING_LINE =
+  "FRAMING: tight detail photograph — fill the frame with the named garment area (embroidery panel, neckline, sleeve cuff or hem) at close range, like a luxury macro product shot. The face is out of frame (at most the chin at the very top edge). Thread texture, stitch direction, zari/metallic sheen and fabric weave must be crisp and exact. It is correct that most of the garment and the model fall outside the frame.";
+
 const CAMERA_CROPPED =
   "Shot like a real commercial fashion campaign close-up: 85–105mm portrait lens look, shallow depth of field, sharp focus on the face, neckline and embroidery, true-to-life fabric texture, modest tasteful styling.";
 
@@ -118,7 +122,7 @@ const STYLING =
   "Styling: polished natural make-up (even luminous skin with real texture, softly defined brows and eyes, nude-rose lips), well-groomed glossy hair styled to suit the outfit (soft waves, sleek low bun, or neat braid), minimal fine jewellery such as small gold or pearl studs, neat natural nails, graceful upright posture and elegant relaxed hands.";
 
 const STYLE =
-  "Luxury modest fashion campaign photography of the standard a high-end designer label publishes: photorealistic, shot on a full-frame camera by a professional fashion photographer, flattering soft key light with gentle fill, refined natural colour grading with true-to-life garment colour, clean professional retouching that keeps real skin texture. Not illustrated, not CGI, not a stiff e-commerce ghost mannequin.";
+  "Luxury modest fashion campaign photography of the standard a high-end designer label publishes, in a minimalist-luxury editorial direction — natural light, calm neutral tones, refined understated styling, the garment always leading: photorealistic, shot on a full-frame camera by a professional fashion photographer, flattering soft key light with gentle fill, refined natural colour grading with true-to-life garment colour, clean professional retouching that keeps real skin texture. Not illustrated, not CGI, not a stiff e-commerce ghost mannequin.";
 
 const SHARED_NEGATIVES =
   "watermark, text overlay, logo, arrow, cross symbol, UI icons, screenshot chrome, collage, wrinkled fabric, creased fabric, crumpled cloth, blank stare, deadpan face, emotionless expression, vacant eyes, mannequin face, stiff military stand, identical pose every time, uncanny valley, deformed hands, extra limbs, illustrated, cartoon, CGI, plastic skin";
@@ -392,7 +396,9 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       variableBlock,
       sceneLine,
       ...(poseLine ? [poseLine] : []),
-      ...(croppedShot ? [CROPPED_FRAMING_LINE] : []),
+      ...(croppedShot
+        ? [pose?.category === "Detail" ? DETAIL_FRAMING_LINE : CROPPED_FRAMING_LINE]
+        : []),
       EXPRESSION,
       STYLING,
       matchSourcePose
