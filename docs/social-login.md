@@ -2,7 +2,7 @@
 
 Shoppers stay passwordless. Google, Facebook, Instagram, and TikTok are OAuth. WhatsApp is a one-time code to the customer's phone. A button is shown as live only when its environment variables are set. Nothing in this flow hardcodes an app id or secret.
 
-`AUTH_URL` is the public origin Auth.js uses to build redirect URIs (local: `http://localhost:3000`). Register each URI exactly, including `https` in production.
+`AUTH_URL` is the public origin Auth.js uses to build redirect URIs (local: `http://localhost:3000`). Register each URI exactly, including `https` in production. Production is `https://www.aks-atelier.com`. Caddy redirects `https://aks-atelier.com` to that host so the sign-in cookie and the callback are the same site.
 
 | Provider  | Redirect URI                             |
 | --------- | ---------------------------------------- |

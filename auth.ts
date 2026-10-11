@@ -142,6 +142,16 @@ async function attachOAuthToSignedInCustomer(account: {
 
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
+  logger: {
+    error(error) {
+      const name = error instanceof Error ? error.name : "Error";
+      const message = error instanceof Error ? error.message : String(error);
+      const safe = message
+        .replace(/[A-Za-z0-9_\-~.]{24,}/g, "[redacted]")
+        .slice(0, 240);
+      console.error("[auth]", name, safe);
+    },
+  },
   // Credentials + JWT: adapter is available for account/user lookups; sessions are
   // written by createAuthSession (revocable rows with device/IP/lastSeenAt).
   adapter: aksAuthAdapter(),

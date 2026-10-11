@@ -1,4 +1,9 @@
 aks-atelier.com, www.aks-atelier.com {
+	# Auth.js builds the OAuth redirect from AUTH_URL (www) but stores the
+	# state cookie on the host that started sign-in. Keep one host.
+	@apex host aks-atelier.com
+	redir @apex https://www.aks-atelier.com{uri} permanent
+
 	encode gzip
 	reverse_proxy app:3000 {
 		header_up X-Forwarded-Proto {scheme}
