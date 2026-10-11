@@ -10,6 +10,7 @@ import {
 } from "@/modules/messaging/providers/whatsapp";
 
 import { generateOtpCode, hashOtp, OTP_TTL_MS } from "./otp";
+import { selectWhatsappOtpDelivery } from "./social/whatsapp-delivery";
 
 /**
  * Phone-based one-time codes for WhatsApp sign-in, stored in the same
@@ -27,14 +28,11 @@ function identifierFor(phone: string): string {
 }
 
 function allowDevOtpSurface(): boolean {
-  return (
-    process.env.NODE_ENV !== "production" &&
-    process.env.AKS_ALLOW_DEV_OTP !== "0"
-  );
+  return selectWhatsappOtpDelivery() === "dev_surface";
 }
 
 async function deliverPhoneOtp(msisdn: string, code: string): Promise<void> {
-  if (process.env.WHATSAPP_TEMPLATE_AUTH?.trim()) {
+  if (selectWhatsappOtpDelivery() === "auth_template") {
     await sendWhatsappAuthOtp({ to: msisdn, code });
     return;
   }

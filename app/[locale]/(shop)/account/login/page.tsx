@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { auth } from "@/auth";
 import { CustomerLoginForm } from "@/modules/account/customer-login-form";
+import { customerOAuthErrorKey } from "@/modules/auth/social/oauth-errors";
 import { storefrontAuthChannels } from "@/modules/auth/social-providers";
 import { AksBrandLogo } from "@/modules/shop/shell/aks-brand-logo";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
@@ -15,22 +16,8 @@ function oauthErrorMessage(
   error: string | undefined,
   t: (key: string) => string,
 ): string | null {
-  if (!error) return null;
-  switch (error) {
-    case "AccessDenied":
-      return t("errorOAuthAccessDenied");
-    case "OAuthAccountNotLinked":
-      return t("errorOAuthNotLinked");
-    case "OAuthCallback":
-    case "OAuthCreateAccount":
-    case "OAuthSignIn":
-    case "Callback":
-    case "Configuration":
-    case "Default":
-      return t("errorOAuthGeneric");
-    default:
-      return t("errorOAuthGeneric");
-  }
+  const key = customerOAuthErrorKey(error);
+  return key ? t(key) : null;
 }
 
 export default async function CustomerLoginPage({ searchParams }: Props) {

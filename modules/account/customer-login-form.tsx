@@ -5,7 +5,11 @@ import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 
 import { useRouter } from "@/i18n/routing";
-import type { AuthChannelKey, AuthChannelState } from "@/modules/auth/social-providers";
+import { authChannelAction } from "@/modules/auth/social/channel";
+import type {
+  AuthChannelKey,
+  AuthChannelState,
+} from "@/modules/auth/social-providers";
 
 import {
   EmailChannelIcon,
@@ -17,8 +21,6 @@ import {
 } from "./auth-channel-icons";
 
 type Step = "email" | "code" | "profile";
-
-export type SocialProvider = "google" | "facebook";
 
 type Props = {
   /** Where to land after signing in (locale-relative, e.g. "/account/orders"). */
@@ -90,9 +92,7 @@ export function CustomerLoginForm({
         return;
       }
       setMessage(
-        data.devCode
-          ? t("devCodeFilled")
-          : (data.message ?? t("checkEmail")),
+        data.devCode ? t("devCodeFilled") : (data.message ?? t("checkEmail")),
       );
       if (data.devCode) setCode(data.devCode);
       setStep("code");
@@ -126,14 +126,14 @@ export function CustomerLoginForm({
   }
 
   function onChannel(channel: AuthChannelState) {
-    if (channel.status !== "live" || pending) return;
-    if (channel.key === "whatsapp") {
-      router.push("/account/login/whatsapp");
+    if (pending) return;
+    const action = authChannelAction(channel);
+    if (action.type === "ignore") return;
+    if (action.type === "route") {
+      router.push(action.href);
       return;
     }
-    if (channel.key === "facebook" || channel.key === "google") {
-      void signIn(channel.key, { callbackUrl: redirectTo });
-    }
+    void signIn(action.provider, { callbackUrl: redirectTo });
   }
 
   const channelLabel = (key: AuthChannelKey) => {
@@ -323,9 +323,7 @@ export function CustomerLoginForm({
 
       {step === "email" && soonChannels.length > 0 ? (
         <details className="auth-soon-details">
-          <summary>
-            {emailLeads ? t("orChannels") : t("alsoSoon")}
-          </summary>
+          <summary>{emailLeads ? t("orChannels") : t("alsoSoon")}</summary>
           {renderChannels(soonChannels)}
         </details>
       ) : null}
