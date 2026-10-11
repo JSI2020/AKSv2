@@ -21,12 +21,12 @@ export function Reveal({
 
     const reveal = () => el.classList.add("in");
 
-    // No observer support, reduced motion, or a zero-size viewport (e.g. the
-    // tab mounts hidden): show content immediately — never leave it parked
-    // at opacity:0 waiting on an event that may not come.
+    // No observer support or a zero-size viewport (e.g. the tab mounts
+    // hidden): show content immediately — never leave it parked at
+    // opacity:0 waiting on an event that may not come. Reduced motion still
+    // reveals on scroll; its CSS turns the entrance into a plain fade.
     if (
       typeof IntersectionObserver === "undefined" ||
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
       window.innerHeight === 0
     ) {
       reveal();
