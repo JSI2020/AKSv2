@@ -33,6 +33,7 @@ import {
   touchSession,
   verifyEmailOtp,
   verifyTotpForUser,
+  verifyPassword,
 } from "@/modules/auth";
 
 class TwoFactorRequired extends CredentialsSignin {
@@ -49,6 +50,132 @@ class AccountDisabled extends CredentialsSignin {
 
 class TwoFactorInvalid extends CredentialsSignin {
   code = "2FA_INVALID";
+}
+
+class TempPasswordExpired extends CredentialsSignin {
+  code = "TEMP_EXPIRED";
+}
+
+class OtpLoginDisabled extends CredentialsSignin {
+  code = "OTP_DISABLED";
+}
+
+type StaffUser = typeof users.$inferSelect;
+
+/**
+ * Shared tail of every staff sign-in once the first factor passed: second
+ * factor for OWNER/ADMIN, session row, invite acceptance, cart merge.
+ */
+async function completeStaffSignIn(params: {
+  user: StaffUser;
+  email: string;
+  totp: string;
+  recoveryCode: string;
+  ip: string | null;
+  userAgent: string | null;
+  successReason: string;
+}) {
+  const { user, email, totp, recoveryCode, ip, userAgent } = params;
+  const twoFactorEnabled = !!user.twoFactorEnabledAt && !!user.twoFactorSecret;
+
+  // 2FA is enforced in production; skipped in local/dev (see
+  // adminTwoFactorEnforced) so the portal is reachable without an app.
+  if (twoFactorEnabled && adminTwoFactorEnforced()) {
+    if (!totp && !recoveryCode) {
+      throw new TwoFactorRequired();
+    }
+
+    let secondFactorOk = false;
+    if (totp && user.twoFactorSecret) {
+      secondFactorOk = await verifyTotpForUser({
+        userId: user.id,
+        encryptedSecret: user.twoFactorSecret,
+        code: totp,
+      });
+    }
+    if (!secondFactorOk && recoveryCode) {
+      secondFactorOk = await consumeRecoveryCode({
+        userId: user.id,
+        code: recoveryCode,
+      });
+    }
+
+    if (!secondFactorOk) {
+      await logSignInAttempt({
+        email,
+        ip,
+        userAgent,
+        success: false,
+        reason: "2fa_invalid",
+      });
+      throw new TwoFactorInvalid();
+    }
+  }
+
+  const session = await createAuthSession({
+    userId: user.id,
+    ip,
+    userAgent,
+  });
+
+  const now = new Date();
+  await db
+    .update(users)
+    .set({
+      emailVerified: user.emailVerified ?? now,
+      lastLoginAt: now,
+      updatedAt: now,
+      ...(user.status === "INVITED" ? { status: "ACTIVE" as const } : {}),
+    })
+    .where(eq(users.id, user.id));
+
+  if (user.status === "INVITED") {
+    const { staffInvites } = await import("@aks/db");
+    const { and: andOp, eq: eqOp } = await import("drizzle-orm");
+    await db
+      .update(staffInvites)
+      .set({
+        status: "ACCEPTED",
+        acceptedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        andOp(
+          eqOp(staffInvites.email, email),
+          eqOp(staffInvites.status, "PENDING"),
+        ),
+      );
+  }
+
+  await logSignInAttempt({
+    email,
+    ip,
+    userAgent,
+    success: true,
+    reason: params.successReason,
+  });
+
+  // Direct paths — avoid measure/cart barrels (they pull client modules / next/headers).
+  const { readAnonToken } = await import("@/modules/measure/anon-cookie");
+  const { mergeGuestCartIntoUser } = await import("@/modules/cart/merge");
+  const anonId = await readAnonToken();
+  if (anonId) {
+    await mergeGuestCartIntoUser({ userId: user.id, anonId });
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    twoFactorEnabled,
+    requires2faEnrolment:
+      rolesRequiring2fa(user.role) &&
+      !twoFactorEnabled &&
+      adminTwoFactorEnforced(),
+    mustChangePassword: user.mustChangePassword,
+    sessionId: session.id,
+  };
 }
 
 /**
@@ -113,6 +240,112 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   // written by createAuthSession (revocable rows with device/IP/lastSeenAt).
   adapter: aksAuthAdapter(),
   providers: [
+    // Staff sign-in: email + password (+ authenticator for OWNER/ADMIN).
+    // New staff get a one-time password and must choose their own on first
+    // sign-in; forgotten passwords are reset with an emailed code.
+    Credentials({
+      id: "password",
+      name: "Email and password",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+        totp: { label: "Authenticator code", type: "text" },
+        recoveryCode: { label: "Recovery code", type: "text" },
+      },
+      authorize: async (credentials, request) => {
+        const email = normalizeEmail(
+          typeof credentials?.email === "string" ? credentials.email : "",
+        );
+        const password =
+          typeof credentials?.password === "string" ? credentials.password : "";
+        const totp =
+          typeof credentials?.totp === "string" ? credentials.totp.trim() : "";
+        const recoveryCode =
+          typeof credentials?.recoveryCode === "string"
+            ? credentials.recoveryCode.trim()
+            : "";
+        const ip = request ? clientIpFromHeaders(request.headers) : null;
+        const userAgent = request?.headers.get("user-agent") ?? null;
+
+        if (!email || !password) throw new OtpInvalid();
+
+        const verifyLimit = await checkOtpVerifyRateLimit({
+          email,
+          reasons: ["password_invalid", "2fa_invalid"],
+        });
+        if (!verifyLimit.ok) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "password_locked",
+          });
+          throw new OtpInvalid();
+        }
+
+        const [user] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, email))
+          .limit(1);
+
+        // Always run the hash so unknown emails take the same time.
+        const passwordOk = await verifyPassword(password, user?.passwordHash);
+
+        if (
+          !user ||
+          user.deletedAt ||
+          user.role === "CUSTOMER" ||
+          !passwordOk
+        ) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "password_invalid",
+          });
+          throw new OtpInvalid();
+        }
+
+        if (user.status === "DISABLED") {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "account_disabled",
+          });
+          throw new AccountDisabled();
+        }
+
+        if (
+          user.mustChangePassword &&
+          user.tempPasswordExpiresAt &&
+          user.tempPasswordExpiresAt.getTime() < Date.now()
+        ) {
+          await logSignInAttempt({
+            email,
+            ip,
+            userAgent,
+            success: false,
+            reason: "temp_password_expired",
+          });
+          throw new TempPasswordExpired();
+        }
+
+        return completeStaffSignIn({
+          user,
+          email,
+          totp,
+          recoveryCode,
+          ip,
+          userAgent,
+          successReason: "password_success",
+        });
+      },
+    }),
     Credentials({
       id: "otp",
       name: "Email OTP",
@@ -133,6 +366,12 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           typeof credentials?.recoveryCode === "string"
             ? credentials.recoveryCode.trim()
             : "";
+
+        // Staff sign in with a password now. Code-only sign-in stays for
+        // local tooling and is refused on the live site.
+        if (process.env.NODE_ENV === "production") {
+          throw new OtpLoginDisabled();
+        }
 
         const email = normalizeEmail(emailRaw);
         const ip = request ? clientIpFromHeaders(request.headers) : null;
@@ -539,6 +778,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       // staff emails before allowDangerousEmailAccountLinking attaches a provider.
       if (
         account &&
+        account.provider !== "password" &&
         account.provider !== "otp" &&
         account.provider !== "customer-otp" &&
         account.provider !== "customer-whatsapp"
@@ -590,6 +830,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           user as { requires2faEnrolment?: boolean }
         ).requires2faEnrolment;
         token.sessionId = (user as { sessionId?: string }).sessionId;
+        token.mustChangePassword = Boolean(
+          (user as { mustChangePassword?: boolean }).mustChangePassword,
+        );
       }
 
       // OAuth first sign-in: the adapter created or matched a CUSTOMER user, but
@@ -599,6 +842,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       if (
         user &&
         account &&
+        account.provider !== "password" &&
         account.provider !== "otp" &&
         account.provider !== "customer-otp" &&
         !token.sessionId
@@ -619,6 +863,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             twoFactorEnabledAt: users.twoFactorEnabledAt,
             twoFactorSecret: users.twoFactorSecret,
             role: users.role,
+            mustChangePassword: users.mustChangePassword,
           })
           .from(users)
           .where(eq(users.id, token.sub))
@@ -627,6 +872,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           const enabled =
             !!row.twoFactorEnabledAt && !!row.twoFactorSecret;
           token.twoFactorEnabled = enabled;
+          token.mustChangePassword = row.mustChangePassword;
           token.requires2faEnrolment =
             rolesRequiring2fa(row.role) &&
             !enabled &&
@@ -650,6 +896,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         session.user.role = (token.role as string) ?? "CUSTOMER";
         session.user.twoFactorEnabled = Boolean(token.twoFactorEnabled);
         session.user.requires2faEnrolment = Boolean(token.requires2faEnrolment);
+        session.user.mustChangePassword = Boolean(token.mustChangePassword);
       }
       session.sessionId =
         typeof token.sessionId === "string" ? token.sessionId : "";

@@ -38,7 +38,7 @@ export default async function StaffSettingsPage({
         <Eyebrow>Settings · Staff</Eyebrow>
         <h1 className="mt-1 font-display text-3xl text-greige">Staff</h1>
         <p className="mt-1 max-w-xl text-[13px] text-chalk">
-          Invite teammates, assign roles, and manage permission overrides.
+          Add teammates with a one-time password, assign roles, and manage permission overrides.
         </p>
       </div>
 

@@ -330,6 +330,13 @@
       "when": 1787840007000,
       "tag": "0046_design_coming_soon",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1787926407000,
+      "tag": "0047_staff_passwords",
+      "breakpoints": true
     }
   ]
 }
