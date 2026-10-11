@@ -21,7 +21,7 @@ import {
 } from "../../model-persona";
 import { STUDIO_BACKGROUND_PRESETS } from "@/modules/designs/studio-backgrounds";
 
-import { POSE_PRESETS } from "../../prompt-builder";
+import { MAX_GARMENT_REFERENCES, POSE_PRESETS } from "../../prompt-builder";
 import type { StudioVersion } from "../result-screen";
 
 import {
@@ -51,7 +51,8 @@ type UploadedAsset = {
 
 type DraftMeta = {
   note: string;
-  photoUrl: string;
+  /** Every garment photo, main view first. */
+  photoUrls: string[];
   houseModelId: string;
   houseModelName: string;
   poseId: string;
@@ -137,31 +138,46 @@ export function PoseTab({
   const active =
     versions.find((v) => v.id === activeVersionId) ?? versions.at(-1);
 
-  const addPhotos = useCallback(async (files: FileList | File[]) => {
-    const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    if (!list.length) return;
-    setUploading(true);
-    setError(null);
-    try {
-      const uploaded = await uploadPhoto(list.slice(0, 1));
-      setPhotos((prev) => {
-        prev.forEach((p) => URL.revokeObjectURL(p.localPreview));
-        return uploaded;
-      });
-    } catch (err) {
+  const addPhotos = useCallback(
+    async (files: FileList | File[]) => {
+      const list = Array.from(files).filter((f) =>
+        f.type.startsWith("image/"),
+      );
+      if (!list.length) return;
+      const room = MAX_GARMENT_REFERENCES - photos.length;
+      if (room <= 0) {
+        setError(
+          `Up to ${MAX_GARMENT_REFERENCES} photos — remove one to add another.`,
+        );
+        return;
+      }
+      setUploading(true);
+      setError(
+        list.length > room
+          ? `Only the first ${room} added — up to ${MAX_GARMENT_REFERENCES} photos per look.`
+          : null,
+      );
+      try {
+        const uploaded = await uploadPhoto(list.slice(0, room));
+        setPhotos((prev) =>
+          [...prev, ...uploaded].slice(0, MAX_GARMENT_REFERENCES),
+        );
+      } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
-    } finally {
-      setUploading(false);
-    }
-  }, []);
+      } finally {
+        setUploading(false);
+      }
+    },
+    [photos.length],
+  );
 
   /** One repose render; throws on failure. */
   const renderShot = async (shotPoseId: string, modelId: HouseModelSelection) => {
-    const photo = photos[0]!;
+    const urls = photos.map((p) => p.url);
     const data = await generatePhotorealAction({
       sourceMode: "repose",
-      oldDesignUrls: [photo.url],
-      oldDesignUrl: photo.url,
+      oldDesignUrls: urls,
+      oldDesignUrl: urls[0],
       description: note,
       houseModelId: modelId,
       poseId: shotPoseId || null,
@@ -181,7 +197,7 @@ export function PoseTab({
   ) => {
     setDraft({
       note,
-      photoUrl: photos[0]!.url,
+      photoUrls: photos.map((p) => p.url),
       houseModelId: data.houseModel?.id ?? "ayesha",
       houseModelName: data.houseModel?.name ?? "Ayesha",
       poseId: data.pose?.id ?? shotPoseId,
@@ -287,7 +303,8 @@ export function PoseTab({
     try {
       const data = await refinePhotorealAction({
         baseImageUrl: active.imageUrl,
-        oldDesignUrl: draft.photoUrl,
+        oldDesignUrl: draft.photoUrls[0],
+        oldDesignUrls: draft.photoUrls,
         parentVersionId: active.id,
         description: draft.note,
         feedback: refineFeedback,
@@ -350,14 +367,22 @@ export function PoseTab({
         <div className="max-w-xl">
           <PanelHead label="Input" step="01" />
 
-          <StudioSection title="Garment photo" first>
-            <p className="mb-4 text-[12.5px] leading-relaxed text-chalk">
-              <span className="text-greige">Required:</span> one catalogue
-              photo. The dress stays locked — only pose and house model change.
+          <StudioSection title="Dress photos" first>
+            <p className="mb-2 text-[12.5px] leading-relaxed text-chalk">
+              <span className="text-greige">Required:</span> one photo of the
+              dress. The dress stays locked — only model, pose and location
+              change.
+            </p>
+            <p className="mb-4 text-[12px] leading-relaxed text-chalk">
+              <span className="text-greige">Best results:</span> add up to{" "}
+              {MAX_GARMENT_REFERENCES} photos of the same dress — a full view
+              first, then other angles, the back, and close-ups of the
+              embroidery. Every photo is re-checked on each refine, so pose
+              changes never alter the embroidery.
             </p>
             <StudioDropzone
-              label="Drop garment photo here"
-              sublabel="PNG, JPG, WEBP — one photo"
+              label="Drop dress photos here"
+              sublabel={`PNG, JPG, WEBP — up to ${MAX_GARMENT_REFERENCES} photos`}
               disabled={busy || uploading}
               dragOver={dragOver}
               onDragEnter={() => setDragOver(true)}
@@ -366,7 +391,7 @@ export function PoseTab({
               onChoose={() => inputRef.current?.click()}
               inputRef={inputRef}
               onFileChange={(files) => void addPhotos(files)}
-              multiple={false}
+              multiple
             />
             <ThumbRow
               assets={photos.map(({ localPreview, name }) => ({
@@ -378,7 +403,19 @@ export function PoseTab({
                 if (p) URL.revokeObjectURL(p.localPreview);
                 setPhotos((prev) => prev.filter((_, idx) => idx !== i));
               }}
+              onMakeMain={(i) =>
+                setPhotos((prev) => [
+                  prev[i]!,
+                  ...prev.filter((_, idx) => idx !== i),
+                ])
+              }
             />
+            {photos.length > 1 && (
+              <p className={studioHintClass}>
+                {photos.length} photos · the gold one is the main view — tap
+                another to make it main.
+              </p>
+            )}
           </StudioSection>
 
           <StudioSection title="Pose & model">

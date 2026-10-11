@@ -341,9 +341,15 @@ export type ThumbAsset = {
 export function ThumbRow({
   assets,
   onRemove,
+  onMakeMain,
 }: {
   assets: ThumbAsset[];
   onRemove: (index: number) => void;
+  /**
+   * When set, the first thumbnail is badged "Main" and clicking another one
+   * makes it the main photo (multi-photo garment references).
+   */
+  onMakeMain?: (index: number) => void;
 }) {
   if (!assets.length) return null;
   return (
@@ -351,14 +357,39 @@ export function ThumbRow({
       {assets.map((asset, i) => (
         <div
           key={`${asset.localPreview}-${i}`}
-          className="relative size-14 overflow-hidden border border-indigo-lift rounded-[2px]"
+          className={cn(
+            "relative size-14 overflow-hidden border rounded-[2px]",
+            onMakeMain && i === 0 ? "border-zari" : "border-indigo-lift",
+          )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={asset.localPreview}
-            alt={asset.name}
-            className="size-full object-cover"
-          />
+          {onMakeMain && i > 0 ? (
+            <button
+              type="button"
+              className="size-full"
+              title="Make this the main photo"
+              aria-label={`Make ${asset.name} the main photo`}
+              onClick={() => onMakeMain(i)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={asset.localPreview}
+                alt={asset.name}
+                className="size-full object-cover"
+              />
+            </button>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={asset.localPreview}
+              alt={asset.name}
+              className="size-full object-cover"
+            />
+          )}
+          {onMakeMain && i === 0 && (
+            <span className="absolute inset-x-0 bottom-0 bg-zari/90 py-px text-center text-[8.5px] font-semibold uppercase tracking-[0.12em] text-indigo">
+              Main
+            </span>
+          )}
           <button
             type="button"
             aria-label="Remove"

@@ -136,6 +136,50 @@ describe("campaign quality across modes", () => {
   });
 });
 
+describe("multiple garment photos", () => {
+  it("reads several photos together as one source of truth", () => {
+    const { prompt } = buildPrompt({ mode: "repose", garmentReferenceCount: 4 });
+    expect(prompt).toMatch(/GARMENT REFERENCES: 4 reference photos of the SAME garment/);
+    expect(prompt).toMatch(/follow the close-up/);
+    expect(prompt).not.toMatch(/EDIT REFERENCES/);
+  });
+
+  it("does not add the multi-photo line for a single photo", () => {
+    const { prompt } = buildPrompt({ mode: "repose", garmentReferenceCount: 1 });
+    expect(prompt).not.toMatch(/GARMENT REFERENCES/);
+  });
+
+  it("re-reads the original photos on every refine", () => {
+    const single = buildPrompt({
+      mode: "repose",
+      refine: true,
+      keepPose: true,
+      garmentReferenceCount: 1,
+    }).prompt;
+    expect(single).toMatch(/EDIT REFERENCES: the FIRST attached image is the previous photograph/);
+    expect(single).toMatch(/The second image is the ORIGINAL garment reference photo:/);
+
+    const many = buildPrompt({
+      mode: "mannequin",
+      refine: true,
+      poseId: "portrait-smile",
+      garmentReferenceCount: 5,
+    }).prompt;
+    expect(many).toMatch(/The remaining 5 images are the ORIGINAL garment reference photos/);
+    expect(many).toMatch(/A pose or background change never changes the garment/);
+    expect(many).toMatch(/GARMENT REFERENCES: 5/);
+  });
+
+  it("ignores reference counts in modes that may restyle", () => {
+    const { prompt } = buildPrompt({
+      mode: "old-design",
+      refine: true,
+      garmentReferenceCount: 3,
+    });
+    expect(prompt).not.toMatch(/EDIT REFERENCES|GARMENT REFERENCES/);
+  });
+});
+
 describe("background library", () => {
   it("has unique ids, every group populated, and a courtyard fallback", () => {
     const ids = STUDIO_BACKGROUND_PRESETS.map((p) => p.id);

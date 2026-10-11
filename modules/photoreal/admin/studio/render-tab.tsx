@@ -62,6 +62,8 @@ type DraftMeta = {
   fabric: string;
   sketchUrls: string[];
   oldDesignUrl?: string;
+  /** All uploaded garment photos (main first) — re-sent on refine. */
+  oldDesignUrls: string[];
   houseModelId: string;
   houseModelName: string;
   promptMode: PromptMode;
@@ -238,6 +240,7 @@ export function RenderTab({
         sketchUrls:
           sourceMode === "sketch" ? sketches.map((s) => s.url) : [],
         oldDesignUrl: oldUrls[0],
+        oldDesignUrls: oldUrls,
         houseModelId: data.houseModel?.id ?? "ayesha",
         houseModelName: data.houseModel?.name ?? "Ayesha",
         promptMode: data.promptMode ?? sourceMode,
@@ -283,6 +286,7 @@ export function RenderTab({
         baseImageUrl: active.imageUrl,
         sketchUrls: draft.sketchUrls,
         oldDesignUrl: draft.oldDesignUrl,
+        oldDesignUrls: draft.oldDesignUrls,
         parentVersionId: active.id,
         description: draft.description,
         shirtColour: draft.shirtColour,

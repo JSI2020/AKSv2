@@ -59,6 +59,28 @@ const CAMERA_MATCH_SOURCE =
 const MANNEQUIN_CLEANUP =
   "Remove the mannequin, dress form, stand, base, pins, clips, hangers, price tags and labels entirely — none of them may appear. The garment must sit naturally on a real human body with real arms, hands, neck, and face.";
 
+/** Most garment reference photos sent with one request (plus the base image on refine). */
+export const MAX_GARMENT_REFERENCES = 6;
+
+/**
+ * Several photos of one garment (angles, distances, embroidery close-ups):
+ * read them together, close-ups win on detail.
+ */
+function multiReferenceLine(count: number): string {
+  return `GARMENT REFERENCES: ${count} reference photos of the SAME garment are attached — the first is the main full view; the others show other angles, distances, close-ups and embroidery details. Treat them together as the single source of truth and reproduce every detail exactly as it appears across them: embroidery motifs, thread colours, stitch density and exact placement, borders, lace, buttons, print scale, fabric texture and sheen. Where a close-up shows more detail than a full view, follow the close-up. Never invent, simplify, move or omit embroidery.`;
+}
+
+/**
+ * Refine: the base render comes first, the original garment photos after it.
+ * Pose/setting edits must re-read the garment from the originals so nothing
+ * drifts across versions.
+ */
+function refineReferenceLine(count: number): string {
+  const refs =
+    count === 1 ? "The second image is" : `The remaining ${count} images are`;
+  return `EDIT REFERENCES: the FIRST attached image is the previous photograph — use it only for the model and for whatever is not being changed. ${refs} the ORIGINAL garment reference photo${count === 1 ? "" : "s"}: the garment in the result must match ${count === 1 ? "it" : "them"} exactly — embroidery, colours, cut and every detail — even where the previous photograph drifted. A pose or background change never changes the garment.`;
+}
+
 /** Text-only — invent garment from the user's description. */
 const DESCRIPTION_ANCHOR =
   "Photorealistic fashion photograph that looks like a real commercial campaign shot. Create the outfit from the user's written description only — no sketch or reference photo. Invent a coherent modest South Asian / Pakistani women's outfit (e.g. kameez, shalwar/palazzo, dupatta if mentioned) that matches the colours, fabric, and style notes. Show it on the house model in a varied commercial pose (not always standing front-on).";
@@ -160,6 +182,10 @@ export type PromptBuilderInput = {
   keepPose?: boolean;
   /** Explicit scene / background prompt (from studio presets or custom). */
   backgroundPrompt?: string | null;
+  /** How many original garment photos are attached (garment-locked modes). */
+  garmentReferenceCount?: number;
+  /** Refine call: the previous render is attached first, references after. */
+  refine?: boolean;
 };
 
 export type BuiltPrompt = {
@@ -320,6 +346,16 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
         ? MATCH_SOURCE_POSE_LINE
         : pose?.prompt ?? null;
 
+  const referenceCount = garmentLocked
+    ? Math.max(0, Math.floor(input.garmentReferenceCount ?? 0))
+    : 0;
+  const referenceLines = [
+    ...(input.refine && referenceCount > 0
+      ? [refineReferenceLine(referenceCount)]
+      : []),
+    ...(referenceCount > 1 ? [multiReferenceLine(referenceCount)] : []),
+  ];
+
   const anchor =
     mode === "old-design"
       ? OLD_DESIGN_ANCHOR
@@ -334,6 +370,7 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
   const prompt = joinNonEmpty(
     [
       anchor,
+      ...referenceLines,
       ...(mode === "mannequin" ? [PRESS_LINE, MANNEQUIN_CLEANUP] : []),
       ...(mode === "repose" || mode === "old-design" ? [PRESS_LINE] : []),
       ...(mode === "description" ? [] : [CLEANUP]),

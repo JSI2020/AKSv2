@@ -24,6 +24,7 @@ import {
 import {
   buildPrompt,
   feedbackRequestsBackground,
+  MAX_GARMENT_REFERENCES,
   feedbackRequestsPose,
   resolvePromptMode,
   type PromptMode,
@@ -223,7 +224,7 @@ export async function generatePhotorealAction(
 
     const imageUrls =
       photoMode
-        ? oldOnly
+        ? oldOnly.slice(0, MAX_GARMENT_REFERENCES)
         : mode === "sketch"
           ? sketchOnly
           : [];
@@ -263,6 +264,7 @@ export async function generatePhotorealAction(
       mode,
       poseId: payload.poseId,
       backgroundPrompt,
+      garmentReferenceCount: photoMode ? imageUrls.length : 0,
     });
 
     const result =
@@ -349,6 +351,11 @@ export type RefinePhotorealPayload = {
   baseImageUrl: string;
   sketchUrls?: string[];
   oldDesignUrl?: string;
+  /**
+   * Every original garment photo (main first). Re-sent on each refine so a
+   * pose/background change re-reads the garment from the originals.
+   */
+  oldDesignUrls?: string[];
   parentVersionId?: string;
   description?: string;
   shirtColour?: string;
@@ -425,6 +432,25 @@ export async function refinePhotorealAction(
       custom: payload.backgroundCustom,
     });
 
+    // Original garment photos, main first, deduped. Garment-locked modes
+    // re-send all of them so the garment is re-read from the originals.
+    const garmentLocked = mode === "repose" || mode === "mannequin";
+    const garmentPhotos = [
+      ...new Set(
+        [...(payload.oldDesignUrls ?? []), payload.oldDesignUrl].filter(
+          (u): u is string => Boolean(u?.trim()),
+        ),
+      ),
+    ];
+    const referenceUrls =
+      mode === "sketch"
+        ? (payload.sketchUrls ?? []).slice(0, 2)
+        : garmentLocked
+          ? garmentPhotos.slice(0, MAX_GARMENT_REFERENCES)
+          : mode === "old-design"
+            ? garmentPhotos.slice(0, 1)
+            : [];
+
     const settings = await getSettings();
     const built = buildPrompt({
       description: polished.description,
@@ -438,21 +464,15 @@ export async function refinePhotorealAction(
       backgroundPrompt,
       keepPose:
         !payload.poseId && !feedbackRequestsPose(polished.feedback ?? ""),
+      refine: true,
+      garmentReferenceCount: garmentLocked ? referenceUrls.length : 0,
     });
-
-    const referenceUrls =
-      mode === "sketch"
-        ? (payload.sketchUrls ?? []).slice(0, 2)
-        : mode === "repose" || mode === "old-design" || mode === "mannequin"
-          ? [payload.oldDesignUrl].filter(Boolean).slice(0, 1) as string[]
-          : [];
 
     const bigSceneChange =
       feedbackRequestsBackground(polished.feedback ?? payload.feedback) ||
       feedbackRequestsPose(polished.feedback ?? payload.feedback) ||
       Boolean(payload.poseId);
 
-    const garmentLocked = mode === "repose" || mode === "mannequin";
     let strength = mode === "sketch" ? 0.55 : garmentLocked ? 0.76 : 0.72;
     if (bigSceneChange) {
       strength = mode === "sketch" ? 0.78 : 0.84;
