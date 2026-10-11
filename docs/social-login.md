@@ -70,6 +70,23 @@ Sign-in therefore verifies the phone number with a one-time code sent through th
 
 The shopper enters the number at `/account/login/whatsapp`, then the six-digit code. A new number creates a customer. A staff phone is not sent a code. A wrong code, a rate limit, or a Meta send failure is shown on the form; closing the form before entering a code does not create an account.
 
+## Privacy, terms, and data deletion
+
+TikTok and Meta ask for public URLs before an app can go live. This shop publishes them in English:
+
+| Page                        | URL                                                       |
+| --------------------------- | --------------------------------------------------------- |
+| Privacy policy              | `https://www.aks-atelier.com/privacy`                     |
+| Terms of service            | `https://www.aks-atelier.com/terms`                       |
+| Data deletion instructions  | `https://www.aks-atelier.com/data-deletion`               |
+| Meta data-deletion callback | `https://www.aks-atelier.com/api/auth/meta/data-deletion` |
+
+Paste the privacy and terms URLs into the Facebook, Instagram, and TikTok app settings. Paste the callback into the Meta app’s Data Deletion Request URL. The callback checks `signed_request` with `AUTH_FACEBOOK_SECRET`, `AUTH_INSTAGRAM_SECRET`, or `WHATSAPP_APP_SECRET`, then returns a confirmation code. The status page is `https://www.aks-atelier.com/data-deletion/status?code=…`.
+
+The seller’s own name, postal address, email, and phone are still marked `[OWNER: …]` on those pages. Fill them in before you send a reviewer to the site. There is no company registration or VAT number on the pages: the shop is an individual.
+
+`/privacy-policy`, `/datenschutz`, `/terms-of-service`, `/agb`, `/tos`, `/impressum`, and `/imprint` redirect to the English pages. There is no separate German legal notice.
+
 ## After changing env
 
 Restart the Next.js server. OAuth clients are built when the Auth.js module loads, so a new key is not picked up by a process that is already running.

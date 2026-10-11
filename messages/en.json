@@ -94,7 +94,11 @@
     "facebook": "Facebook",
     "tiktok": "TikTok",
     "footerTagline": "AKS – عکس. Made to fit you.",
-    "footerCopyright": "© 2026 AKS"
+    "footerCopyright": "© 2026 AKS",
+    "footerLegal": "Legal",
+    "footerPrivacy": "Privacy",
+    "footerTerms": "Terms",
+    "footerDataDeletion": "Delete your data"
   },
   "AccountLogin": {
     "eyebrow": "Your account",

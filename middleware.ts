@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import NextAuth from "next-auth";
 
 import { authConfig } from "./auth.config";
+import { isPublicLegalPath } from "./modules/legal/routes";
 
 const { auth } = NextAuth(authConfig);
 
@@ -58,6 +59,7 @@ export default auth((req) => {
 
   if (
     launchGated() &&
+    !isPublicLegalPath(pathname) &&
     !pathname.startsWith("/api") &&
     !pathname.startsWith("/admin") &&
     !pathname.startsWith("/auth") &&

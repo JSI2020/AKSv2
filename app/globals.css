@@ -2655,6 +2655,23 @@
   gap: 1rem;
 }
 
+.shop-proto .foot-legal {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  inline-size: 100%;
+}
+
+.shop-proto .foot-legal a {
+  color: inherit;
+}
+
+.shop-proto .legal-placeholder {
+  background: color-mix(in srgb, var(--sand) 45%, transparent);
+  color: var(--espresso);
+  padding-inline: 0.2rem;
+}
+
 /* PDP (route page, not overlay) */
 .shop-proto .pdp-page {
   max-width: 1400px;
