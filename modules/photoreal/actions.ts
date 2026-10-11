@@ -207,18 +207,22 @@ export async function generatePhotorealAction(
     if (mode === "sketch" && !sketchOnly.length) {
       return { ok: false, error: "Upload at least one sketch." };
     }
-    if ((mode === "old-design" || mode === "repose") && !oldOnly.length) {
+    const photoMode =
+      mode === "old-design" || mode === "repose" || mode === "mannequin";
+    if (photoMode && !oldOnly.length) {
       return {
         ok: false,
         error:
           mode === "repose"
             ? "Upload a garment photo to change pose."
-            : "Upload at least one old design photo.",
+            : mode === "mannequin"
+              ? "Upload a photo of the dress on the mannequin."
+              : "Upload at least one old design photo.",
       };
     }
 
     const imageUrls =
-      mode === "old-design" || mode === "repose"
+      photoMode
         ? oldOnly
         : mode === "sketch"
           ? sketchOnly
@@ -276,7 +280,11 @@ export async function generatePhotorealAction(
               seed: built.seed,
               modelKey: settings.fal.generateModel,
               strength:
-                mode === "repose" ? 0.8 : mode === "old-design" ? 0.82 : undefined,
+                mode === "repose" || mode === "mannequin"
+                  ? 0.8
+                  : mode === "old-design"
+                    ? 0.82
+                    : undefined,
             },
             settings.fal,
           );
@@ -435,7 +443,7 @@ export async function refinePhotorealAction(
     const referenceUrls =
       mode === "sketch"
         ? (payload.sketchUrls ?? []).slice(0, 2)
-        : mode === "repose" || mode === "old-design"
+        : mode === "repose" || mode === "old-design" || mode === "mannequin"
           ? [payload.oldDesignUrl].filter(Boolean).slice(0, 1) as string[]
           : [];
 
@@ -444,9 +452,10 @@ export async function refinePhotorealAction(
       feedbackRequestsPose(polished.feedback ?? payload.feedback) ||
       Boolean(payload.poseId);
 
-    let strength = mode === "sketch" ? 0.55 : mode === "repose" ? 0.76 : 0.72;
+    const garmentLocked = mode === "repose" || mode === "mannequin";
+    let strength = mode === "sketch" ? 0.55 : garmentLocked ? 0.76 : 0.72;
     if (bigSceneChange) {
-      strength = mode === "sketch" ? 0.78 : mode === "repose" ? 0.84 : 0.84;
+      strength = mode === "sketch" ? 0.78 : 0.84;
     }
 
     const result = await refineImage(

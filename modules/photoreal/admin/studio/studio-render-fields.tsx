@@ -34,7 +34,7 @@ export function SourceModePicker({
 }) {
   return (
     <div
-      className="grid grid-cols-1 gap-0 sm:grid-cols-3"
+      className="grid grid-cols-1 gap-0 sm:grid-cols-2"
       role="radiogroup"
       aria-label="Starting point"
     >
@@ -51,7 +51,9 @@ export function SourceModePicker({
             disabled={disabled}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "group relative border-b border-indigo-lift py-4 text-start transition sm:border-b-0 sm:border-e sm:px-4 sm:first:ps-0 sm:last:border-e-0 sm:last:pe-0",
+              // 2×2 on wider screens: divider between the columns, a rule
+              // under the first row only.
+              "group relative flex flex-col justify-start border-b border-indigo-lift py-4 text-start transition sm:odd:border-e sm:odd:pe-4 sm:even:ps-4 sm:[&:nth-last-child(-n+2)]:border-b-0",
               selected ? "text-greige" : "text-chalk/55 hover:text-chalk",
             )}
           >

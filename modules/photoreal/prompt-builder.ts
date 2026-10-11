@@ -28,6 +28,23 @@ const OLD_DESIGN_ANCHOR =
 const REPOSE_ANCHOR =
   "Photorealistic fashion photograph that looks like a real camera shot. The attached image is the SOURCE GARMENT PHOTO. Reproduce the dress EXACTLY as shown — identical silhouette, neckline, sleeves, hem length, embroidery placement, colourways, fabric appearance, and construction details. Do not redesign, restyle, recolour, shorten, lengthen, or invent new embellishment. CRITICAL: replace the original person completely with the house model below, and restage only pose and camera framing.";
 
+/**
+ * Mannequin → model — the garment was shot on a mannequin / dress form. Hard
+ * garment lock (nothing about the design may change), transferred onto the
+ * house model, and pressed: storage creases and fold lines go, the cloth's
+ * real texture and natural drape stay.
+ */
+const MANNEQUIN_ANCHOR =
+  "Photorealistic fashion photograph that looks like a real camera shot. The attached image shows the SOURCE GARMENT displayed on a MANNEQUIN / DRESS FORM. Dress the house model below in this exact garment and photograph her wearing it. Reproduce the garment EXACTLY as shown — identical silhouette, cut, length, neckline, collar, sleeves and cuffs, slits, hem, colours and shades, print, embroidery motifs and their exact placement and density, lace, cutwork, piping, borders, buttons, tassels, trims, and the fabric's real texture and sheen. Do not redesign, restyle, recolour, simplify, shorten, lengthen, add, or remove any detail. If several images are attached they are views of the SAME garment (e.g. front and back) — use them together for accuracy.";
+
+/** Mannequin mode — the one permitted change to the garment itself. */
+const PRESS_LINE =
+  "GARMENT PRESSING: the source garment is wrinkled and creased from storage. Show it freshly steamed and pressed, exactly as a professional stylist would prepare it for a catalogue shoot — remove creases, crumples, fold lines and packing marks, and give crisp clean seams and a smooth fall, while keeping the fabric's true texture, weave and natural drape on the body (not stiff, not plastic, not glossy). Pressing must not alter any design detail.";
+
+/** Mannequin mode — no trace of the display rig may survive. */
+const MANNEQUIN_CLEANUP =
+  "Remove the mannequin, dress form, stand, base, pins, clips, hangers, price tags and labels entirely — none of them may appear. The garment must sit naturally on a real human body with real arms, hands, neck, and face.";
+
 /** Text-only — invent garment from the user's description. */
 const DESCRIPTION_ANCHOR =
   "Photorealistic fashion photograph that looks like a real commercial campaign shot. Create the outfit from the user's written description only — no sketch or reference photo. Invent a coherent modest South Asian / Pakistani women's outfit (e.g. kameez, shalwar/palazzo, dupatta if mentioned) that matches the colours, fabric, and style notes. Show it on the house model in a varied commercial pose (not always standing front-on).";
@@ -62,10 +79,18 @@ export const DEFAULT_NEGATIVE_PROMPT =
 export const OLD_DESIGN_NEGATIVE_PROMPT =
   `same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
 
+export const MANNEQUIN_NEGATIVE_PROMPT =
+  `wrinkled fabric, creases, crumpled cloth, fold lines, packing marks, mannequin, dress form, mannequin stand, plastic body, headless figure, pins, price tag, altered dress, redesigned garment, new embroidery, missing embroidery, simplified embroidery, colour shift, different print, different hem, different neckline, different sleeves, different silhouette, ${SHARED_NEGATIVES}`;
+
 export const REPOSE_NEGATIVE_PROMPT =
   `altered dress, redesigned garment, new embroidery, colour shift, different hem, different neckline, different silhouette, same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
 
-export type PromptMode = "sketch" | "old-design" | "description" | "repose";
+export type PromptMode =
+  | "sketch"
+  | "old-design"
+  | "description"
+  | "repose"
+  | "mannequin";
 
 export const INPUT_SOURCE_TABS = [
   {
@@ -82,6 +107,11 @@ export const INPUT_SOURCE_TABS = [
     id: "description" as const,
     label: "3 · Description",
     hint: "Model + description only · no upload",
+  },
+  {
+    id: "mannequin" as const,
+    label: "4 · Mannequin",
+    hint: "Dress on a mannequin → real model · same dress, pressed",
   },
 ] as const;
 
@@ -197,7 +227,11 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
         ? "description"
         : input.mode === "repose"
           ? "repose"
-          : "sketch";
+          : input.mode === "mannequin"
+            ? "mannequin"
+            : "sketch";
+  /** Modes where the source garment is locked and only the shot changes. */
+  const garmentLocked = mode === "repose" || mode === "mannequin";
   const persona = getModelPersona(input.persona);
   const description = trimOrEmpty(input.description);
   const feedback = trimOrEmpty(input.feedback);
@@ -223,15 +257,21 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
           ? `Garment brief: ${description}.`
           : mode === "repose"
             ? `Pose / camera note only (do not change the dress): ${description}.`
-            : `User direction: ${description}.`),
-      mode === "repose" ? null : garmentNotes,
+            : mode === "mannequin"
+              ? `Styling / shot note (the dress itself must not change): ${description}.`
+              : `User direction: ${description}.`),
+      mode === "repose"
+        ? null
+        : mode === "mannequin" && garmentNotes
+          ? `Colour reference to reproduce accurately (do not recolour): ${garmentNotes}`
+          : garmentNotes,
       feedback &&
         (wantsBg
           ? `BACKGROUND CHANGE — apply clearly, replace the entire environment with a real photographic setting: ${feedback}. Keep the same house model and the same dress.`
           : wantsPose
             ? `POSE / ANGLE CHANGE — apply clearly with a new real commercial fashion-photography stance: ${feedback}. Keep the same house model and the same dress; do not return a near-copy of the previous frame.`
-            : mode === "repose"
-              ? `Apply this pose/camera change only; keep the dress identical: ${feedback}.`
+            : garmentLocked
+              ? `Apply this change to the photograph only; keep the dress identical and pressed: ${feedback}.`
               : mode === "old-design" || mode === "description"
                 ? `Apply this change clearly (do not return a near-copy): ${feedback}.`
                 : `Refinement: ${feedback}.`),
@@ -240,7 +280,9 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
   );
 
   const modelLine =
-    mode === "old-design" || mode === "repose"
+    mode === "mannequin"
+      ? `House model (MUST use this exact distinct real person, wearing the garment from the mannequin photo): ${persona.description}`
+      : mode === "old-design" || mode === "repose"
       ? `House model (MUST use this exact distinct person — not anyone from the reference photo, and not a generic similar face): ${persona.description}`
       : `House model (keep this exact distinct identity — do not genericise into a lookalike): ${persona.description}`;
 
@@ -259,13 +301,16 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       ? OLD_DESIGN_ANCHOR
       : mode === "repose"
         ? REPOSE_ANCHOR
-        : mode === "description"
+        : mode === "mannequin"
+          ? MANNEQUIN_ANCHOR
+          : mode === "description"
           ? DESCRIPTION_ANCHOR
           : SKETCH_ANCHOR;
 
   const prompt = joinNonEmpty(
     [
       anchor,
+      ...(mode === "mannequin" ? [PRESS_LINE, MANNEQUIN_CLEANUP] : []),
       ...(mode === "description" ? [] : [CLEANUP]),
       modelLine,
       variableBlock,
@@ -274,7 +319,7 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       EXPRESSION,
       CAMERA,
       STYLE,
-      ...(mode === "repose"
+      ...(garmentLocked
         ? [
             "GARMENT LOCK: if pose or model conflicts with the dress, keep the dress and adjust pose only.",
           ]
@@ -290,7 +335,9 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
         ? OLD_DESIGN_NEGATIVE_PROMPT
         : mode === "repose"
           ? REPOSE_NEGATIVE_PROMPT
-          : DEFAULT_NEGATIVE_PROMPT,
+          : mode === "mannequin"
+            ? MANNEQUIN_NEGATIVE_PROMPT
+            : DEFAULT_NEGATIVE_PROMPT,
     seed: resolvePersonaSeed(persona),
     mode,
     poseId: pose?.id,
@@ -310,7 +357,8 @@ export function resolvePromptMode(input: {
     input.sourceMode === "sketch" ||
     input.sourceMode === "old-design" ||
     input.sourceMode === "description" ||
-    input.sourceMode === "repose"
+    input.sourceMode === "repose" ||
+    input.sourceMode === "mannequin"
   ) {
     return input.sourceMode;
   }
@@ -322,4 +370,25 @@ export function resolvePromptMode(input: {
   if (hasOld && !hasSketch) return "old-design";
   if (!hasSketch && !hasOld && input.hasDescription) return "description";
   return "sketch";
+}
+
+/**
+ * Saved designs don't store their mode; recover it from the first version's
+ * prompt, which always opens with the mode's anchor. Null when unknown.
+ */
+export function promptModeFromSavedPrompt(
+  prompt: string | null | undefined,
+): PromptMode | null {
+  const text = prompt ?? "";
+  const anchors: Array<[string, PromptMode]> = [
+    [MANNEQUIN_ANCHOR, "mannequin"],
+    [REPOSE_ANCHOR, "repose"],
+    [OLD_DESIGN_ANCHOR, "old-design"],
+    [DESCRIPTION_ANCHOR, "description"],
+    [SKETCH_ANCHOR, "sketch"],
+  ];
+  for (const [anchor, mode] of anchors) {
+    if (text.startsWith(anchor.slice(0, 160))) return mode;
+  }
+  return null;
 }

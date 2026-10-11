@@ -25,8 +25,8 @@ import {
 const SUBTITLES: Record<StudioTabId, React.ReactNode> = {
   render: (
     <>
-      Turn a sketch, an earlier design, or a written brief into a
-      catalogue-ready photograph. A{" "}
+      Turn a sketch, an earlier design, a written brief, or a dress on a
+      mannequin into a catalogue-ready photograph. A{" "}
       <span className="font-semibold text-greige">
         catalogue model is always applied
       </span>

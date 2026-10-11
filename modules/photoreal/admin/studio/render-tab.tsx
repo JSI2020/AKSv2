@@ -136,10 +136,14 @@ export function RenderTab({
     setHouseModelId(defaultHouseModelId);
   }, [defaultHouseModelId]);
 
+  /** Modes that start from uploaded garment photos (not sketches). */
+  const photoUpload =
+    sourceMode === "old-design" || sourceMode === "mannequin";
+
   const canGenerate =
     sourceMode === "sketch"
       ? sketches.length > 0
-      : sourceMode === "old-design"
+      : photoUpload
         ? oldDesigns.length > 0
         : Boolean(description.trim());
 
@@ -180,12 +184,11 @@ export function RenderTab({
     setBusy(true);
     setBusyLabel("Generating…");
     setError(null);
-    const oldUrls =
-      sourceMode === "old-design" ? oldDesigns.map((s) => s.url) : [];
+    const oldUrls = photoUpload ? oldDesigns.map((s) => s.url) : [];
     setSketchPreviews(
       sourceMode === "sketch"
         ? sketches.map((s) => s.localPreview)
-        : sourceMode === "old-design"
+        : photoUpload
           ? oldDesigns.map((s) => s.localPreview)
           : [],
     );
@@ -349,7 +352,9 @@ export function RenderTab({
       ? "one or more sketches"
       : sourceMode === "old-design"
         ? "one or more design photos"
-        : "a written description below";
+        : sourceMode === "mannequin"
+          ? "a photo of the dress on the mannequin (add a back view too if you have one)"
+          : "a written description below";
 
   return (
     <Workbench
@@ -374,11 +379,29 @@ export function RenderTab({
                 <span className="text-greige">Required:</span> {reqLine}.
                 Colours and fabric are optional.
               </p>
+              {sourceMode === "mannequin" && (
+                <ul className="mb-4 space-y-1 border-s border-zari/60 ps-3 text-[12px] leading-relaxed text-chalk">
+                  <li>
+                    The dress is kept exactly — cut, colour, print and
+                    embroidery are not changed.
+                  </li>
+                  <li>
+                    Creases and fold lines are pressed out, as if the piece was
+                    steamed before the shoot.
+                  </li>
+                  <li>
+                    The mannequin is replaced by the catalogue model. Pose and
+                    background below, or change them later with Refine.
+                  </li>
+                </ul>
+              )}
               <StudioDropzone
                 label={
                   sourceMode === "sketch"
                     ? "Drop sketches here"
-                    : "Drop design photos here"
+                    : sourceMode === "mannequin"
+                      ? "Drop mannequin photos here"
+                      : "Drop design photos here"
                 }
                 sublabel="PNG, JPG, WEBP — multiple OK"
                 disabled={busy || uploading}
@@ -611,7 +634,13 @@ export function RenderTab({
           {!active ? (
             <EmptyOutput
               title="Your render appears here"
-              subtitle="Add a sketch and press Generate. Refinements keep the same model until you clear."
+              subtitle={
+                sourceMode === "description"
+                  ? "Write a description and press Generate. Refinements keep the same model until you clear."
+                  : sourceMode === "mannequin"
+                    ? "Add the mannequin photo and press Generate. Refinements keep the same model and dress until you clear."
+                    : "Add your upload and press Generate. Refinements keep the same model until you clear."
+              }
             />
           ) : (
             <div className="space-y-5">
