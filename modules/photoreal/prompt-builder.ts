@@ -110,6 +110,13 @@ const CLEANUP =
 const REAL_SCENE =
   "Place the model in a believable real-world photography setting that complements the dress colour, fabric, and occasion (for example soft outdoor daylight courtyard, marble foyer, boutique interior, garden path, or warm evening terrace). Natural depth, real surfaces, and realistic lighting — not a flat seamless paper backdrop, not CGI, not illustration.";
 
+/**
+ * Keeps location shots from looking composited: one camera, one light, the
+ * model physically in the scene.
+ */
+const SCENE_REALISM =
+  "SCENE REALISM: one single real photograph taken on location, not a composite — the model is physically in the scene; the light direction, colour temperature and contrast on her face and on the garment match the environment exactly; natural contact shadows where she meets the ground or leans; eye-level camera with true perspective and scale; realistic depth of field with the background softly out of focus. Muted, true-to-life colours as in an unretouched editorial photograph — no HDR, no oversaturation, no glowing haze or sun flare, no painted or CGI look.";
+
 const CAMERA =
   "Shot like a real commercial fashion campaign: 50–85mm lens look, natural depth of field, sharp focus on the garment, true-to-life fabric texture and drape, modest tasteful styling. Framing may be full-length or three-quarter depending on the pose — never a stiff mannequin stand unless that pose is requested.";
 
@@ -395,6 +402,7 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       modelLine,
       variableBlock,
       sceneLine,
+      SCENE_REALISM,
       ...(poseLine ? [poseLine] : []),
       ...(croppedShot
         ? [pose?.category === "Detail" ? DETAIL_FRAMING_LINE : CROPPED_FRAMING_LINE]

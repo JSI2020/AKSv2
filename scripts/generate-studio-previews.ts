@@ -34,7 +34,7 @@ function locationJobs(): Job[] {
   mkdirSync(dir, { recursive: true });
   return STUDIO_BACKGROUND_PRESETS.map((p) => ({
     file: path.join(dir, `${p.id}.webp`),
-    prompt: `${p.prompt} Empty scene with no people, no text, no logos. Professional real-location photograph shot on a full-frame camera, photorealistic, natural colour, wide shot.`,
+    prompt: `${p.prompt} Empty scene with no people, no text, no logos. Unretouched editorial location photograph taken on a full-frame camera with a 35mm lens at eye level: natural muted true-to-life colours, soft natural light, no HDR, no oversaturation, no sun flare or glowing haze, slight natural film grain, documentary realism.`,
     size: "landscape_4_3" as const,
     width: 480,
     height: 360,

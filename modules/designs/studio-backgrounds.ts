@@ -226,7 +226,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
     group: "Outdoors",
     label: "Garden path",
     prompt:
-      "Quiet garden path with greenery bokeh, soft morning light, and a dress-compatible natural backdrop.",
+      "Private garden of a South Asian family home — a brick path between real hedges, potted plants and mature trees, soft overcast daylight, muted natural greens, gently out of focus.",
   },
   {
     id: "rose-garden",
@@ -234,7 +234,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
     group: "Outdoors",
     label: "Rose garden",
     prompt:
-      "Formal rose garden with clipped hedges and soft-coloured blooms, gentle golden morning light, creamy background blur — romantic real outdoor location.",
+      "Formal rose garden in a public park — rose beds in soft muted tones beside a stone path and clipped hedges, overcast afternoon light, natural colours, gently out of focus.",
   },
   {
     id: "terrace",
@@ -242,15 +242,15 @@ export const STUDIO_BACKGROUND_PRESETS = [
     group: "Outdoors",
     label: "Evening terrace",
     prompt:
-      "Warm evening terrace with city-soft blur in the distance, golden-hour light, and real photographic depth.",
+      "Stone terrace of a townhouse in soft early-evening light — potted plants, a plain parapet and real neighbouring rooftops in the distance, warm but muted tones.",
   },
   {
     id: "rooftop-golden",
     tone: ["#f0c98d", "#a3623f"],
     group: "Outdoors",
-    label: "Rooftop golden hour",
+    label: "City rooftop",
     prompt:
-      "Elegant rooftop at golden hour with a low parapet, warm sun flare low in the frame and a softly blurred skyline — luxurious real campaign light.",
+      "Flat rooftop of a South Asian city house with a plain grey cement floor and a whitewashed low parapet, in soft late-afternoon light with no sun visible — neighbouring rooftops and water tanks softly out of focus, authentic everyday detail.",
   },
   {
     id: "palm-courtyard",
@@ -258,15 +258,15 @@ export const STUDIO_BACKGROUND_PRESETS = [
     group: "Outdoors",
     label: "Palm courtyard & fountain",
     prompt:
-      "Sunlit Mediterranean-style courtyard with tall palms, a small stone fountain and white walls, crisp natural light and soft shadows — resort campaign location.",
+      "Whitewashed courtyard with a few date palms and a small stone fountain, bright but soft daylight with gentle shadows, real weathered plaster, muted natural colours.",
   },
   {
     id: "lawn-estate",
     tone: ["#c7d4b0", "#6c8455"],
     group: "Outdoors",
-    label: "Estate lawn",
+    label: "Old house lawn",
     prompt:
-      "Manicured green lawn of a grand estate with mature trees and a classic white facade softly blurred behind, gentle overcast light — timeless luxury outdoor setting.",
+      "Lawn of an old colonial-era house with mature trees and a pale facade far behind, natural uneven grass, soft overcast daylight, muted greens.",
   },
   {
     id: "chinar-autumn",
@@ -274,31 +274,31 @@ export const STUDIO_BACKGROUND_PRESETS = [
     group: "Outdoors",
     label: "Autumn chinar avenue",
     prompt:
-      "Avenue of tall chinar trees in autumn with golden and rust leaves on the ground, warm low sun filtering through — romantic seasonal outdoor location.",
+      "Avenue of chinar trees in late autumn in the northern hills — fallen leaves on an old road, overcast soft light, muted ochre and brown tones, a real lamp post and stone wall.",
   },
   {
     id: "cherry-blossom",
     tone: ["#f2d4dc", "#b88a97"],
     group: "Outdoors",
-    label: "Cherry blossom path",
+    label: "Spring blossom path",
     prompt:
-      "Path lined with cherry trees in full pink blossom, petals drifting, soft spring daylight and creamy background blur — delicate romantic location.",
+      "Park path under blossoming trees in early spring — pale blossoms, overcast soft light, muted natural colours, real benches and lamp posts softly out of focus.",
   },
   {
     id: "wheat-field",
     tone: ["#e9c77d", "#a67a35"],
     group: "Outdoors",
-    label: "Golden wheat field",
+    label: "Wheat field",
     prompt:
-      "Golden wheat field at sunset with a warm glowing horizon and soft backlight — earthy, cinematic outdoor location.",
+      "Edge of a ripe wheat field beside a dirt path on an overcast late afternoon — no sun visible in the sky, soft even light, muted straw gold and green, a few trees on the horizon.",
   },
   {
     id: "mountain-valley",
     tone: ["#9fbad0", "#5e7a55"],
     group: "Outdoors",
-    label: "Mountain valley",
+    label: "Northern valley village",
     prompt:
-      "Green northern mountain valley with snow-capped peaks in the distance, fresh clear daylight and wildflowers in the foreground — breathtaking outdoor location.",
+      "Village lane in a northern mountain valley — dry-stone walls, apricot trees, simple houses and mountains behind in clear soft daylight, natural muted colours.",
   },
   {
     id: "lakeside",
@@ -306,15 +306,15 @@ export const STUDIO_BACKGROUND_PRESETS = [
     group: "Outdoors",
     label: "Lakeside jetty",
     prompt:
-      "Calm lakeside with a wooden jetty, still reflective water and soft hills beyond, gentle early-morning light — peaceful outdoor location.",
+      "Calm lake shore with a simple weathered wooden jetty, overcast morning light, muted blue-grey water and soft hills beyond.",
   },
   {
     id: "modern-street",
     tone: ["#cfd1d0", "#6e7072"],
     group: "Outdoors",
-    label: "Modern city street",
+    label: "Boutique street",
     prompt:
-      "Clean modern city street with glass storefronts and stone pavement, soft overcast daylight and gentle urban blur — contemporary street-style location, no crowds.",
+      "Quiet upscale shopping street in a South Asian city — clean pavement, boutique storefronts with plain neutral facades and no readable signage, a few trees, soft overcast daylight, no crowds.",
   },
 ] as const satisfies ReadonlyArray<{
   id: string;
