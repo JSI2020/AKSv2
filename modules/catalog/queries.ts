@@ -56,6 +56,7 @@ function mergeFilters(
     designIds: extra.designIds ?? base.designIds,
     publishedWithinDays:
       extra.publishedWithinDays ?? base.publishedWithinDays,
+    comingSoon: extra.comingSoon ?? base.comingSoon,
   };
 }
 
@@ -109,6 +110,10 @@ export async function getPublishedDesigns(
 
   if (filters.designIds?.length) {
     conditions.push(inArray(designs.id, filters.designIds));
+  }
+
+  if (filters.comingSoon) {
+    conditions.push(eq(designs.comingSoon, true));
   }
 
   if (filters.publishedWithinDays != null) {
@@ -332,6 +337,8 @@ export async function getPublishedDesigns(
       compareAtStartsAt: designs.compareAtStartsAt,
       compareAtEndsAt: designs.compareAtEndsAt,
       publishedAt: designs.publishedAt,
+      comingSoon: designs.comingSoon,
+      comingSoonNote: designs.comingSoonNote,
       garmentTypeKey: garmentCategories.key,
       garmentTypeName: garmentCategories.name,
     })
@@ -487,6 +494,8 @@ export async function getPublishedDesigns(
         compareAtStartsAt: r.compareAtStartsAt,
         compareAtEndsAt: r.compareAtEndsAt,
         publishedAt: r.publishedAt,
+        comingSoon: r.comingSoon,
+        comingSoonNote: r.comingSoonNote,
         garmentTypeKey: r.garmentTypeKey,
         garmentTypeName: r.garmentTypeName,
         occasionLabels: occasionByDesign.get(r.id) ?? [],

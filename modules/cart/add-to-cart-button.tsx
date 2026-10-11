@@ -100,11 +100,13 @@ export function AddToCartButton({
   const colourway =
     design.colourways.find((c) => c.id === colourwayId) ?? design.colourways[0]!;
 
-  const canAdd = Boolean(sizeLabel) && availableUnits >= quantity;
+  const comingSoon = design.comingSoon;
+  const canAdd =
+    !comingSoon && Boolean(sizeLabel) && availableUnits >= quantity;
   const lowStockMessage =
     sizeLabel != null ? rtwLowStockMessage(availableUnits, sizeLabel) : null;
   const sizeSoldOut = sizeLabel != null && availableUnits <= 0;
-  const soldOut = shadeSoldOut || sizeSoldOut;
+  const soldOut = !comingSoon && (shadeSoldOut || sizeSoldOut);
 
   async function handleClick() {
     setError(null);

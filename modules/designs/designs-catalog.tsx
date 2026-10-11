@@ -134,6 +134,11 @@ function DesignCard({ design }: { design: StudioCatalogCard }) {
         >
           {live ? "Published" : "Draft"}
         </span>
+        {design.comingSoon ? (
+          <span className="absolute top-2.5 inset-inline-end-2.5 border border-zari bg-milk px-2 py-0.5 text-[8.5px] uppercase tracking-[0.1em] text-ink">
+            Coming soon
+          </span>
+        ) : null}
       </div>
       <div className="flex flex-1 flex-col px-3.5 py-3.5">
         <p className="font-display text-[1.15rem] leading-tight text-ink">

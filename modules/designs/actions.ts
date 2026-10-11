@@ -1176,6 +1176,67 @@ export async function addCustomizationValue(
   }
 }
 
+/**
+ * Mark a design "Coming soon" (or back to normal). A coming-soon design that
+ * is published shows in the shop with a badge and a preview product page,
+ * but can't be added to the bag. The note is optional customer copy.
+ */
+export async function setDesignComingSoon(
+  formData: FormData,
+): Promise<DesignActionResult> {
+  try {
+    const session = await requirePermission("designs.publish");
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { ok: false, error: "Invalid id" };
+    const comingSoon = String(formData.get("comingSoon") ?? "") === "true";
+    const noteRaw = String(formData.get("note") ?? "").trim();
+    if (noteRaw.length > 80) {
+      return { ok: false, error: "Keep the note under 80 characters." };
+    }
+    const note = comingSoon && noteRaw ? noteRaw : null;
+
+    const [before] = await db
+      .select({
+        comingSoon: designs.comingSoon,
+        comingSoonNote: designs.comingSoonNote,
+        status: designs.status,
+      })
+      .from(designs)
+      .where(eq(designs.id, id))
+      .limit(1);
+    if (!before) return { ok: false, error: "Not found" };
+    if (before.status === "ARCHIVED") {
+      return { ok: false, error: "Restore the design before changing it." };
+    }
+
+    await db
+      .update(designs)
+      .set({ comingSoon, comingSoonNote: note, updatedAt: new Date() })
+      .where(eq(designs.id, id));
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "design.coming_soon",
+      entityType: "design",
+      entityId: id,
+      before: { comingSoon: before.comingSoon, note: before.comingSoonNote },
+      after: { comingSoon, note },
+    });
+
+    revalidatePath(`/admin/designs/${id}`);
+    revalidatePath("/admin/designs");
+    revalidatePath("/", "layout");
+    return { ok: true, id };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not update coming soon.",
+    };
+  }
+}
+
 export async function publishDesign(
   formData: FormData,
 ): Promise<DesignActionResult> {

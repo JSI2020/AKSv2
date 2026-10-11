@@ -13,6 +13,7 @@ import {
   archiveDesign,
   createDesign,
   publishDesign,
+  setDesignComingSoon,
   unpublishDesign,
   updateDesignDetails,
   updateDesignPricing,
@@ -220,6 +221,108 @@ function piecesMeta(components: string[]): string {
   return components.map((c) => c.toUpperCase()).join(" + ");
 }
 
+/**
+ * "Coming soon" toggle with an optional customer note. Published + coming
+ * soon = visible in the shop as a preview, not purchasable.
+ */
+function ComingSoonControl({
+  comingSoon,
+  note,
+  published,
+  pending,
+  onSave,
+}: {
+  comingSoon: boolean;
+  note: string;
+  published: boolean;
+  pending: boolean;
+  onSave: (comingSoon: boolean, note: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(note);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => {
+          setDraft(note);
+          setOpen(true);
+        }}
+        className={
+          comingSoon
+            ? "border border-zari bg-zari/15 px-4 py-2 text-[12px] text-ink hover:bg-zari/25 disabled:opacity-50"
+            : "border border-ink/15 px-4 py-2 text-[12px] text-ink/70 hover:border-ink hover:text-ink disabled:opacity-50"
+        }
+        title={
+          comingSoon
+            ? "Shown in the shop as Coming soon — not purchasable"
+            : "Show this design as Coming soon — visible but not purchasable"
+        }
+      >
+        {comingSoon ? "Coming soon ✓" : "Mark coming soon"}
+      </button>
+    );
+  }
+
+  return (
+    <form
+      className="flex w-full flex-wrap items-center gap-2 border border-zari/50 bg-zari/10 px-3 py-2.5 sm:w-auto"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(true, draft);
+        setOpen(false);
+      }}
+    >
+      <label className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink/70" htmlFor="coming-soon-note">
+        Coming soon note
+      </label>
+      <input
+        id="coming-soon-note"
+        autoFocus
+        maxLength={80}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Optional — e.g. Arriving December"
+        className="min-w-[14rem] flex-1 border border-ink/20 bg-milk px-2.5 py-1.5 text-[12.5px] text-ink outline-none focus:border-ink"
+      />
+      <button
+        type="submit"
+        disabled={pending}
+        className="border border-ink bg-ink px-3 py-1.5 text-[12px] text-milk disabled:opacity-50"
+      >
+        {comingSoon ? "Save" : "Mark coming soon"}
+      </button>
+      {comingSoon ? (
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => {
+            onSave(false, "");
+            setOpen(false);
+          }}
+          className="border border-ink/25 px-3 py-1.5 text-[12px] text-ink disabled:opacity-50"
+        >
+          Make available
+        </button>
+      ) : null}
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="px-2 py-1.5 text-[12px] text-ink/55 hover:text-ink"
+      >
+        Cancel
+      </button>
+      {!published ? (
+        <p className="basis-full text-[11px] text-ink/55">
+          Publish the design too — only published designs appear in the shop.
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
 function statusLabel(status: string, isArchived: boolean): string {
   if (isArchived) return "Deleted";
   if (status === "PUBLISHED") return "Published";
@@ -400,6 +503,11 @@ export function DesignEditor({
           <span>{piecesMeta(components)}</span>
           <span aria-hidden>·</span>
           <span>{statusLabel(d.status, isArchived)}</span>
+          {d.comingSoon ? (
+            <span className="border border-zari/60 bg-zari/15 px-1.5 py-px text-[10.5px] font-semibold uppercase tracking-[0.08em] text-ink">
+              Coming soon{d.comingSoonNote ? ` · ${d.comingSoonNote}` : ""}
+            </span>
+          ) : null}
           {displayPriceMinor > 0 ? (
             <>
               <span aria-hidden>·</span>
@@ -438,6 +546,21 @@ export function DesignEditor({
             >
               Publish
             </button>
+          ) : null}
+          {!isArchived ? (
+            <ComingSoonControl
+              comingSoon={d.comingSoon}
+              note={d.comingSoonNote ?? ""}
+              published={d.status === "PUBLISHED"}
+              pending={pending}
+              onSave={(comingSoon, note) => {
+                const fd = new FormData();
+                fd.set("id", d.id);
+                fd.set("comingSoon", String(comingSoon));
+                fd.set("note", note);
+                run(setDesignComingSoon, fd);
+              }}
+            />
           ) : null}
           <button
             type="button"

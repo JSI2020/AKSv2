@@ -23,6 +23,8 @@ export type CatalogFilters = {
   designIds?: string[];
   /** publishedAt >= now - N days (new arrivals). */
   publishedWithinDays?: number;
+  /** Only designs marked Coming soon. */
+  comingSoon?: boolean;
 };
 
 export type ResolvedCollection =
@@ -32,7 +34,7 @@ export type ResolvedCollection =
       title: string;
       description: string;
       tagline?: string;
-      system: "new_arrivals" | "best_sellers";
+      system: "new_arrivals" | "best_sellers" | "coming_soon";
       baseFilters: CatalogFilters;
       defaultSort: DesignSort;
     }
@@ -58,6 +60,9 @@ export type PublishedDesignCard = {
   compareAtStartsAt: Date | null;
   compareAtEndsAt: Date | null;
   publishedAt: Date | null;
+  /** Visible in the shop but not purchasable yet. */
+  comingSoon?: boolean;
+  comingSoonNote?: string | null;
   garmentTypeKey: string;
   garmentTypeName: string;
   occasionLabels: string[];
@@ -87,6 +92,7 @@ export const SYSTEM_COLLECTION_SLUGS = {
   "new-arrivals": "new_arrivals",
   "best-sellers": "best_sellers",
   "best-selling": "best_sellers",
+  "coming-soon": "coming_soon",
 } as const;
 
 export type SystemCollectionKey =
@@ -172,6 +178,10 @@ export type DesignDetailPublic = {
   compareAtEndsAt: Date | null;
   madeToMeasureSurchargeMinor: number;
   leadTimeDaysOverride: number | null;
+  /** Visible in the shop but not purchasable yet. */
+  comingSoon: boolean;
+  /** Optional customer-facing line, e.g. "Arriving December". */
+  comingSoonNote: string | null;
   /** e.g. ["KAMEEZ","TROUSER","DUPATTA"] for multi-piece. */
   components: string[];
   sizeBlockId: string | null;

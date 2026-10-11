@@ -3295,6 +3295,53 @@
   color: var(--milk);
 }
 
+/* Coming soon — on show, not for sale yet */
+.shop-proto .soon-badge {
+  position: absolute;
+  inset-block-start: 0.7rem;
+  inset-inline-start: 0.7rem;
+  z-index: 3;
+  background: var(--milk);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--r, 1px);
+}
+
+.shop-proto .pdp-soon {
+  margin-top: 2rem;
+  padding: 1.25rem 1.25rem 1.35rem;
+  border: 1px solid var(--line, rgba(26, 23, 20, 0.14));
+  background: var(--ivory);
+}
+
+.shop-proto .pdp-soon-mark {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 0.2rem;
+}
+
+.shop-proto .pdp-soon-text {
+  margin: 0.85rem 0 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--taupe);
+}
+
+.shop-proto .pdp-soon-cta {
+  display: block;
+  text-align: center;
+  margin-top: 1.25rem;
+  text-decoration: none;
+}
+
 .shop-proto .addcart:disabled {
   opacity: 0.4;
   cursor: not-allowed;

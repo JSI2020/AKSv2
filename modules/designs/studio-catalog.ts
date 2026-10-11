@@ -32,6 +32,7 @@ export type StudioCatalogCard = {
   availableSizeLabels: string[];
   madeToMeasureOffered: boolean;
   featured: boolean;
+  comingSoon: boolean;
   thumbnailUrl: string | null;
   thumbnailAlt: string;
   updatedAt: Date;
@@ -71,6 +72,7 @@ export async function listStudioCatalogGrouped(): Promise<StudioCatalogGroup[]> 
       availableSizeLabels: designs.availableSizeLabels,
       madeToMeasureOffered: designs.madeToMeasureOffered,
       featured: designs.featured,
+      comingSoon: designs.comingSoon,
       updatedAt: designs.updatedAt,
       categoryKey: garmentCategories.key,
       categoryName: garmentCategories.name,
@@ -185,6 +187,7 @@ export async function listStudioCatalogGrouped(): Promise<StudioCatalogGroup[]> 
         availableSizeLabels: r.availableSizeLabels ?? [],
         madeToMeasureOffered: r.madeToMeasureOffered,
         featured: r.featured,
+        comingSoon: r.comingSoon,
         thumbnailUrl,
         thumbnailAlt: thumb?.altText?.trim() || r.name,
         updatedAt: r.updatedAt,

@@ -104,6 +104,20 @@ export async function resolveCollection(
     };
   }
 
+  if (system === "coming_soon") {
+    return {
+      kind: "system",
+      slug: normalized,
+      title: "Coming soon",
+      tagline: "On the cutting table",
+      description:
+        "Pieces we are finishing now. Have a look, and message us to hear the moment one is ready.",
+      system: "coming_soon",
+      baseFilters: { comingSoon: true },
+      defaultSort: "newest",
+    };
+  }
+
   const tagValue = slugToCatalogueValue(normalized);
 
   if (isOccasionValue(tagValue)) {
