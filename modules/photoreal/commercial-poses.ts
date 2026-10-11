@@ -8,6 +8,7 @@ export type CommercialPose = {
   label: string;
   category:
     | "Standing"
+    | "Portrait"
     | "Leaning"
     | "Walking"
     | "Seated"
@@ -427,6 +428,92 @@ export const COMMERCIAL_POSES: CommercialPose[] = [
     cameraAngle: "DETAIL",
     prompt:
       "Framing: tight commercial close-up of embroidery or finishing detail exactly as designed — do not invent motifs.",
+  },
+
+  // Classic catalogue front — the clean e-commerce hero most brands lead with
+  {
+    id: "front-straight",
+    label: "Straight front · catalogue",
+    category: "Standing",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: classic full-length catalogue front — standing straight and relaxed facing the camera, feet slightly apart, arms resting naturally at the sides, shoulders soft, whole outfit visible head to toe, camera at mid-body height.",
+  },
+
+  // Portrait — closer framings that still show the garment
+  {
+    id: "portrait-smile",
+    label: "Portrait · warm smile",
+    category: "Portrait",
+    cameraAngle: "FRONT",
+    prompt:
+      "Framing: chest-up beauty portrait facing the camera with a warm genuine smile, eyes engaged with the lens; neckline, collar and upper garment fully visible and exact, shallow depth of field, soft flattering key light.",
+  },
+  {
+    id: "portrait-half",
+    label: "Half-body · 3/4",
+    category: "Portrait",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Framing: waist-up half-body portrait, body turned three-quarters, face toward camera with a soft smile, one hand resting lightly at the waist or sleeve; garment neckline, sleeves and embroidery clearly shown.",
+  },
+  {
+    id: "portrait-knee-up",
+    label: "Knee-up crop",
+    category: "Portrait",
+    cameraAngle: "FRONT",
+    prompt:
+      "Framing: knee-up three-quarter crop, relaxed stance facing camera with a slight hip shift, gentle smile — the classic fashion-editorial crop that shows the kameez length, slits and hem detail.",
+  },
+  {
+    id: "portrait-laugh",
+    label: "Candid laugh",
+    category: "Portrait",
+    cameraAngle: "FRONT",
+    prompt:
+      "Framing: waist-up candid moment — a natural, genuine laugh caught mid-moment, eyes softly crinkled, head slightly tilted, as if reacting to the photographer; real, warm, unposed energy with the garment fully visible.",
+  },
+  {
+    id: "portrait-hand-face",
+    label: "Hand near face",
+    category: "Portrait",
+    cameraAngle: "FRONT",
+    prompt:
+      "Framing: chest-up portrait, fingertips resting lightly near the jaw or earring, elegant relaxed hand, calm confident smile; sleeve and cuff detail visible in frame.",
+  },
+  {
+    id: "portrait-over-shoulder",
+    label: "Close · over shoulder",
+    category: "Portrait",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Framing: chest-up, body turned away, looking back over the shoulder toward the camera with a soft smile — shows the back neckline and shoulder line of the garment.",
+  },
+  {
+    id: "portrait-window",
+    label: "Window-light portrait",
+    category: "Portrait",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Framing: waist-up beside a tall window, soft directional daylight falling across the face and fabric, gentle gaze toward the light then to the camera — luxury editorial portrait mood.",
+  },
+  {
+    id: "portrait-profile",
+    label: "Close profile",
+    category: "Portrait",
+    cameraAngle: "THREE_QUARTER",
+    prompt:
+      "Framing: chest-up clean side profile, chin level, serene expression, hair styled back so the neckline and collar profile of the garment read clearly.",
+  },
+
+  // More seated
+  {
+    id: "seated-sofa",
+    label: "Seated sofa · relaxed",
+    category: "Seated",
+    cameraAngle: "FRONT",
+    prompt:
+      "Pose: seated gracefully on the edge of an elegant sofa or armchair, back straight, legs angled to one side, hands resting softly in the lap, warm smile — luxury living-room lifestyle shot with the full outfit visible.",
   },
 ];
 

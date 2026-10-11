@@ -37,9 +37,12 @@ const REPOSE_ANCHOR =
 const MANNEQUIN_ANCHOR =
   "Photorealistic fashion photograph that looks like a real camera shot. The attached image shows the SOURCE GARMENT displayed on a MANNEQUIN / DRESS FORM. Dress the house model below in this exact garment and photograph her wearing it. Reproduce the garment EXACTLY as shown — identical silhouette, cut, length, neckline, collar, sleeves and cuffs, slits, hem, colours and shades, print, embroidery motifs and their exact placement and density, lace, cutwork, piping, borders, buttons, tassels, trims, and the fabric's real texture and sheen. Do not redesign, restyle, recolour, simplify, shorten, lengthen, add, or remove any detail. If several images are attached they are views of the SAME garment (e.g. front and back) — use them together for accuracy.";
 
-/** Mannequin mode — the one permitted change to the garment itself. */
+/**
+ * Photo-based modes — the one permitted change to the garment itself. Real
+ * source photos (mannequin, old catalogue, phone snaps) are rarely pressed.
+ */
 const PRESS_LINE =
-  "GARMENT PRESSING: the source garment is wrinkled and creased from storage. Show it freshly steamed and pressed, exactly as a professional stylist would prepare it for a catalogue shoot — remove creases, crumples, fold lines and packing marks, and give crisp clean seams and a smooth fall, while keeping the fabric's true texture, weave and natural drape on the body (not stiff, not plastic, not glossy). Pressing must not alter any design detail.";
+  "GARMENT PRESSING (mandatory): show the garment professionally steam-pressed, exactly as a stylist prepares it for a luxury campaign shoot — zero wrinkles, creases, crumples, fold lines or packing marks anywhere on the shirt, sleeves, trousers or dupatta; crisp clean seams, smooth flat panels and a clean straight hem. Only the soft natural folds real fabric forms where the body bends may remain. Keep the fabric's true texture, weave and natural drape (not stiff, not plastic, not glossy). Pressing must not alter any design detail.";
 
 /**
  * Mannequin first pass — copy the source shot's stance and framing so the
@@ -74,15 +77,19 @@ const REAL_SCENE =
 const CAMERA =
   "Shot like a real commercial fashion campaign: 50–85mm lens look, natural depth of field, sharp focus on the garment, true-to-life fabric texture and drape, modest tasteful styling. Framing may be full-length or three-quarter depending on the pose — never a stiff mannequin stand unless that pose is requested.";
 
-/** Avoid blank “AI mannequin” faces — subtle real expression. */
+/** Avoid blank “AI mannequin” faces — a real, warm, confident expression. */
 const EXPRESSION =
-  "Facial expression must feel real and human: a soft genuine closed-mouth smile or gentle half-smile, slight warmth and life in the eyes, natural micro-expression as in real fashion photography. Not blank, vacant, deadpan, emotionless, frozen, or mannequin-like. Keep it modest and tasteful — no exaggerated grin.";
+  "Expression: a warm, genuine, confident smile that reaches the eyes (closed-mouth or a soft natural smile with a hint of teeth), eyes alive and engaged with the camera unless the pose looks away, relaxed brows and natural micro-expression — the look of a professional model enjoying the shoot. Not blank, vacant, deadpan, frozen, or mannequin-like; modest and tasteful, no exaggerated grin.";
+
+/** Hair, make-up and finish — what separates a brand campaign from a snapshot. */
+const STYLING =
+  "Styling: polished natural make-up (even luminous skin with real texture, softly defined brows and eyes, nude-rose lips), well-groomed glossy hair styled to suit the outfit (soft waves, sleek low bun, or neat braid), minimal fine jewellery such as small gold or pearl studs, neat natural nails, graceful upright posture and elegant relaxed hands.";
 
 const STYLE =
-  "High-end modest commercial fashion photography for a real brand lookbook/campaign, photorealistic, shot on a real camera, not illustrated, not CGI, not a stiff ecommerce ghost mannequin.";
+  "Luxury modest fashion campaign photography of the standard a high-end designer label publishes: photorealistic, shot on a full-frame camera by a professional fashion photographer, flattering soft key light with gentle fill, refined natural colour grading with true-to-life garment colour, clean professional retouching that keeps real skin texture. Not illustrated, not CGI, not a stiff e-commerce ghost mannequin.";
 
 const SHARED_NEGATIVES =
-  "watermark, text overlay, logo, arrow, cross symbol, UI icons, screenshot chrome, collage, flat seamless paper backdrop, blank stare, deadpan face, emotionless expression, vacant eyes, mannequin face, stiff military stand, identical pose every time, uncanny valley, deformed hands, extra limbs, illustrated, cartoon, CGI, plastic skin";
+  "watermark, text overlay, logo, arrow, cross symbol, UI icons, screenshot chrome, collage, wrinkled fabric, creased fabric, crumpled cloth, blank stare, deadpan face, emotionless expression, vacant eyes, mannequin face, stiff military stand, identical pose every time, uncanny valley, deformed hands, extra limbs, illustrated, cartoon, CGI, plastic skin";
 
 export const DEFAULT_NEGATIVE_PROMPT =
   `no altered neckline or hem, no distorted embroidery, no oversaturation, no extra garments, ${SHARED_NEGATIVES}`;
@@ -91,7 +98,7 @@ export const OLD_DESIGN_NEGATIVE_PROMPT =
   `same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
 
 export const MANNEQUIN_NEGATIVE_PROMPT =
-  `turned away, back to camera, wrinkled fabric, creases, crumpled cloth, fold lines, packing marks, mannequin, dress form, mannequin stand, plastic body, headless figure, pins, price tag, altered dress, redesigned garment, new embroidery, missing embroidery, simplified embroidery, colour shift, different print, different hem, different neckline, different sleeves, different silhouette, ${SHARED_NEGATIVES.replace("flat seamless paper backdrop, ", "")}`;
+  `turned away, back to camera, fold lines, packing marks, mannequin, dress form, mannequin stand, plastic body, headless figure, pins, price tag, altered dress, redesigned garment, new embroidery, missing embroidery, simplified embroidery, colour shift, different print, different hem, different neckline, different sleeves, different silhouette, ${SHARED_NEGATIVES}`;
 
 export const REPOSE_NEGATIVE_PROMPT =
   `altered dress, redesigned garment, new embroidery, colour shift, different hem, different neckline, different silhouette, same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
@@ -328,12 +335,14 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
     [
       anchor,
       ...(mode === "mannequin" ? [PRESS_LINE, MANNEQUIN_CLEANUP] : []),
+      ...(mode === "repose" || mode === "old-design" ? [PRESS_LINE] : []),
       ...(mode === "description" ? [] : [CLEANUP]),
       modelLine,
       variableBlock,
       sceneLine,
       ...(poseLine ? [poseLine] : []),
       EXPRESSION,
+      STYLING,
       matchSourcePose ? CAMERA_MATCH_SOURCE : CAMERA,
       STYLE,
       ...(garmentLocked

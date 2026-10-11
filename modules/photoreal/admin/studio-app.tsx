@@ -60,10 +60,14 @@ const SUBTITLES: Record<StudioTabId, React.ReactNode> = {
   repose: (
     <>
       Upload a catalogue photo. Keep the{" "}
-      <span className="font-semibold text-greige">dress exactly</span> — only
-      the{" "}
-      <span className="font-semibold text-greige">pose and house model</span>{" "}
-      change. No redesign of silhouette, colour, embroidery, or hem.
+      <span className="font-semibold text-greige">dress exactly</span> —
+      professionally pressed — while the{" "}
+      <span className="font-semibold text-greige">
+        model, pose and location
+      </span>{" "}
+      change. No redesign of silhouette, colour, embroidery, or hem. Use{" "}
+      <span className="font-semibold text-greige">Shoot a set</span> for four
+      photos of the look in one go.
     </>
   ),
 };

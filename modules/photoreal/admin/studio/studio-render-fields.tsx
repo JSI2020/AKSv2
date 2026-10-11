@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-import { STUDIO_BACKGROUND_PRESETS } from "@/modules/designs/studio-backgrounds";
+import { groupedStudioBackgrounds } from "@/modules/designs/studio-backgrounds";
 import { COMMERCIAL_POSES } from "../../commercial-poses";
 import { INPUT_SOURCE_TABS, type PromptMode } from "../../prompt-builder";
 
@@ -15,6 +15,7 @@ import {
 
 const POSE_CATEGORIES = [
   "Standing",
+  "Portrait",
   "Leaning",
   "Walking",
   "Seated",
@@ -87,7 +88,7 @@ export function PoseSelect({
   onChange,
   disabled,
   hint,
-  emptyLabel = "Random each render (recommended)",
+  emptyLabel = "Random pose (recommended)",
 }: {
   id?: string;
   value: string;
@@ -162,11 +163,7 @@ export function BackgroundSelect({
           disabled={disabled || hasCustom}
           onChange={(e) => onPresetChange(e.target.value)}
         >
-          {STUDIO_BACKGROUND_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
-            </option>
-          ))}
+          <BackgroundOptions />
         </select>
       </div>
       <div>
@@ -186,6 +183,23 @@ export function BackgroundSelect({
         </p>
       </div>
     </div>
+  );
+}
+
+/** Background presets as grouped <option>s (Studio, Heritage, Interiors, Outdoors). */
+export function BackgroundOptions() {
+  return (
+    <>
+      {groupedStudioBackgrounds().map(({ group, presets }) => (
+        <optgroup key={group} label={group}>
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
   );
 }
 

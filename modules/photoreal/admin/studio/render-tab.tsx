@@ -26,6 +26,7 @@ import { POSE_PRESETS, type PromptMode } from "../../prompt-builder";
 import type { StudioVersion } from "../result-screen";
 
 import {
+  BackgroundOptions,
   BackgroundSelect,
   PoseSelect,
   SourceModePicker,
@@ -805,11 +806,7 @@ export function RenderTab({
                         }
                       >
                         <option value="">Keep current background</option>
-                        {STUDIO_BACKGROUND_PRESETS.map((preset) => (
-                          <option key={preset.id} value={preset.id}>
-                            {preset.label}
-                          </option>
-                        ))}
+                        <BackgroundOptions />
                       </select>
                       <p className={studioHintClass}>
                         The dress stays the same — only the setting changes.

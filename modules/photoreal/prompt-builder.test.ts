@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  groupedStudioBackgrounds,
+  resolveStudioBackgroundPrompt,
+  STUDIO_BACKGROUND_PRESETS,
+} from "@/modules/designs/studio-backgrounds";
+
+import { COMMERCIAL_POSES } from "./commercial-poses";
+
+import {
   buildPrompt,
   INPUT_SOURCE_TABS,
   MANNEQUIN_NEGATIVE_PROMPT,
@@ -24,7 +32,7 @@ describe("mannequin mode", () => {
     expect(built.prompt).toMatch(/Remove the mannequin, dress form/);
     expect(built.prompt).toMatch(/GARMENT LOCK/);
     expect(built.negativePrompt).toBe(MANNEQUIN_NEGATIVE_PROMPT);
-    expect(built.negativePrompt).toMatch(/creases/);
+    expect(built.negativePrompt).toMatch(/creased fabric/);
     expect(built.negativePrompt).toMatch(/mannequin/);
   });
 
@@ -93,6 +101,54 @@ describe("mannequin mode", () => {
     expect(
       resolvePromptMode({ sourceMode: "mannequin", oldDesignUrl: "x" }),
     ).toBe("mannequin");
+  });
+});
+
+describe("campaign quality across modes", () => {
+  it("presses the garment in every photo-based mode", () => {
+    for (const mode of ["repose", "mannequin", "old-design"] as const) {
+      expect(buildPrompt({ mode }).prompt).toMatch(/GARMENT PRESSING \(mandatory\)/);
+    }
+    expect(buildPrompt({ mode: "sketch" }).prompt).not.toMatch(/GARMENT PRESSING/);
+  });
+
+  it("asks for a real smile and brand-level styling", () => {
+    const { prompt, negativePrompt } = buildPrompt({ mode: "repose" });
+    expect(prompt).toMatch(/genuine, confident smile/);
+    expect(prompt).toMatch(/Styling: polished natural make-up/);
+    expect(prompt).toMatch(/Luxury modest fashion campaign/);
+    expect(negativePrompt).toMatch(/wrinkled fabric/);
+  });
+
+  it("offers the photo-set and portrait poses", () => {
+    for (const id of [
+      "front-straight",
+      "three-quarter-stand",
+      "portrait-half",
+      "back-three-quarter",
+      "portrait-smile",
+      "portrait-laugh",
+    ]) {
+      expect(COMMERCIAL_POSES.some((p) => p.id === id)).toBe(true);
+    }
+    const ids = COMMERCIAL_POSES.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe("background library", () => {
+  it("has unique ids, every group populated, and a courtyard fallback", () => {
+    const ids = STUDIO_BACKGROUND_PRESETS.map((p) => p.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const { presets } of groupedStudioBackgrounds()) {
+      expect(presets.length).toBeGreaterThan(0);
+    }
+    expect(resolveStudioBackgroundPrompt({ presetId: "nope" })).toMatch(
+      /courtyard/,
+    );
+    expect(
+      resolveStudioBackgroundPrompt({ presetId: "studio", custom: "my rooftop" }),
+    ).toBe("my rooftop");
   });
 });
 

@@ -19,10 +19,17 @@ import {
   RANDOM_HOUSE_MODEL_ID,
   type HouseModelSelection,
 } from "../../model-persona";
+import { STUDIO_BACKGROUND_PRESETS } from "@/modules/designs/studio-backgrounds";
+
 import { POSE_PRESETS } from "../../prompt-builder";
 import type { StudioVersion } from "../result-screen";
 
-import { PoseSelect, StudioActions } from "./studio-render-fields";
+import {
+  BackgroundOptions,
+  BackgroundSelect,
+  PoseSelect,
+  StudioActions,
+} from "./studio-render-fields";
 import {
   EmptyOutput,
   PanelHead,
@@ -48,7 +55,22 @@ type DraftMeta = {
   houseModelId: string;
   houseModelName: string;
   poseId: string;
+  backgroundPreset: string;
+  backgroundCustom: string;
 };
+
+const DEFAULT_BACKGROUND_PRESET = "courtyard";
+
+/**
+ * "Shoot a set" — the four frames a brand shoot delivers per look: hero
+ * front, three-quarter, a closer portrait, and the back.
+ */
+const PHOTO_SET_POSES = [
+  "front-straight",
+  "three-quarter-stand",
+  "portrait-half",
+  "back-three-quarter",
+] as const;
 
 async function uploadPhoto(files: File[]): Promise<UploadedAsset[]> {
   const form = new FormData();
@@ -87,6 +109,12 @@ export function PoseTab({
     useState<HouseModelSelection>(defaultHouseModelId);
   const [poseId, setPoseId] = useState("");
   const [refinePoseId, setRefinePoseId] = useState("");
+  const [backgroundPreset, setBackgroundPreset] = useState(
+    DEFAULT_BACKGROUND_PRESET,
+  );
+  const [backgroundCustom, setBackgroundCustom] = useState("");
+  /** "" = keep the current background on refine. */
+  const [refineBackgroundPreset, setRefineBackgroundPreset] = useState("");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Generating…");
@@ -127,44 +155,62 @@ export function PoseTab({
     }
   }, []);
 
+  /** One repose render; throws on failure. */
+  const renderShot = async (shotPoseId: string, modelId: HouseModelSelection) => {
+    const photo = photos[0]!;
+    const data = await generatePhotorealAction({
+      sourceMode: "repose",
+      oldDesignUrls: [photo.url],
+      oldDesignUrl: photo.url,
+      description: note,
+      houseModelId: modelId,
+      poseId: shotPoseId || null,
+      backgroundPreset,
+      backgroundCustom: backgroundCustom || null,
+    });
+    if (!data.ok || !data.version) {
+      throw new Error(!data.ok ? data.error : "Generation failed.");
+    }
+    onSessionCost(data.costUsd ?? data.version.costUsd ?? data.totalCost);
+    return data;
+  };
+
+  const startDraft = (
+    data: Awaited<ReturnType<typeof renderShot>>,
+    shotPoseId: string,
+  ) => {
+    setDraft({
+      note,
+      photoUrl: photos[0]!.url,
+      houseModelId: data.houseModel?.id ?? "ayesha",
+      houseModelName: data.houseModel?.name ?? "Ayesha",
+      poseId: data.pose?.id ?? shotPoseId,
+      backgroundPreset,
+      backgroundCustom,
+    });
+  };
+
+  const prepareRun = async (label: string) => {
+    setBusy(true);
+    setBusyLabel(label);
+    setError(null);
+    setSourcePreview(photos[0]!.localPreview);
+    const settings = await getPhotorealSettingsAction();
+    if (settings.ok) {
+      setModelName(
+        FAL_MODEL_OPTIONS[settings.fal.generateModel]?.label ?? "fal model",
+      );
+    }
+  };
+
   const handleGenerate = async () => {
     if (!photos[0]) return;
-    setBusy(true);
-    setBusyLabel("Restaging pose…");
-    setError(null);
-    setSourcePreview(photos[0].localPreview);
     try {
-      const settings = await getPhotorealSettingsAction();
-      if (settings.ok) {
-        setModelName(
-          FAL_MODEL_OPTIONS[settings.fal.generateModel]?.label ?? "fal model",
-        );
-      }
-
-      const data = await generatePhotorealAction({
-        sourceMode: "repose",
-        oldDesignUrls: [photos[0].url],
-        oldDesignUrl: photos[0].url,
-        description: note,
-        houseModelId,
-        poseId: poseId || null,
-      });
-
-      if (!data.ok || !data.version) {
-        throw new Error(!data.ok ? data.error : "Generation failed.");
-      }
-
-      const callCost = data.costUsd ?? data.version.costUsd ?? data.totalCost;
-      onSessionCost(callCost);
-
-      setDraft({
-        note,
-        photoUrl: photos[0].url,
-        houseModelId: data.houseModel?.id ?? "ayesha",
-        houseModelName: data.houseModel?.name ?? "Ayesha",
-        poseId: data.pose?.id ?? poseId,
-      });
-      setRefinePoseId(data.pose?.id ?? poseId);
+      await prepareRun("Restaging pose…");
+      const data = await renderShot(poseId, houseModelId);
+      startDraft(data, poseId);
+      setRefinePoseId("");
+      setRefineBackgroundPreset("");
       setVersions([data.version]);
       setActiveVersionId(data.version.id);
       setTotalCost(data.totalCost);
@@ -176,22 +222,81 @@ export function PoseTab({
     }
   };
 
+  /**
+   * Four frames of one look. The first shot fixes the model (even on
+   * "Random") so the whole set shows the same woman; the rest run together.
+   */
+  const handleShootSet = async () => {
+    if (!photos[0]) return;
+    try {
+      await prepareRun("Shooting the set · 1 of 4…");
+      const [firstPose, ...restPoses] = PHOTO_SET_POSES;
+      const first = await renderShot(firstPose, houseModelId);
+      startDraft(first, firstPose);
+      setVersions([first.version]);
+      setActiveVersionId(first.version.id);
+      setBusyLabel("Shooting the set · 2–4 of 4…");
+
+      const lockedModel = (first.houseModel?.id ??
+        houseModelId) as HouseModelSelection;
+      const rest = await Promise.allSettled(
+        restPoses.map((p) => renderShot(p, lockedModel)),
+      );
+      const done = rest.flatMap((r) =>
+        r.status === "fulfilled" ? [r.value] : [],
+      );
+      setVersions([first.version, ...done.map((d) => d.version)]);
+      setTotalCost(
+        first.totalCost + done.reduce((sum, d) => sum + d.totalCost, 0),
+      );
+      setRefinePoseId("");
+      setRefineBackgroundPreset("");
+      const failed = rest.length - done.length;
+      if (failed > 0) {
+        setError(
+          `${failed} of 4 shots failed — the others are ready. Try Shoot a set again or refine.`,
+        );
+      }
+      toast(failed ? `Set ready · ${4 - failed} of 4` : "Set ready · 4 photos");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Generation failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleRefine = async () => {
-    if (!active || !draft || (!feedback.trim() && !refinePoseId)) return;
+    if (
+      !active ||
+      !draft ||
+      (!feedback.trim() && !refinePoseId && !refineBackgroundPreset)
+    ) {
+      return;
+    }
     setBusy(true);
-    setBusyLabel("Refining pose…");
+    setBusyLabel("Refining…");
     setError(null);
+    const newBackground = STUDIO_BACKGROUND_PRESETS.find(
+      (p) => p.id === refineBackgroundPreset,
+    );
+    const refineFeedback = newBackground
+      ? [feedback.trim(), `Change the background to: ${newBackground.prompt}`]
+          .filter(Boolean)
+          .join(". ")
+      : feedback;
     try {
       const data = await refinePhotorealAction({
         baseImageUrl: active.imageUrl,
         oldDesignUrl: draft.photoUrl,
         parentVersionId: active.id,
         description: draft.note,
-        feedback,
+        feedback: refineFeedback,
         previousTotalCost: totalCost,
         houseModelId: draft.houseModelId,
         promptMode: "repose",
         poseId: refinePoseId || null,
+        backgroundPreset: newBackground?.id ?? draft.backgroundPreset,
+        backgroundCustom: newBackground ? "" : draft.backgroundCustom,
       });
 
       if (!data.ok || !data.version) {
@@ -204,7 +309,15 @@ export function PoseTab({
       setActiveVersionId(data.version.id);
       setTotalCost(data.totalCost);
       setFeedback("");
-      toast("Pose refined");
+      if (newBackground) {
+        setDraft((d) =>
+          d
+            ? { ...d, backgroundPreset: newBackground.id, backgroundCustom: "" }
+            : d,
+        );
+        setRefineBackgroundPreset("");
+      }
+      toast("Refined");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refine failed.");
     } finally {
@@ -218,6 +331,9 @@ export function PoseTab({
     setNote("");
     setPoseId("");
     setRefinePoseId("");
+    setBackgroundPreset(DEFAULT_BACKGROUND_PRESET);
+    setBackgroundCustom("");
+    setRefineBackgroundPreset("");
     setVersions([]);
     setActiveVersionId("");
     setDraft(null);
@@ -294,13 +410,23 @@ export function PoseTab({
                 </p>
               </div>
 
-              <PoseSelect
-                id="repose-pose"
-                value={poseId}
-                onChange={setPoseId}
-                disabled={busy}
-                hint="Commercial pose library — dress details stay locked."
-              />
+              <div className="grid gap-5 sm:grid-cols-2">
+                <PoseSelect
+                  id="repose-pose"
+                  value={poseId}
+                  onChange={setPoseId}
+                  disabled={busy}
+                  hint="Full-length, portraits, close-ups — dress stays locked."
+                />
+                <BackgroundSelect
+                  idPrefix="repose-bg"
+                  presetId={backgroundPreset}
+                  custom={backgroundCustom}
+                  onPresetChange={setBackgroundPreset}
+                  onCustomChange={setBackgroundCustom}
+                  disabled={busy}
+                />
+              </div>
 
               <div>
                 <label className={studioLabelClass} htmlFor="repose-note">
@@ -348,6 +474,16 @@ export function PoseTab({
             >
               {uploading ? "Uploading…" : busy ? busyLabel : "Change pose"}
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!canGenerate || busy || uploading}
+              className="rounded-[2px] border-zari px-4 py-2 text-[13px] text-zari hover:bg-indigo-lift"
+              title="Four photos of this look: front, three-quarter, half-body portrait and back — same model, same background."
+              onClick={() => void handleShootSet()}
+            >
+              Shoot a set · 4 photos
+            </Button>
             <button
               type="button"
               className="text-[12.5px] text-chalk underline-offset-2 hover:text-greige hover:underline"
@@ -365,7 +501,7 @@ export function PoseTab({
           {!active ? (
             <EmptyOutput
               title="Restaged pose appears here"
-              subtitle="Upload a garment photo, pick model and pose, then Change pose."
+              subtitle="Upload a garment photo, pick model, pose and background — then Change pose, or Shoot a set for four photos of the look."
             />
           ) : (
             <div className="space-y-5">
@@ -454,13 +590,39 @@ export function PoseTab({
                     />
                   </div>
 
-                  <PoseSelect
-                    id="repose-refine-pose"
-                    value={refinePoseId}
-                    onChange={setRefinePoseId}
-                    disabled={busy}
-                    hint="Or pick a pose chip — then Refine."
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <PoseSelect
+                      id="repose-refine-pose"
+                      value={refinePoseId}
+                      onChange={setRefinePoseId}
+                      disabled={busy}
+                      emptyLabel="Keep current pose"
+                      hint="Or pick a quick pose below."
+                    />
+                    <div>
+                      <label
+                        className={studioLabelClass}
+                        htmlFor="repose-refine-background"
+                      >
+                        Background
+                      </label>
+                      <select
+                        id="repose-refine-background"
+                        className={studioFieldClass}
+                        value={refineBackgroundPreset}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setRefineBackgroundPreset(e.target.value)
+                        }
+                      >
+                        <option value="">Keep current background</option>
+                        <BackgroundOptions />
+                      </select>
+                      <p className={studioHintClass}>
+                        The dress stays the same — only the setting changes.
+                      </p>
+                    </div>
+                  </div>
 
                   <div>
                     <p className={studioLabelClass}>Quick pose</p>
@@ -491,7 +653,12 @@ export function PoseTab({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={busy || (!feedback.trim() && !refinePoseId)}
+                      disabled={
+                        busy ||
+                        (!feedback.trim() &&
+                          !refinePoseId &&
+                          !refineBackgroundPreset)
+                      }
                       className="rounded-[2px] border-zari text-[12px] text-zari hover:bg-indigo-lift"
                       onClick={() => void handleRefine()}
                     >
