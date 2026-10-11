@@ -7,6 +7,12 @@ export const STUDIO_BACKGROUND_PRESETS = [
       "Soft outdoor daylight courtyard with warm stone, gentle shadows, and natural depth — real location photography.",
   },
   {
+    id: "studio",
+    label: "Clean studio",
+    prompt:
+      "Clean professional catalogue photo studio: a seamless backdrop in a soft neutral tone (warm off-white or light greige) that complements the dress, soft even lighting, and a gentle natural shadow at the feet — uncluttered, no props, no patterned wall.",
+  },
+  {
     id: "marble-foyer",
     label: "Marble foyer",
     prompt:

@@ -87,12 +87,15 @@ export function PoseSelect({
   onChange,
   disabled,
   hint,
+  emptyLabel = "Random each render (recommended)",
 }: {
   id?: string;
   value: string;
   onChange: (poseId: string) => void;
   disabled?: boolean;
   hint?: string;
+  /** Label for the "no specific pose" option — its meaning depends on context. */
+  emptyLabel?: string;
 }) {
   const grouped = useMemo(() => {
     return POSE_CATEGORIES.map((category) => ({
@@ -113,7 +116,7 @@ export function PoseSelect({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">Random each render (recommended)</option>
+        <option value="">{emptyLabel}</option>
         {grouped.map(({ category, poses }) => (
           <optgroup key={category} label={category}>
             {poses.map((pose) => (
@@ -179,7 +182,7 @@ export function BackgroundSelect({
           onChange={(e) => onCustomChange(e.target.value)}
         />
         <p className={studioHintClass}>
-          Overrides the preset when filled. Real location photography only.
+          Overrides the preset when filled — a real location or a studio.
         </p>
       </div>
     </div>

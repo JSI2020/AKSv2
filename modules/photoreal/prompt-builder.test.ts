@@ -55,6 +55,40 @@ describe("mannequin mode", () => {
     expect(built.prompt).toMatch(/GARMENT PRESSING/);
   });
 
+  it("first pass copies the mannequin's stance instead of a random pose", () => {
+    for (let i = 0; i < 10; i++) {
+      const built = buildPrompt({ mode: "mannequin" });
+      expect(built.poseId).toBeUndefined();
+      expect(built.prompt).toMatch(/match the source photo exactly/);
+      expect(built.prompt).not.toMatch(/never a stiff mannequin stand/);
+    }
+  });
+
+  it("uses an explicitly picked pose instead of copying the source", () => {
+    const built = buildPrompt({ mode: "mannequin", poseId: "front-relaxed" });
+    expect(built.poseId).toBe("front-relaxed");
+    expect(built.prompt).not.toMatch(/match the source photo exactly/);
+  });
+
+  it("keeps the current pose on a plain refine", () => {
+    const built = buildPrompt({
+      mode: "mannequin",
+      feedback: "warmer lighting",
+      keepPose: true,
+    });
+    expect(built.prompt).toMatch(/Pose continuity/);
+    expect(built.prompt).not.toMatch(/match the source photo exactly/);
+  });
+
+  it("allows a clean studio backdrop", () => {
+    expect(MANNEQUIN_NEGATIVE_PROMPT).not.toMatch(/seamless/);
+    const built = buildPrompt({
+      mode: "mannequin",
+      backgroundPrompt: "Clean professional catalogue photo studio",
+    });
+    expect(built.prompt).toMatch(/Clean professional catalogue photo studio/);
+  });
+
   it("is respected by resolvePromptMode", () => {
     expect(
       resolvePromptMode({ sourceMode: "mannequin", oldDesignUrl: "x" }),

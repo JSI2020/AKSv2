@@ -14,6 +14,8 @@ import {
   uploadPhotorealFilesAction,
 } from "../../actions";
 import { usdToPkrAtRate } from "../../currency";
+import { STUDIO_BACKGROUND_PRESETS } from "@/modules/designs/studio-backgrounds";
+
 import { FAL_MODEL_OPTIONS } from "../../fal-config";
 import {
   HOUSE_MODELS,
@@ -43,6 +45,8 @@ import {
 } from "./studio-primitives";
 
 const DEFAULT_BACKGROUND_PRESET = "courtyard";
+/** Mannequin first pass: a clean catalogue backdrop replaces the display wall. */
+const MANNEQUIN_BACKGROUND_PRESET = "studio";
 
 type UploadedAsset = {
   localPreview: string;
@@ -117,6 +121,8 @@ export function RenderTab({
   );
   const [backgroundCustom, setBackgroundCustom] = useState("");
   const [refinePoseId, setRefinePoseId] = useState("");
+  /** "" = keep the current background on refine. */
+  const [refineBackgroundPreset, setRefineBackgroundPreset] = useState("");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Generating…");
@@ -251,10 +257,26 @@ export function RenderTab({
   };
 
   const handleRefine = async () => {
-    if (!active || !draft || (!feedback.trim() && !refinePoseId)) return;
+    if (
+      !active ||
+      !draft ||
+      (!feedback.trim() && !refinePoseId && !refineBackgroundPreset)
+    ) {
+      return;
+    }
     setBusy(true);
     setBusyLabel("Refining…");
     setError(null);
+    // A new background from the Refine picker is sent as an explicit change
+    // request (the prompt treats "background" feedback as a scene swap).
+    const newBackground = STUDIO_BACKGROUND_PRESETS.find(
+      (p) => p.id === refineBackgroundPreset,
+    );
+    const refineFeedback = newBackground
+      ? [feedback.trim(), `Change the background to: ${newBackground.prompt}`]
+          .filter(Boolean)
+          .join(". ")
+      : feedback;
     try {
       const data = await refinePhotorealAction({
         baseImageUrl: active.imageUrl,
@@ -265,13 +287,13 @@ export function RenderTab({
         shirtColour: draft.shirtColour,
         trouserColour: draft.trouserColour,
         fabric: draft.fabric,
-        feedback,
+        feedback: refineFeedback,
         previousTotalCost: totalCost,
         houseModelId: draft.houseModelId,
         promptMode: draft.promptMode,
         poseId: refinePoseId || null,
-        backgroundPreset: draft.backgroundPreset,
-        backgroundCustom: draft.backgroundCustom,
+        backgroundPreset: newBackground?.id ?? draft.backgroundPreset,
+        backgroundCustom: newBackground ? "" : draft.backgroundCustom,
       });
 
       if (!data.ok || !data.version) {
@@ -284,6 +306,14 @@ export function RenderTab({
       setActiveVersionId(data.version.id);
       setTotalCost(data.totalCost);
       setFeedback("");
+      if (newBackground) {
+        setDraft((d) =>
+          d
+            ? { ...d, backgroundPreset: newBackground.id, backgroundCustom: "" }
+            : d,
+        );
+        setRefineBackgroundPreset("");
+      }
       toast("Refinement complete");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refine failed.");
@@ -337,6 +367,7 @@ export function RenderTab({
     setBackgroundPreset(DEFAULT_BACKGROUND_PRESET);
     setBackgroundCustom("");
     setRefinePoseId("");
+    setRefineBackgroundPreset("");
     setVersions([]);
     setActiveVersionId("");
     setDraft(null);
@@ -368,6 +399,19 @@ export function RenderTab({
               onChange={(mode) => {
                 setSourceMode(mode);
                 setError(null);
+                // Swap the default backdrop with the mode, but never override
+                // a background the user picked themselves.
+                if (
+                  mode === "mannequin" &&
+                  backgroundPreset === DEFAULT_BACKGROUND_PRESET
+                ) {
+                  setBackgroundPreset(MANNEQUIN_BACKGROUND_PRESET);
+                } else if (
+                  mode !== "mannequin" &&
+                  backgroundPreset === MANNEQUIN_BACKGROUND_PRESET
+                ) {
+                  setBackgroundPreset(DEFAULT_BACKGROUND_PRESET);
+                }
               }}
               disabled={busy}
             />
@@ -497,7 +541,16 @@ export function RenderTab({
                   value={poseId}
                   onChange={setPoseId}
                   disabled={busy}
-                  hint="Full commercial pose library — grouped by stance."
+                  emptyLabel={
+                    sourceMode === "mannequin"
+                      ? "Same as mannequin photo"
+                      : undefined
+                  }
+                  hint={
+                    sourceMode === "mannequin"
+                      ? "First render copies the mannequin's stance and framing. Change pose later with Refine."
+                      : "Full commercial pose library — grouped by stance."
+                  }
                 />
                 <BackgroundSelect
                   presetId={backgroundPreset}
@@ -726,13 +779,43 @@ export function RenderTab({
                     />
                   </div>
 
-                  <PoseSelect
-                    id="refine-pose"
-                    value={refinePoseId}
-                    onChange={setRefinePoseId}
-                    disabled={busy}
-                    hint="Or pick a pose below — then Refine."
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <PoseSelect
+                      id="refine-pose"
+                      value={refinePoseId}
+                      onChange={setRefinePoseId}
+                      disabled={busy}
+                      emptyLabel="Keep current pose"
+                      hint="Or pick a quick pose below."
+                    />
+                    <div>
+                      <label
+                        className={studioLabelClass}
+                        htmlFor="refine-background"
+                      >
+                        Background
+                      </label>
+                      <select
+                        id="refine-background"
+                        className={studioFieldClass}
+                        value={refineBackgroundPreset}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setRefineBackgroundPreset(e.target.value)
+                        }
+                      >
+                        <option value="">Keep current background</option>
+                        {STUDIO_BACKGROUND_PRESETS.map((preset) => (
+                          <option key={preset.id} value={preset.id}>
+                            {preset.label}
+                          </option>
+                        ))}
+                      </select>
+                      <p className={studioHintClass}>
+                        The dress stays the same — only the setting changes.
+                      </p>
+                    </div>
+                  </div>
 
                   <div>
                     <p className={studioLabelClass}>Quick pose</p>
@@ -763,7 +846,12 @@ export function RenderTab({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={busy || (!feedback.trim() && !refinePoseId)}
+                      disabled={
+                        busy ||
+                        (!feedback.trim() &&
+                          !refinePoseId &&
+                          !refineBackgroundPreset)
+                      }
                       className="rounded-[2px] border-zari text-[12px] text-zari hover:bg-indigo-lift"
                       onClick={() => void handleRefine()}
                     >

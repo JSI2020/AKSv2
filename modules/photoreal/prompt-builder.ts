@@ -41,6 +41,17 @@ const MANNEQUIN_ANCHOR =
 const PRESS_LINE =
   "GARMENT PRESSING: the source garment is wrinkled and creased from storage. Show it freshly steamed and pressed, exactly as a professional stylist would prepare it for a catalogue shoot — remove creases, crumples, fold lines and packing marks, and give crisp clean seams and a smooth fall, while keeping the fabric's true texture, weave and natural drape on the body (not stiff, not plastic, not glossy). Pressing must not alter any design detail.";
 
+/**
+ * Mannequin first pass — copy the source shot's stance and framing so the
+ * only visible changes are the model, the pressing, and the backdrop. Other
+ * poses come later via Refine (or an explicit pose pick).
+ */
+const MATCH_SOURCE_POSE_LINE =
+  "Pose and framing: match the source photo exactly — same front-facing standing stance, same camera height, angle, and distance, same full-length framing and crop, garment facing the camera as on the mannequin. Arms rest naturally at the sides as a real person stands (adapt the mannequin's rigid arms naturally), feet together or slightly apart. Calm, straight, catalogue stance — no turn, no lean, no walking.";
+
+const CAMERA_MATCH_SOURCE =
+  "Shot like a real professional catalogue photograph: 50–85mm lens look, sharp focus on the garment, true-to-life fabric texture, colour and drape, modest tasteful styling.";
+
 /** Mannequin mode — no trace of the display rig may survive. */
 const MANNEQUIN_CLEANUP =
   "Remove the mannequin, dress form, stand, base, pins, clips, hangers, price tags and labels entirely — none of them may appear. The garment must sit naturally on a real human body with real arms, hands, neck, and face.";
@@ -80,7 +91,7 @@ export const OLD_DESIGN_NEGATIVE_PROMPT =
   `same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
 
 export const MANNEQUIN_NEGATIVE_PROMPT =
-  `wrinkled fabric, creases, crumpled cloth, fold lines, packing marks, mannequin, dress form, mannequin stand, plastic body, headless figure, pins, price tag, altered dress, redesigned garment, new embroidery, missing embroidery, simplified embroidery, colour shift, different print, different hem, different neckline, different sleeves, different silhouette, ${SHARED_NEGATIVES}`;
+  `turned away, back to camera, wrinkled fabric, creases, crumpled cloth, fold lines, packing marks, mannequin, dress form, mannequin stand, plastic body, headless figure, pins, price tag, altered dress, redesigned garment, new embroidery, missing embroidery, simplified embroidery, colour shift, different print, different hem, different neckline, different sleeves, different silhouette, ${SHARED_NEGATIVES.replace("flat seamless paper backdrop, ", "")}`;
 
 export const REPOSE_NEGATIVE_PROMPT =
   `altered dress, redesigned garment, new embroidery, colour shift, different hem, different neckline, different silhouette, same face as reference photo, original model identity, photocopy of input, identical pose to reference, ${SHARED_NEGATIVES}`;
@@ -243,10 +254,14 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
     input.pose ?? getCommercialPoseById(input.poseId) ?? undefined;
   let keepPose = Boolean(input.keepPose);
 
+  /** Mannequin first pass with no pose picked: copy the source's stance. */
+  const matchSourcePose =
+    mode === "mannequin" && !pose && !keepPose && !wantsPose;
+
   if (wantsPose) {
     keepPose = false;
     pose = undefined;
-  } else if (!pose && !keepPose) {
+  } else if (!pose && !keepPose && !matchSourcePose) {
     pose = pickRandomCommercialPose();
   }
 
@@ -294,7 +309,9 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
     ? null
     : keepPose
       ? KEEP_POSE_LINE
-      : pose?.prompt ?? null;
+      : matchSourcePose
+        ? MATCH_SOURCE_POSE_LINE
+        : pose?.prompt ?? null;
 
   const anchor =
     mode === "old-design"
@@ -317,7 +334,7 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       sceneLine,
       ...(poseLine ? [poseLine] : []),
       EXPRESSION,
-      CAMERA,
+      matchSourcePose ? CAMERA_MATCH_SOURCE : CAMERA,
       STYLE,
       ...(garmentLocked
         ? [
