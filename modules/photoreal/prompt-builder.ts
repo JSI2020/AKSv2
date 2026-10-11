@@ -35,7 +35,7 @@ const REPOSE_ANCHOR =
  * real texture and natural drape stay.
  */
 const MANNEQUIN_ANCHOR =
-  "Photorealistic fashion photograph that looks like a real camera shot. The attached image shows the SOURCE GARMENT displayed on a MANNEQUIN / DRESS FORM. Dress the house model below in this exact garment and photograph her wearing it. Reproduce the garment EXACTLY as shown — identical silhouette, cut, length, neckline, collar, sleeves and cuffs, slits, hem, colours and shades, print, embroidery motifs and their exact placement and density, lace, cutwork, piping, borders, buttons, tassels, trims, and the fabric's real texture and sheen. Do not redesign, restyle, recolour, simplify, shorten, lengthen, add, or remove any detail. If several images are attached they are views of the SAME garment (e.g. front and back) — use them together for accuracy.";
+  "Photorealistic fashion photograph that looks like a real camera shot. The attached image shows the SOURCE GARMENT displayed on a MANNEQUIN / DRESS FORM, on a HANGER, or laid FLAT — not worn by a person. Dress the house model below in this exact garment and photograph her wearing it. Reproduce the garment EXACTLY as shown — identical silhouette, cut, length, neckline, collar, sleeves and cuffs, slits, hem, colours and shades, print, embroidery motifs and their exact placement and density, lace, cutwork, piping, borders, buttons, tassels, trims, and the fabric's real texture and sheen. Do not redesign, restyle, recolour, simplify, shorten, lengthen, add, or remove any detail. If several images are attached they are views of the SAME garment (e.g. front and back) — use them together for accuracy.";
 
 /**
  * Photo-based modes — the one permitted change to the garment itself. Real
@@ -50,14 +50,24 @@ const PRESS_LINE =
  * poses come later via Refine (or an explicit pose pick).
  */
 const MATCH_SOURCE_POSE_LINE =
-  "Pose and framing: match the source photo exactly — same front-facing standing stance, same camera height, angle, and distance, same full-length framing and crop, garment facing the camera as on the mannequin. Arms rest naturally at the sides as a real person stands (adapt the mannequin's rigid arms naturally), feet together or slightly apart. Calm, straight, catalogue stance — no turn, no lean, no walking.";
+  "Pose and framing: match the source photo exactly — same front-facing standing stance, same camera height, angle, and distance, same full-length framing and crop, garment facing the camera as on the mannequin. Arms rest naturally at the sides as a real person stands (adapt a mannequin's rigid arms, or a hanger/flat-lay shape, naturally onto the body), feet together or slightly apart. Calm, straight, catalogue stance — no turn, no lean, no walking.";
+
+/**
+ * Portrait / detail poses: the garment-lock wording ("reproduce the hem…")
+ * otherwise makes the model zoom back out to show the whole outfit.
+ */
+const CROPPED_FRAMING_LINE =
+  "FRAMING: this is a cropped close shot — frame it exactly as described (waist-up, chest-up or detail). It is correct and expected that the lower garment, hem and feet fall outside the frame; do not zoom out to show the full outfit. Every garment detail that IS in frame must match the reference exactly.";
+
+const CAMERA_CROPPED =
+  "Shot like a real commercial fashion campaign close-up: 85–105mm portrait lens look, shallow depth of field, sharp focus on the face, neckline and embroidery, true-to-life fabric texture, modest tasteful styling.";
 
 const CAMERA_MATCH_SOURCE =
   "Shot like a real professional catalogue photograph: 50–85mm lens look, sharp focus on the garment, true-to-life fabric texture, colour and drape, modest tasteful styling.";
 
 /** Mannequin mode — no trace of the display rig may survive. */
 const MANNEQUIN_CLEANUP =
-  "Remove the mannequin, dress form, stand, base, pins, clips, hangers, price tags and labels entirely — none of them may appear. The garment must sit naturally on a real human body with real arms, hands, neck, and face.";
+  "Remove the mannequin, dress form, stand, base, hanger, pins, clips, flat-lay surface, price tags and labels entirely — none of them may appear. The garment must sit naturally on a real human body with real arms, hands, neck, and face.";
 
 /** Most garment reference photos sent with one request (plus the base image on refine). */
 export const MAX_GARMENT_REFERENCES = 6;
@@ -136,22 +146,17 @@ export const INPUT_SOURCE_TABS = [
   {
     id: "sketch" as const,
     label: "1 · Sketch",
-    hint: "Sketch(es) + model · description optional",
+    hint: "Turn a drawing into a real photo",
   },
   {
     id: "old-design" as const,
-    label: "2 · Old design",
-    hint: "Design photo(s) + model · description optional",
+    label: "2 · Restyle a photo",
+    hint: "Use a photo as inspiration — the look may be improved",
   },
   {
     id: "description" as const,
     label: "3 · Description",
-    hint: "Model + description only · no upload",
-  },
-  {
-    id: "mannequin" as const,
-    label: "4 · Mannequin",
-    hint: "Dress on a mannequin → real model · same dress, pressed",
+    hint: "Describe it in words — no upload",
   },
 ] as const;
 
@@ -329,7 +334,7 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
 
   const modelLine =
     mode === "mannequin"
-      ? `House model (MUST use this exact distinct real person, wearing the garment from the mannequin photo): ${persona.description}`
+      ? `House model (MUST use this exact distinct real person, wearing the garment from the source photo): ${persona.description}`
       : mode === "old-design" || mode === "repose"
       ? `House model (MUST use this exact distinct person — not anyone from the reference photo, and not a generic similar face): ${persona.description}`
       : `House model (keep this exact distinct identity — do not genericise into a lookalike): ${persona.description}`;
@@ -338,13 +343,22 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
     ? "The new background must look like a real photograph, compatible with the dress colour and occasion, with natural depth and lighting."
     : trimOrEmpty(input.backgroundPrompt) || REAL_SCENE;
 
+  // On a refine the image editor tends to return a near-copy of the first
+  // image, so an explicitly picked pose must be phrased as a re-shoot.
   const poseLine = wantsPose
     ? null
     : keepPose
       ? KEEP_POSE_LINE
       : matchSourcePose
         ? MATCH_SOURCE_POSE_LINE
-        : pose?.prompt ?? null;
+        : pose && input.refine
+          ? `POSE / FRAMING CHANGE — re-photograph the same model in the same garment with a clearly different pose and framing, as a new frame from the same shoot; do not return a near-copy of the first image. ${pose.prompt}`
+          : pose?.prompt ?? null;
+
+  const croppedShot =
+    !wantsPose &&
+    !keepPose &&
+    (pose?.category === "Portrait" || pose?.category === "Detail");
 
   const referenceCount = garmentLocked
     ? Math.max(0, Math.floor(input.garmentReferenceCount ?? 0))
@@ -378,9 +392,14 @@ export function buildPrompt(input: PromptBuilderInput = {}): BuiltPrompt {
       variableBlock,
       sceneLine,
       ...(poseLine ? [poseLine] : []),
+      ...(croppedShot ? [CROPPED_FRAMING_LINE] : []),
       EXPRESSION,
       STYLING,
-      matchSourcePose ? CAMERA_MATCH_SOURCE : CAMERA,
+      matchSourcePose
+        ? CAMERA_MATCH_SOURCE
+        : croppedShot
+          ? CAMERA_CROPPED
+          : CAMERA,
       STYLE,
       ...(garmentLocked
         ? [

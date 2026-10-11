@@ -16,6 +16,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   // Studio
   {
     id: "studio",
+    tone: ["#ece7dd", "#d6cfc2"],
     group: "Studio",
     label: "Clean studio",
     prompt:
@@ -23,6 +24,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "studio-plaster",
+    tone: ["#e3d3bc", "#b9a283"],
     group: "Studio",
     label: "Textured plaster wall",
     prompt:
@@ -30,6 +32,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "studio-arch",
+    tone: ["#f1ebe0", "#cbbfa9"],
     group: "Studio",
     label: "Studio arch set",
     prompt:
@@ -37,6 +40,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "studio-drape",
+    tone: ["#c9b6a0", "#8c7660"],
     group: "Studio",
     label: "Fabric drape backdrop",
     prompt:
@@ -46,6 +50,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   // Heritage
   {
     id: "courtyard",
+    tone: ["#e6cfa6", "#a88a5f"],
     group: "Heritage",
     label: "Soft courtyard daylight",
     prompt:
@@ -53,6 +58,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "haveli-arches",
+    tone: ["#d9b88c", "#8a6440"],
     group: "Heritage",
     label: "Haveli arches",
     prompt:
@@ -60,6 +66,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "carved-door",
+    tone: ["#a77a52", "#5b3d25"],
     group: "Heritage",
     label: "Carved wooden door",
     prompt:
@@ -67,6 +74,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "jaali-light",
+    tone: ["#f2efe9", "#bfb8ad"],
     group: "Heritage",
     label: "Marble jaali light",
     prompt:
@@ -74,6 +82,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "old-city-street",
+    tone: ["#d4a87a", "#7d5a3c"],
     group: "Heritage",
     label: "Old-city lane",
     prompt:
@@ -83,6 +92,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   // Interiors
   {
     id: "marble-foyer",
+    tone: ["#efece7", "#b8b2a7"],
     group: "Interiors",
     label: "Marble foyer",
     prompt:
@@ -90,6 +100,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "boutique",
+    tone: ["#d9c9b6", "#9b8670"],
     group: "Interiors",
     label: "Boutique interior",
     prompt:
@@ -97,6 +108,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "luxury-lounge",
+    tone: ["#e7dccd", "#a89380"],
     group: "Interiors",
     label: "Luxury living room",
     prompt:
@@ -104,6 +116,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "grand-staircase",
+    tone: ["#ece6dc", "#a99f8e"],
     group: "Interiors",
     label: "Grand staircase",
     prompt:
@@ -111,6 +124,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "sunlit-verandah",
+    tone: ["#e9cfa8", "#b07a4f"],
     group: "Interiors",
     label: "Sunlit verandah",
     prompt:
@@ -118,6 +132,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "atelier",
+    tone: ["#f0ebe3", "#c2b8a8"],
     group: "Interiors",
     label: "Design atelier",
     prompt:
@@ -127,6 +142,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   // Outdoors
   {
     id: "garden",
+    tone: ["#b8c9a0", "#5e7547"],
     group: "Outdoors",
     label: "Garden path",
     prompt:
@@ -134,6 +150,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "rose-garden",
+    tone: ["#e7c3c0", "#6f8a5a"],
     group: "Outdoors",
     label: "Rose garden",
     prompt:
@@ -141,6 +158,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "terrace",
+    tone: ["#e8b98a", "#7a5a6b"],
     group: "Outdoors",
     label: "Evening terrace",
     prompt:
@@ -148,6 +166,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "rooftop-golden",
+    tone: ["#f0c98d", "#a3623f"],
     group: "Outdoors",
     label: "Rooftop golden hour",
     prompt:
@@ -155,6 +174,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "palm-courtyard",
+    tone: ["#eef0ea", "#7f9a6d"],
     group: "Outdoors",
     label: "Palm courtyard & fountain",
     prompt:
@@ -162,6 +182,7 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
   {
     id: "lawn-estate",
+    tone: ["#c7d4b0", "#6c8455"],
     group: "Outdoors",
     label: "Estate lawn",
     prompt:
@@ -169,6 +190,8 @@ export const STUDIO_BACKGROUND_PRESETS = [
   },
 ] as const satisfies ReadonlyArray<{
   id: string;
+  /** Two colours that evoke the location — picker tile gradient only. */
+  tone: readonly [string, string];
   group: StudioBackgroundGroup;
   label: string;
   prompt: string;

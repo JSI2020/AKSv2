@@ -42,13 +42,12 @@ import {
   studioFieldClass,
   studioHintClass,
   studioLabelClass,
+  studioPrimaryButtonClass,
   useStudioToast,
 } from "./studio-primitives";
 import { downloadImage } from "./download-image";
 
 const DEFAULT_BACKGROUND_PRESET = "courtyard";
-/** Mannequin first pass: a clean catalogue backdrop replaces the display wall. */
-const MANNEQUIN_BACKGROUND_PRESET = "studio";
 
 type UploadedAsset = {
   localPreview: string;
@@ -97,11 +96,14 @@ export function RenderTab({
   defaultHouseModelId,
   sessionCostPkr,
   usdPkrRate,
+  perImagePkr,
   onSessionCost,
 }: {
   defaultHouseModelId: HouseModelSelection;
   sessionCostPkr?: number;
   usdPkrRate: number;
+  /** Estimated cost of one photo at the current quality, in PKR. */
+  perImagePkr: number;
   onSessionCost: (deltaUsd: number) => void;
 }) {
   const toast = useStudioToast();
@@ -147,8 +149,7 @@ export function RenderTab({
   }, [defaultHouseModelId]);
 
   /** Modes that start from uploaded garment photos (not sketches). */
-  const photoUpload =
-    sourceMode === "old-design" || sourceMode === "mannequin";
+  const photoUpload = sourceMode === "old-design";
 
   const canGenerate =
     sourceMode === "sketch"
@@ -389,9 +390,7 @@ export function RenderTab({
       ? "one or more sketches"
       : sourceMode === "old-design"
         ? "one or more design photos"
-        : sourceMode === "mannequin"
-          ? "a photo of the dress on the mannequin (add a back view too if you have one)"
-          : "a written description below";
+        : "a written description below";
 
   return (
     <Workbench
@@ -405,19 +404,6 @@ export function RenderTab({
               onChange={(mode) => {
                 setSourceMode(mode);
                 setError(null);
-                // Swap the default backdrop with the mode, but never override
-                // a background the user picked themselves.
-                if (
-                  mode === "mannequin" &&
-                  backgroundPreset === DEFAULT_BACKGROUND_PRESET
-                ) {
-                  setBackgroundPreset(MANNEQUIN_BACKGROUND_PRESET);
-                } else if (
-                  mode !== "mannequin" &&
-                  backgroundPreset === MANNEQUIN_BACKGROUND_PRESET
-                ) {
-                  setBackgroundPreset(DEFAULT_BACKGROUND_PRESET);
-                }
               }}
               disabled={busy}
             />
@@ -429,29 +415,11 @@ export function RenderTab({
                 <span className="text-greige">Required:</span> {reqLine}.
                 Colours and fabric are optional.
               </p>
-              {sourceMode === "mannequin" && (
-                <ul className="mb-4 space-y-1 border-s border-zari/60 ps-3 text-[12px] leading-relaxed text-chalk">
-                  <li>
-                    The dress is kept exactly — cut, colour, print and
-                    embroidery are not changed.
-                  </li>
-                  <li>
-                    Creases and fold lines are pressed out, as if the piece was
-                    steamed before the shoot.
-                  </li>
-                  <li>
-                    The mannequin is replaced by the catalogue model. Pose and
-                    background below, or change them later with Refine.
-                  </li>
-                </ul>
-              )}
               <StudioDropzone
                 label={
                   sourceMode === "sketch"
                     ? "Drop sketches here"
-                    : sourceMode === "mannequin"
-                      ? "Drop mannequin photos here"
-                      : "Drop design photos here"
+                    : "Drop inspiration photos here"
                 }
                 sublabel="PNG, JPG, WEBP — multiple OK"
                 disabled={busy || uploading}
@@ -547,16 +515,7 @@ export function RenderTab({
                   value={poseId}
                   onChange={setPoseId}
                   disabled={busy}
-                  emptyLabel={
-                    sourceMode === "mannequin"
-                      ? "Same as mannequin photo"
-                      : undefined
-                  }
-                  hint={
-                    sourceMode === "mannequin"
-                      ? "First render copies the mannequin's stance and framing. Change pose later with Refine."
-                      : "Full commercial pose library — grouped by stance."
-                  }
+                  hint="Full-length, portraits, close-ups and more."
                 />
                 <BackgroundSelect
                   presetId={backgroundPreset}
@@ -671,10 +630,14 @@ export function RenderTab({
             <Button
               type="button"
               disabled={!canGenerate || busy || uploading}
-              className="min-w-[9rem] rounded-[2px] border border-zari bg-zari px-5 py-2 text-[13px] font-semibold text-indigo hover:bg-zari/90"
+              className={studioPrimaryButtonClass}
               onClick={() => void handleGenerate()}
             >
-              {uploading ? "Uploading…" : busy ? busyLabel : "Generate"}
+              {uploading
+                ? "Uploading…"
+                : busy
+                  ? busyLabel
+                  : `Generate · ~PKR ${perImagePkr.toLocaleString("en-PK")}`}
             </Button>
             <button
               type="button"
@@ -696,9 +659,7 @@ export function RenderTab({
               subtitle={
                 sourceMode === "description"
                   ? "Write a description and press Generate. Refinements keep the same model until you clear."
-                  : sourceMode === "mannequin"
-                    ? "Add the mannequin photo and press Generate. Refinements keep the same model and dress until you clear."
-                    : "Add your upload and press Generate. Refinements keep the same model until you clear."
+                  : "Add your upload and press Generate. Refinements keep the same model until you clear."
               }
             />
           ) : (

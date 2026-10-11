@@ -3999,6 +3999,11 @@
 .admin-shell main .text-chalk {
   color: color-mix(in oklab, var(--color-ink) 55%, transparent);
 }
+/* Opacity variants (text-chalk/45, /80, /90 …) escaped the remap above and
+   rendered as pale blue on greige — unreadable. Map them all to ink grey. */
+.admin-shell main [class*="text-chalk/"] {
+  color: color-mix(in oklab, var(--color-ink) 52%, transparent);
+}
 .admin-shell main .border-indigo-lift {
   border-color: color-mix(in oklab, var(--color-ink) 12%, transparent);
 }

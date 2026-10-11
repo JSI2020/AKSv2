@@ -18,8 +18,18 @@ import {
 } from "./prompt-builder";
 
 describe("mannequin mode", () => {
-  it("is offered as a starting point", () => {
-    expect(INPUT_SOURCE_TABS.map((t) => t.id)).toContain("mannequin");
+  it("lives in Photograph a dress, not in Create a look", () => {
+    expect(INPUT_SOURCE_TABS.map((t) => t.id)).toEqual([
+      "sketch",
+      "old-design",
+      "description",
+    ]);
+  });
+
+  it("covers hangers and flat-lays as well as mannequins", () => {
+    const { prompt } = buildPrompt({ mode: "mannequin" });
+    expect(prompt).toMatch(/on a HANGER, or laid FLAT/);
+    expect(prompt).toMatch(/hanger, pins, clips, flat-lay surface/);
   });
 
   it("locks the garment, presses it, and removes the mannequin", () => {
@@ -168,6 +178,14 @@ describe("multiple garment photos", () => {
     expect(many).toMatch(/The remaining 5 images are the ORIGINAL garment reference photos/);
     expect(many).toMatch(/A pose or background change never changes the garment/);
     expect(many).toMatch(/GARMENT REFERENCES: 5/);
+  });
+
+  it("phrases a picked pose on refine as a re-shoot, not a near-copy", () => {
+    const refine = buildPrompt({ mode: "repose", refine: true, poseId: "portrait-half" }).prompt;
+    expect(refine).toMatch(/POSE \/ FRAMING CHANGE — re-photograph/);
+    expect(refine).toMatch(/waist-up half-body portrait/);
+    const generate = buildPrompt({ mode: "repose", poseId: "portrait-half" }).prompt;
+    expect(generate).not.toMatch(/POSE \/ FRAMING CHANGE/);
   });
 
   it("ignores reference counts in modes that may restyle", () => {

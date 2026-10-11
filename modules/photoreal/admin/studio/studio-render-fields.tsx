@@ -35,7 +35,7 @@ export function SourceModePicker({
 }) {
   return (
     <div
-      className="grid grid-cols-1 gap-0 sm:grid-cols-2"
+      className="grid grid-cols-1 gap-0 sm:grid-cols-3"
       role="radiogroup"
       aria-label="Starting point"
     >
@@ -52,9 +52,7 @@ export function SourceModePicker({
             disabled={disabled}
             onClick={() => onChange(tab.id)}
             className={cn(
-              // 2×2 on wider screens: divider between the columns, a rule
-              // under the first row only.
-              "group relative flex flex-col justify-start border-b border-indigo-lift py-4 text-start transition sm:odd:border-e sm:odd:pe-4 sm:even:ps-4 sm:[&:nth-last-child(-n+2)]:border-b-0",
+              "group relative flex flex-col justify-start border-b border-indigo-lift py-4 text-start transition sm:border-b-0 sm:border-e sm:px-4 sm:first:ps-0 sm:last:border-e-0 sm:last:pe-0",
               selected ? "text-greige" : "text-chalk/55 hover:text-chalk",
             )}
           >
@@ -211,9 +209,11 @@ export function StudioActions({
   meta?: ReactNode;
 }) {
   return (
-    <div className="mt-8 border-t border-indigo-lift pt-6">
-      {meta && <div className="mb-4 text-[11px] text-chalk">{meta}</div>}
-      <div className="flex flex-wrap items-center gap-5">{children}</div>
+    // Pinned to the bottom of the viewport while the form scrolls, so the
+    // main button (and its price) is always in reach.
+    <div className="sticky bottom-0 z-20 mt-8 border-t border-ink/15 bg-greige/95 py-4 backdrop-blur-sm">
+      {meta && <div className="mb-3 text-[11.5px] text-ink/60">{meta}</div>}
+      <div className="flex flex-wrap items-center gap-4">{children}</div>
     </div>
   );
 }
