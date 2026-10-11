@@ -4,6 +4,7 @@ import { Download, RotateCcw, Save } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { downloadImage } from "./studio/download-image";
 
 import { usdToPkrAtRate } from "../currency";
 import { POSE_PRESETS } from "../prompt-builder";
@@ -338,14 +339,12 @@ export function ResultScreen({
             variant="outline"
             disabled={busy}
             className="rounded-[2px] border-indigo-lift text-[13px] text-greige"
-            onClick={() => {
-              const a = document.createElement("a");
-              a.href = active.imageUrl;
-              a.download = `photoreal-${active.id.slice(0, 8)}.png`;
-              a.target = "_blank";
-              a.rel = "noopener";
-              a.click();
-            }}
+            onClick={() =>
+              downloadImage(
+                active.imageUrl,
+                `aks-photo-${active.id.slice(0, 8)}.png`,
+              )
+            }
           >
             <Download className="size-4" />
             Download

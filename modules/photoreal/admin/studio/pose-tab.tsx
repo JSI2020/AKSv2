@@ -42,6 +42,7 @@ import {
   studioLabelClass,
   useStudioToast,
 } from "./studio-primitives";
+import { downloadImage } from "./download-image";
 
 type UploadedAsset = {
   localPreview: string;
@@ -701,14 +702,16 @@ export function PoseTab({
                     >
                       Refine
                     </Button>
-                    <a
-                      href={active.imageUrl}
-                      download
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadImage(active.imageUrl, `aks-pose-${active.id.slice(0, 8)}.png`)
+                      }
                       className="inline-flex items-center gap-1 border border-indigo-lift px-2.5 py-1.5 text-[12px] text-greige rounded-[2px] hover:border-zari hover:text-zari"
                     >
                       <Download className="size-3.5" />
                       Download
-                    </a>
+                    </button>
                   </div>
                 </div>
               </StudioSection>
