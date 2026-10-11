@@ -80,6 +80,13 @@ export const designs = pgTable(
   description: text("description"),
   storyCopy: text("story_copy"),
   status: designStatusEnum("status").notNull().default("DRAFT"),
+  /**
+   * Shown in the shop as a preview (badge, browsable PDP) but not
+   * purchasable yet. Only meaningful while PUBLISHED.
+   */
+  comingSoon: boolean("coming_soon").notNull().default(false),
+  /** Optional customer-facing note, e.g. "Arriving December". */
+  comingSoonNote: text("coming_soon_note"),
   garmentTypeId: uuid("garment_type_id")
     .notNull()
     .references(() => garmentCategories.id),

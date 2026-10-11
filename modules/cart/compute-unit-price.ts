@@ -31,12 +31,20 @@ export async function computeCartLineUnitPrice(input: {
       basePriceMinor: designs.basePriceMinor,
       madeToMeasureSurchargeMinor: designs.madeToMeasureSurchargeMinor,
       status: designs.status,
+      comingSoon: designs.comingSoon,
     })
     .from(designs)
     .where(eq(designs.id, input.designId))
     .limit(1);
 
-  if (!designRow || designRow.status !== "PUBLISHED") return null;
+  // Coming-soon designs are on show but not for sale yet.
+  if (
+    !designRow ||
+    designRow.status !== "PUBLISHED" ||
+    designRow.comingSoon === true
+  ) {
+    return null;
+  }
 
   const [colourwayRow] = await db
     .select({
@@ -151,6 +159,7 @@ export async function validatePublishedDesignColourway(input: {
         eq(colourways.designId, input.designId),
         eq(colourways.active, true),
         eq(designs.status, "PUBLISHED"),
+        eq(designs.comingSoon, false),
       ),
     )
     .limit(1);

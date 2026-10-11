@@ -57,6 +57,57 @@ function leadLine(
   return formatLeadTime(null);
 }
 
+/**
+ * Replaces size + bag while a design is Coming soon: the piece is on show,
+ * the shopper can ask to be told when it's ready.
+ */
+function ComingSoonPanel({
+  sizes,
+  designName,
+  whatsappUrl,
+}: {
+  sizes: string[];
+  designName: string;
+  whatsappUrl?: string;
+}) {
+  const notifyUrl = whatsappUrl
+    ? withWhatsAppText(
+        whatsappUrl,
+        `Hello AKS, please let me know when ${designName} is available.`,
+      )
+    : null;
+  return (
+    <div className="pdp-soon" role="status">
+      <span className="pdp-soon-mark">Coming soon</span>
+      <p className="pdp-soon-text">
+        This piece is still being finished, so it can&apos;t be ordered yet.
+        {sizes.length > 0 ? ` It will come in ${sizes.join(", ")}.` : ""}
+      </p>
+      {notifyUrl ? (
+        <a
+          className="addcart pdp-soon-cta"
+          href={notifyUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Tell me when it&apos;s ready
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
+/** Adds a prefilled message to a wa.me / api.whatsapp.com link. */
+function withWhatsAppText(url: string, text: string): string {
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has("text")) u.searchParams.set("text", text);
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export function DesignConfigurator({
   design,
   sizeChart,
@@ -85,11 +136,14 @@ export function DesignConfigurator({
       (label) => (stock[label] ?? 0) > 0,
     );
   };
-  const fallbackColourwayId = shadeInStock(design.defaultColourwayId)
+  const fallbackColourwayId =
+    design.comingSoon || shadeInStock(design.defaultColourwayId)
     ? design.defaultColourwayId
     : (design.colourways.find((c) => shadeInStock(c.id))?.id ??
       design.defaultColourwayId);
-  const designSoldOut = !design.colourways.some((c) => shadeInStock(c.id));
+  const comingSoon = design.comingSoon;
+  const designSoldOut =
+    !comingSoon && !design.colourways.some((c) => shadeInStock(c.id));
 
   const initialColourwayId = resolveColourwayId(
     initialColourwayParam,
@@ -149,9 +203,10 @@ export function DesignConfigurator({
 
   const colourwaySoldOut = useMemo(
     () =>
+      !comingSoon &&
       shadeSizeLabels.length > 0 &&
       shadeSizeLabels.every((label) => (availabilityBySize[label] ?? 0) <= 0),
-    [availabilityBySize, shadeSizeLabels],
+    [availabilityBySize, shadeSizeLabels, comingSoon],
   );
 
   const retailBaseMinor = resolveShadePriceMinor(selectedColourway, design);
@@ -245,7 +300,9 @@ export function DesignConfigurator({
       />
 
       <div className="pdp-info">
-        <span className="eyebrow">Ready to wear</span>
+        <span className="eyebrow">
+          {comingSoon ? "Coming soon" : "Ready to wear"}
+        </span>
         <h1 className="serif">{design.name}</h1>
         {design.subtitle ? (
           <p className="pdp-sub">{design.subtitle}</p>
@@ -260,7 +317,9 @@ export function DesignConfigurator({
           ) : null}
         </div>
         <div className="pdp-lead">
-          {leadLine(design.leadTimeDaysOverride, leadTimePromise)}
+          {comingSoon
+            ? design.comingSoonNote?.trim() || "Coming soon · not yet available to order"
+            : leadLine(design.leadTimeDaysOverride, leadTimePromise)}
         </div>
 
         {design.description ? (
@@ -270,7 +329,9 @@ export function DesignConfigurator({
         <DesignColourwayPicker
           colourways={design.colourways}
           colourwayId={state.colourwayId}
-          isSoldOut={(id) => !designSoldOut && !shadeInStock(id)}
+          isSoldOut={(id) =>
+            !comingSoon && !designSoldOut && !shadeInStock(id)
+          }
           onSelect={(id) => {
             // Keep the chosen size when the new shade has it in stock.
             const keepSize =
@@ -284,6 +345,14 @@ export function DesignConfigurator({
           }}
         />
 
+        {comingSoon ? (
+          <ComingSoonPanel
+            sizes={shadeSizeLabels}
+            designName={design.name}
+            whatsappUrl={whatsappUrl}
+          />
+        ) : (
+          <>
         <DesignSizePicker
           sizeMode={state.sizeMode}
           sizeLabel={state.sizeLabel}
@@ -328,6 +397,8 @@ export function DesignConfigurator({
           soldOut={colourwaySoldOut}
           stickyBar={stickyBar}
         />
+          </>
+        )}
 
         <div className="pdp-detail">
           <div className="drow">
@@ -339,8 +410,12 @@ export function DesignConfigurator({
             <span>{design.garmentCategory.name}</span>
           </div>
           <div className="drow">
-            <span className="k">Lead time</span>
-            <span>{leadLine(design.leadTimeDaysOverride, leadTimePromise)}</span>
+            <span className="k">{comingSoon ? "Availability" : "Lead time"}</span>
+            <span>
+              {comingSoon
+                ? design.comingSoonNote?.trim() || "Coming soon"
+                : leadLine(design.leadTimeDaysOverride, leadTimePromise)}
+            </span>
           </div>
           {design.modelDisclosure ? (
             <div className="drow">

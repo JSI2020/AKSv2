@@ -11,7 +11,7 @@ import {
   savePhotorealDesignAction,
 } from "../actions";
 import { FAL_MODEL_OPTIONS } from "../fal-config";
-import type { PromptMode } from "../prompt-builder";
+import { promptModeFromSavedPrompt, type PromptMode } from "../prompt-builder";
 
 import { ResultScreen, type StudioVersion } from "./result-screen";
 import { SettingsPanel } from "./settings-panel";
@@ -65,11 +65,15 @@ export function DesignDetailClient({ designId }: { designId: string }) {
         oldDesignUrl: data.oldDesignUrl ?? undefined,
         houseModelId: data.houseModelId ?? "ayesha",
         houseModelName: data.houseModelName ?? "Ayesha",
-        promptMode: data.sketchUrls.length
-          ? "sketch"
-          : data.oldDesignUrl
-            ? "old-design"
-            : "description",
+        // Saved designs don't store their mode — read it back from the first
+        // prompt so a mannequin/repose design keeps its garment lock.
+        promptMode:
+          promptModeFromSavedPrompt(data.versions[0]?.prompt) ??
+          (data.sketchUrls.length
+            ? "sketch"
+            : data.oldDesignUrl
+              ? "old-design"
+              : "description"),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load design.");

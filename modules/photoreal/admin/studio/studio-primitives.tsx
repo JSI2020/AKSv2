@@ -14,18 +14,17 @@ import { LayoutGrid, Settings2, X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-export type StudioTabId = "render" | "fabric" | "sizing" | "repose";
+export type StudioTabId = "photograph" | "create" | "fabric" | "sizing";
 
-const STUDIO_TABS: Array<{
-  id: StudioTabId;
-  label: string;
-  target: string;
-}> = [
-  { id: "render", label: "Sketch", target: "Look" },
-  { id: "fabric", label: "Fabric", target: "Photograph" },
-  { id: "sizing", label: "Garment", target: "Sizes" },
-  { id: "repose", label: "Photo", target: "Pose" },
+/** Studio tools, named for the job — the two main tools first. */
+const STUDIO_TABS: Array<{ id: StudioTabId; label: string }> = [
+  { id: "photograph", label: "Photograph a dress" },
+  { id: "create", label: "Create a look" },
+  { id: "fabric", label: "Fabric shot" },
+  { id: "sizing", label: "Size chart" },
 ];
+
+export type StudioQuality = "standard" | "high";
 
 type ToastContextValue = {
   toast: (message: string) => void;
@@ -56,7 +55,7 @@ export function StudioToastProvider({ children }: { children: ReactNode }) {
       {message && (
         <div
           role="status"
-          className="pointer-events-none fixed inset-inline-start-1/2 bottom-6 z-50 -translate-x-1/2 border border-indigo-lift bg-ink px-4 py-2.5 text-[13px] text-greige rounded-[2px]"
+          className="pointer-events-none fixed bottom-24 left-1/2 z-50 -translate-x-1/2 bg-ink px-4 py-2.5 text-[13px] text-milk rounded-[2px]"
         >
           {message}
         </div>
@@ -76,12 +75,17 @@ export function StudioShell({
   onTabChange,
   subtitle,
   onOpenSettings,
+  quality,
+  onQualityChange,
   children,
 }: {
   tab: StudioTabId;
   onTabChange: (tab: StudioTabId) => void;
   subtitle: ReactNode;
   onOpenSettings: () => void;
+  /** Image model tier — Standard, or High detail at about twice the cost. */
+  quality?: StudioQuality;
+  onQualityChange?: (quality: StudioQuality) => void;
   children: ReactNode;
 }) {
   return (
@@ -91,9 +95,9 @@ export function StudioShell({
           AI Studio
         </p>
 
-        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-5 border-b border-indigo-lift pb-0">
+        <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-4 border-b border-indigo-lift pb-0">
           <div
-            className="flex flex-wrap items-end gap-8 sm:gap-12"
+            className="-mx-1 flex max-w-full items-end gap-7 overflow-x-auto px-1 [scrollbar-width:none] sm:gap-10"
             role="tablist"
             aria-label="Studio tools"
           >
@@ -107,23 +111,19 @@ export function StudioShell({
                   aria-selected={selected}
                   onClick={() => onTabChange(item.id)}
                   className={cn(
-                    "group relative -mb-px pb-4 pt-0.5 text-start transition-colors",
+                    "group relative -mb-px shrink-0 whitespace-nowrap pb-4 pt-0.5 text-start transition-colors",
                     "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zari",
                   )}
                 >
                   <span
                     className={cn(
-                      "font-display text-[24px] leading-[1.05] tracking-[0.01em] sm:text-[28px]",
+                      "font-display text-[21px] leading-[1.05] tracking-[0.01em] sm:text-[26px]",
                       selected
-                        ? "text-greige"
-                        : "text-chalk/45 group-hover:text-chalk/75",
+                        ? "text-ink"
+                        : "text-ink/50 group-hover:text-ink/80",
                     )}
                   >
                     {item.label}
-                    <span className="px-1.5 font-sans text-[0.72em] font-normal opacity-45">
-                      →
-                    </span>
-                    {item.target}
                   </span>
                   <span
                     aria-hidden
@@ -137,7 +137,42 @@ export function StudioShell({
             })}
           </div>
 
-          <nav className="mb-4 flex items-center gap-7">
+          <nav className="mb-4 flex flex-wrap items-center gap-x-7 gap-y-3">
+            {quality && onQualityChange && (
+              <div
+                role="radiogroup"
+                aria-label="Image quality"
+                className="inline-flex items-center border border-ink/20 text-[11px] rounded-[2px]"
+              >
+                {(
+                  [
+                    ["standard", "Standard"],
+                    ["high", "High detail · 2×"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    role="radio"
+                    aria-checked={quality === value}
+                    onClick={() => onQualityChange(value)}
+                    className={cn(
+                      "px-2.5 py-1 font-semibold tracking-[0.04em] transition-colors",
+                      quality === value
+                        ? "bg-ink text-milk"
+                        : "text-ink/65 hover:text-ink",
+                    )}
+                    title={
+                      value === "high"
+                        ? "Sharper embroidery and fine detail — about twice the cost per photo"
+                        : "Fast and economical — good for most catalogue shots"
+                    }
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             <Link
               href="/admin/photoreal/gallery"
               className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-chalk transition hover:text-greige"
@@ -156,7 +191,7 @@ export function StudioShell({
           </nav>
         </div>
 
-        <p className="mt-6 max-w-[44rem] text-[13.5px] leading-[1.6] text-chalk">
+        <p className="mt-6 max-w-[44rem] text-[13.5px] leading-[1.6] text-ink/70">
           {subtitle}
         </p>
       </header>
@@ -297,20 +332,21 @@ export function StudioDropzone({
         if (e.dataTransfer.files.length) onDrop?.(e.dataTransfer.files);
       }}
       className={cn(
-        "cursor-pointer border border-dashed border-indigo-lift/90 bg-indigo/40 text-center transition-colors rounded-[2px]",
-        slim ? "px-3 py-3" : "px-6 py-10",
-        dragOver && "border-zari bg-indigo-lift/25",
+        "cursor-pointer border border-dashed border-ink/25 bg-milk/70 text-center transition-colors rounded-[2px] hover:border-zari hover:bg-milk",
+        "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zari",
+        slim ? "px-3 py-3" : "px-6 py-9",
+        dragOver && "border-zari bg-milk",
         disabled && "pointer-events-none opacity-50",
       )}
     >
-      <p className={cn("text-greige", slim ? "text-[12px]" : "text-[13.5px]")}>
+      <p className={cn("text-ink", slim ? "text-[12.5px]" : "text-[14px]")}>
         {label}
       </p>
-      <p className="mt-1 text-[11px] text-chalk">{sublabel}</p>
+      <p className="mt-1 text-[11.5px] text-ink/60">{sublabel}</p>
       <button
         type="button"
         tabIndex={-1}
-        className="mt-3 text-[12px] font-semibold text-zari underline-offset-2 hover:underline"
+        className="mt-3 border-b border-zari pb-0.5 text-[12px] font-semibold text-ink"
         onClick={(e) => {
           e.stopPropagation();
           onChoose();
@@ -341,9 +377,15 @@ export type ThumbAsset = {
 export function ThumbRow({
   assets,
   onRemove,
+  onMakeMain,
 }: {
   assets: ThumbAsset[];
   onRemove: (index: number) => void;
+  /**
+   * When set, the first thumbnail is badged "Main" and clicking another one
+   * makes it the main photo (multi-photo garment references).
+   */
+  onMakeMain?: (index: number) => void;
 }) {
   if (!assets.length) return null;
   return (
@@ -351,14 +393,39 @@ export function ThumbRow({
       {assets.map((asset, i) => (
         <div
           key={`${asset.localPreview}-${i}`}
-          className="relative size-14 overflow-hidden border border-indigo-lift rounded-[2px]"
+          className={cn(
+            "relative size-14 overflow-hidden border rounded-[2px]",
+            onMakeMain && i === 0 ? "border-zari" : "border-indigo-lift",
+          )}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={asset.localPreview}
-            alt={asset.name}
-            className="size-full object-cover"
-          />
+          {onMakeMain && i > 0 ? (
+            <button
+              type="button"
+              className="size-full"
+              title="Make this the main photo"
+              aria-label={`Make ${asset.name} the main photo`}
+              onClick={() => onMakeMain(i)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={asset.localPreview}
+                alt={asset.name}
+                className="size-full object-cover"
+              />
+            </button>
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={asset.localPreview}
+              alt={asset.name}
+              className="size-full object-cover"
+            />
+          )}
+          {onMakeMain && i === 0 && (
+            <span className="absolute inset-x-0 bottom-0 bg-zari/90 py-px text-center text-[8.5px] font-semibold uppercase tracking-[0.12em] text-indigo">
+              Main
+            </span>
+          )}
           <button
             type="button"
             aria-label="Remove"
@@ -382,4 +449,8 @@ export const studioFieldClass =
 export const studioLabelClass =
   "mb-1.5 block text-[10px] font-semibold uppercase tracking-[0.14em] text-chalk";
 
-export const studioHintClass = "mt-1.5 text-[11px] leading-snug text-chalk/90";
+export const studioHintClass = "mt-1.5 text-[11.5px] leading-snug text-ink/60";
+
+/** Main call-to-action — clearly different when it can't be pressed yet. */
+export const studioPrimaryButtonClass =
+  "min-w-[9rem] rounded-[2px] border border-zari bg-zari px-5 py-2 text-[13px] font-semibold text-indigo hover:bg-zari/90 disabled:border-ink/20 disabled:bg-transparent disabled:text-ink/40 disabled:opacity-100";

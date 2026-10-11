@@ -8,6 +8,7 @@ import { loadActiveCart } from "@/modules/cart/queries";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { AksSvgSprite } from "@/modules/shop/shell/aks-svg-sprite";
 import { ShopFooter, ShopHeader } from "@/modules/shop/shell/chrome";
+import { MotionEnhancer } from "@/modules/shop/shell/motion-enhancer";
 import { ShopNuqsProvider } from "@/modules/shop/shell/nuqs-provider";
 import { fontShopDisplay, fontShopSans } from "@/lib/fonts";
 
@@ -33,6 +34,7 @@ export default async function ShopLayout({
           <ShopFooter />
           <CartDrawer />
           <AddToCartToast />
+          <MotionEnhancer />
         </div>
       </CartProvider>
     </ShopNuqsProvider>

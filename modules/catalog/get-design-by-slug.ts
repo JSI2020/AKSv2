@@ -216,6 +216,8 @@ export async function getDesignBySlug(
     compareAtEndsAt: row.design.compareAtEndsAt,
     madeToMeasureSurchargeMinor: row.design.madeToMeasureSurchargeMinor,
     leadTimeDaysOverride: row.design.leadTimeDaysOverride,
+    comingSoon: row.design.comingSoon,
+    comingSoonNote: row.design.comingSoonNote,
     components: row.design.components ?? [],
     sizeBlockId: row.design.sizeBlockId,
     pieceSizeBlocks: row.design.pieceSizeBlocks ?? {},

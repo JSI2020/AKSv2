@@ -79,9 +79,14 @@ export function DesignCard({
   const sil = silhouetteFor(design);
 
   return (
-    <Link href={`/designs/${design.slug}`} className="card group">
+    <Link
+      href={`/designs/${design.slug}`}
+      className={`card group${design.comingSoon ? " is-soon" : ""}`}
+    >
       <div className="frame">
-        {percentOff ? (
+        {design.comingSoon ? (
+          <span className="soon-badge">Coming soon</span>
+        ) : percentOff ? (
           <span className="sale-badge">−{percentOff}%</span>
         ) : null}
         <WishlistHeart

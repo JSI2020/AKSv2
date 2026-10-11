@@ -3,7 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
-import { STUDIO_BACKGROUND_PRESETS } from "@/modules/designs/studio-backgrounds";
+import { groupedStudioBackgrounds } from "@/modules/designs/studio-backgrounds";
 import { COMMERCIAL_POSES } from "../../commercial-poses";
 import { INPUT_SOURCE_TABS, type PromptMode } from "../../prompt-builder";
 
@@ -15,6 +15,7 @@ import {
 
 const POSE_CATEGORIES = [
   "Standing",
+  "Portrait",
   "Leaning",
   "Walking",
   "Seated",
@@ -51,7 +52,7 @@ export function SourceModePicker({
             disabled={disabled}
             onClick={() => onChange(tab.id)}
             className={cn(
-              "group relative border-b border-indigo-lift py-4 text-start transition sm:border-b-0 sm:border-e sm:px-4 sm:first:ps-0 sm:last:border-e-0 sm:last:pe-0",
+              "group relative flex flex-col justify-start border-b border-indigo-lift py-4 text-start transition sm:border-b-0 sm:border-e sm:px-4 sm:first:ps-0 sm:last:border-e-0 sm:last:pe-0",
               selected ? "text-greige" : "text-chalk/55 hover:text-chalk",
             )}
           >
@@ -85,12 +86,15 @@ export function PoseSelect({
   onChange,
   disabled,
   hint,
+  emptyLabel = "Random pose (recommended)",
 }: {
   id?: string;
   value: string;
   onChange: (poseId: string) => void;
   disabled?: boolean;
   hint?: string;
+  /** Label for the "no specific pose" option — its meaning depends on context. */
+  emptyLabel?: string;
 }) {
   const grouped = useMemo(() => {
     return POSE_CATEGORIES.map((category) => ({
@@ -111,7 +115,7 @@ export function PoseSelect({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value)}
       >
-        <option value="">Random each render (recommended)</option>
+        <option value="">{emptyLabel}</option>
         {grouped.map(({ category, poses }) => (
           <optgroup key={category} label={category}>
             {poses.map((pose) => (
@@ -157,11 +161,7 @@ export function BackgroundSelect({
           disabled={disabled || hasCustom}
           onChange={(e) => onPresetChange(e.target.value)}
         >
-          {STUDIO_BACKGROUND_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
-            </option>
-          ))}
+          <BackgroundOptions />
         </select>
       </div>
       <div>
@@ -177,10 +177,27 @@ export function BackgroundSelect({
           onChange={(e) => onCustomChange(e.target.value)}
         />
         <p className={studioHintClass}>
-          Overrides the preset when filled. Real location photography only.
+          Overrides the preset when filled — a real location or a studio.
         </p>
       </div>
     </div>
+  );
+}
+
+/** Background presets as grouped <option>s (Studio, Heritage, Interiors, Outdoors). */
+export function BackgroundOptions() {
+  return (
+    <>
+      {groupedStudioBackgrounds().map(({ group, presets }) => (
+        <optgroup key={group} label={group}>
+          {presets.map((preset) => (
+            <option key={preset.id} value={preset.id}>
+              {preset.label}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
   );
 }
 
@@ -192,9 +209,11 @@ export function StudioActions({
   meta?: ReactNode;
 }) {
   return (
-    <div className="mt-8 border-t border-indigo-lift pt-6">
-      {meta && <div className="mb-4 text-[11px] text-chalk">{meta}</div>}
-      <div className="flex flex-wrap items-center gap-5">{children}</div>
+    // Pinned to the bottom of the viewport while the form scrolls, so the
+    // main button (and its price) is always in reach.
+    <div className="sticky bottom-0 z-20 mt-8 border-t border-ink/15 bg-greige/95 py-4 backdrop-blur-sm">
+      {meta && <div className="mb-3 text-[11.5px] text-ink/60">{meta}</div>}
+      <div className="flex flex-wrap items-center gap-4">{children}</div>
     </div>
   );
 }

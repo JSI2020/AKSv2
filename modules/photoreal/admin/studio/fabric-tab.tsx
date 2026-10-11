@@ -20,6 +20,7 @@ import {
   studioLabelClass,
   useStudioToast,
 } from "./studio-primitives";
+import { downloadImage } from "./download-image";
 
 const LIGHTING = ["Even daylight", "Soft north-light", "Diffuse studio"];
 const BACKGROUNDS = ["Neutral grey", "Soft white", "Cool stone", "Deep charcoal"];
@@ -244,16 +245,16 @@ export function FabricTab() {
                 even daylight preserve swatch tone best — avoid warm-paper if
                 your grey is shifting beige.
               </p>
-              <a
-                href={resultUrl}
-                download="fabric-catalogue.png"
-                target="_blank"
-                rel="noopener noreferrer"
+              <button
+                type="button"
+                onClick={() =>
+                  downloadImage(resultUrl, "aks-fabric-catalogue.png")
+                }
                 className="inline-flex items-center gap-2 border border-zari px-4 py-2 text-[13px] font-semibold text-zari rounded-[2px] hover:bg-indigo-lift"
               >
                 <Download className="size-4" />
                 Download catalogue photograph
-              </a>
+              </button>
             </div>
           )}
         </div>

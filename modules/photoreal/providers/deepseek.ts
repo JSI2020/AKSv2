@@ -10,8 +10,11 @@ export type PromptPolishInput = {
   fabric?: string;
   feedback?: string;
   mode: "generate" | "refine";
-  /** sketch = fidelity; old-design = restyle; repose = pose/model only; description = text-only invent. */
-  inputMode?: "sketch" | "old-design" | "description" | "repose";
+  /**
+   * sketch = fidelity; old-design = restyle; repose = pose/model only;
+   * description = text-only invent; mannequin = exact garment onto a model, pressed.
+   */
+  inputMode?: "sketch" | "old-design" | "description" | "repose" | "mannequin";
 };
 
 export type PromptPolishResult = {
@@ -79,6 +82,19 @@ Rules:
 - Keep modest fashion catalogue tone. No objectifying language.
 - Prefer short phrases suitable to append to an image prompt.`;
 
+const SYSTEM_MANNEQUIN = `You polish short notes for moving a garment photographed on a MANNEQUIN onto a real house model. The garment design must not change at all; it is only shown freshly pressed.
+
+Rules:
+- Output ONLY valid JSON with keys: description, shirtColour, trouserColour, fabric, feedback (all strings; use "" if unused).
+- Never invent or change silhouette, neckline, sleeves, hem, length, embroidery, print, trims, or colourway. Leave shirtColour, trouserColour, and fabric empty unless the user explicitly named them — and then only restate them as colours/fabric to reproduce accurately.
+- Notes like "keep the cloth the same" or "don't change anything" mean: reproduce the garment exactly. Do not turn them into design changes.
+- Background / setting requests → concrete real photographic locations that suit the dress (courtyard, foyer, garden, terrace, boutique) — not flat seamless paper.
+- Pose / angle requests → concrete commercial fashion stances.
+- Lighting and mood requests are allowed. Nothing may alter the garment itself.
+- Keep modest fashion catalogue tone. No objectifying language.
+- Prefer short phrases suitable to append to an image prompt.
+- For refine mode, put the change request mainly in "feedback".`;
+
 const SYSTEM_DESCRIPTION = `You polish short, messy fashion notes into a clear outfit brief for TEXT-ONLY photoreal fashion generation (no sketch).
 
 Rules:
@@ -93,6 +109,7 @@ Rules:
 function systemFor(input: PromptPolishInput): string {
   if (input.inputMode === "old-design") return SYSTEM_OLD_DESIGN;
   if (input.inputMode === "repose") return SYSTEM_REPOSE;
+  if (input.inputMode === "mannequin") return SYSTEM_MANNEQUIN;
   if (input.inputMode === "description") return SYSTEM_DESCRIPTION;
   return SYSTEM_SKETCH;
 }

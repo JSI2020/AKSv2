@@ -1137,11 +1137,28 @@
   text-transform: uppercase;
 }
 
-.shop-proto .nav-mobile a {
+.shop-proto .nav-mobile a,
+.shop-proto .nav-mobile > button {
   display: flex;
   align-items: center;
   min-height: 44px;
   padding-block: 0.25rem;
+}
+
+/* The Search entry is a button — match the links (left-aligned, same case
+   and tracking) instead of the default centred button text. */
+.shop-proto .nav-mobile > button {
+  width: 100%;
+  justify-content: flex-start;
+  padding-inline: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-align: start;
+  text-transform: uppercase;
+  cursor: pointer;
 }
 
 .shop-proto .nav-mobile.open {
@@ -3404,6 +3421,53 @@
   color: var(--milk);
 }
 
+/* Coming soon — on show, not for sale yet */
+.shop-proto .soon-badge {
+  position: absolute;
+  inset-block-start: 0.7rem;
+  inset-inline-start: 0.7rem;
+  z-index: 3;
+  background: var(--milk);
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.3rem 0.5rem;
+  border-radius: var(--r, 1px);
+}
+
+.shop-proto .pdp-soon {
+  margin-top: 2rem;
+  padding: 1.25rem 1.25rem 1.35rem;
+  border: 1px solid var(--line, rgba(26, 23, 20, 0.14));
+  background: var(--ivory);
+}
+
+.shop-proto .pdp-soon-mark {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom: 1px solid var(--ink);
+  padding-bottom: 0.2rem;
+}
+
+.shop-proto .pdp-soon-text {
+  margin: 0.85rem 0 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--taupe);
+}
+
+.shop-proto .pdp-soon-cta {
+  display: block;
+  text-align: center;
+  margin-top: 1.25rem;
+  text-decoration: none;
+}
+
 .shop-proto .addcart:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -4090,17 +4154,16 @@
     transition-duration: 0.01ms !important;
   }
 
-  .shop-proto .reveal {
-    opacity: 1;
-    transform: none;
-  }
-
+  /* No movement — but keep a soft fade-in so the page still feels alive
+     (many phones run with "reduce motion" / "remove animations" on). */
+  .shop-proto .reveal,
   .shop-proto .edit-mosaic-item,
   .shop-proto .pdp-related-item,
   .shop-proto .lookbook-card {
-    opacity: 1;
-    transform: none;
-    transition: none;
+    transform: none !important;
+    transition-property: opacity !important;
+    transition-duration: 0.6s !important;
+    transition-timing-function: ease !important;
   }
 
   .shop-proto .lookbook-media img,
@@ -4124,6 +4187,11 @@
 }
 .admin-shell main .text-chalk {
   color: color-mix(in oklab, var(--color-ink) 55%, transparent);
+}
+/* Opacity variants (text-chalk/45, /80, /90 …) escaped the remap above and
+   rendered as pale blue on greige — unreadable. Map them all to ink grey. */
+.admin-shell main [class*="text-chalk/"] {
+  color: color-mix(in oklab, var(--color-ink) 52%, transparent);
 }
 .admin-shell main .border-indigo-lift {
   border-color: color-mix(in oklab, var(--color-ink) 12%, transparent);
@@ -4456,6 +4524,129 @@
   .shop-proto .pdp-buybar,
   .shop-proto .toast {
     display: none !important;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Storefront motion, part 3 — phones. Touch screens can't hover, so the
+   desktop hover reveals play when an element settles in view instead
+   (`in-view` is toggled by MotionEnhancer). Everything here is gated on
+   `.js-motion`, so with JS off nothing is hidden.
+   ───────────────────────────────────────────────────────────────────────── */
+@media (hover: none) and (prefers-reduced-motion: no-preference) {
+  /* Living product cards: the second photo wipes up a beat after the card
+     settles on screen, with a slow push-in on the image. */
+  .js-motion .shop-proto .card .frame .figB {
+    opacity: 1;
+    clip-path: inset(100% 0 0 0);
+    transition: clip-path 1.1s cubic-bezier(0.65, 0, 0.35, 1) 0.9s;
+  }
+
+  .js-motion .shop-proto .card.in-view .frame .figB {
+    clip-path: inset(0 0 0 0);
+  }
+
+  .js-motion .shop-proto .card .frame .imgslot img {
+    transition: transform 7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .js-motion .shop-proto .card.in-view .frame .imgslot img {
+    transform: scale(1.04);
+  }
+
+  /* Category doors: slow push-in, label lifts into place. */
+  .js-motion .shop-proto .cat .cat-photo img {
+    transition: transform 7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .js-motion .shop-proto .cat.in-view .cat-photo img {
+    transform: scale(1.07);
+  }
+
+  .js-motion .shop-proto .cat .label {
+    transform: translateY(8px);
+    transition: transform 0.9s cubic-bezier(0.16, 1, 0.3, 1) 0.15s;
+  }
+
+  .js-motion .shop-proto .cat.in-view .label {
+    transform: translateY(0);
+  }
+
+  /* Tap feedback — a small press under the thumb. */
+  .shop-proto .card:active .frame,
+  .shop-proto .cat:active,
+  .shop-proto .lookbook-card:active {
+    transform: scale(0.985);
+    transition: transform 0.15s ease;
+  }
+
+  .shop-proto .addcart:active:not(:disabled),
+  .shop-proto .pdp-buybar-btn:active:not(:disabled),
+  .shop-proto .hero-cta a:active,
+  .shop-proto .edit-explore:active,
+  .shop-proto .filters button:active,
+  .shop-proto .std button:active:not(:disabled),
+  .shop-proto .colour:active {
+    transform: scale(0.96);
+    transition: transform 0.12s ease;
+  }
+}
+
+/* Mobile menu: slides down, links arrive one after another. */
+@media (prefers-reduced-motion: no-preference) {
+  .shop-proto .nav-mobile.open {
+    animation: aks-menu-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .shop-proto .nav-mobile.open > * {
+    animation: aks-menu-item 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .shop-proto .nav-mobile.open > :nth-child(1) { animation-delay: 0.04s; }
+  .shop-proto .nav-mobile.open > :nth-child(2) { animation-delay: 0.08s; }
+  .shop-proto .nav-mobile.open > :nth-child(3) { animation-delay: 0.12s; }
+  .shop-proto .nav-mobile.open > :nth-child(4) { animation-delay: 0.16s; }
+  .shop-proto .nav-mobile.open > :nth-child(5) { animation-delay: 0.2s; }
+  .shop-proto .nav-mobile.open > :nth-child(n + 6) { animation-delay: 0.24s; }
+}
+
+@keyframes aks-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes aks-menu-item {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* No scroll-driven CSS (older iOS Safari): same hero drift and reading
+   progress, fed by MotionEnhancer's scroll variables. */
+@media (prefers-reduced-motion: no-preference) {
+  .no-scroll-timeline .shop-proto .hero .imgslot {
+    transform: translateY(calc(var(--hero-progress, 0) * 7%)) scale(1.06);
+    will-change: transform;
+  }
+
+  .no-scroll-timeline .shop-proto .shop-topchrome::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 1px;
+    background: var(--gold);
+    transform-origin: 0 50%;
+    transform: scaleX(var(--scroll-progress, 0));
+    pointer-events: none;
+    z-index: 3;
+  }
+
+  [dir="rtl"] .no-scroll-timeline .shop-proto .shop-topchrome::after {
+    transform-origin: 100% 50%;
   }
 }
 

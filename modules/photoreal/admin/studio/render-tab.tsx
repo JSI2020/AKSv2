@@ -14,6 +14,8 @@ import {
   uploadPhotorealFilesAction,
 } from "../../actions";
 import { usdToPkrAtRate } from "../../currency";
+import { STUDIO_BACKGROUND_PRESETS } from "@/modules/designs/studio-backgrounds";
+
 import { FAL_MODEL_OPTIONS } from "../../fal-config";
 import {
   HOUSE_MODELS,
@@ -24,6 +26,7 @@ import { POSE_PRESETS, type PromptMode } from "../../prompt-builder";
 import type { StudioVersion } from "../result-screen";
 
 import {
+  BackgroundOptions,
   BackgroundSelect,
   PoseSelect,
   SourceModePicker,
@@ -39,8 +42,10 @@ import {
   studioFieldClass,
   studioHintClass,
   studioLabelClass,
+  studioPrimaryButtonClass,
   useStudioToast,
 } from "./studio-primitives";
+import { downloadImage } from "./download-image";
 
 const DEFAULT_BACKGROUND_PRESET = "courtyard";
 
@@ -57,6 +62,8 @@ type DraftMeta = {
   fabric: string;
   sketchUrls: string[];
   oldDesignUrl?: string;
+  /** All uploaded garment photos (main first) — re-sent on refine. */
+  oldDesignUrls: string[];
   houseModelId: string;
   houseModelName: string;
   promptMode: PromptMode;
@@ -89,11 +96,14 @@ export function RenderTab({
   defaultHouseModelId,
   sessionCostPkr,
   usdPkrRate,
+  perImagePkr,
   onSessionCost,
 }: {
   defaultHouseModelId: HouseModelSelection;
   sessionCostPkr?: number;
   usdPkrRate: number;
+  /** Estimated cost of one photo at the current quality, in PKR. */
+  perImagePkr: number;
   onSessionCost: (deltaUsd: number) => void;
 }) {
   const toast = useStudioToast();
@@ -117,6 +127,8 @@ export function RenderTab({
   );
   const [backgroundCustom, setBackgroundCustom] = useState("");
   const [refinePoseId, setRefinePoseId] = useState("");
+  /** "" = keep the current background on refine. */
+  const [refineBackgroundPreset, setRefineBackgroundPreset] = useState("");
   const [uploading, setUploading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState("Generating…");
@@ -136,10 +148,13 @@ export function RenderTab({
     setHouseModelId(defaultHouseModelId);
   }, [defaultHouseModelId]);
 
+  /** Modes that start from uploaded garment photos (not sketches). */
+  const photoUpload = sourceMode === "old-design";
+
   const canGenerate =
     sourceMode === "sketch"
       ? sketches.length > 0
-      : sourceMode === "old-design"
+      : photoUpload
         ? oldDesigns.length > 0
         : Boolean(description.trim());
 
@@ -180,12 +195,11 @@ export function RenderTab({
     setBusy(true);
     setBusyLabel("Generating…");
     setError(null);
-    const oldUrls =
-      sourceMode === "old-design" ? oldDesigns.map((s) => s.url) : [];
+    const oldUrls = photoUpload ? oldDesigns.map((s) => s.url) : [];
     setSketchPreviews(
       sourceMode === "sketch"
         ? sketches.map((s) => s.localPreview)
-        : sourceMode === "old-design"
+        : photoUpload
           ? oldDesigns.map((s) => s.localPreview)
           : [],
     );
@@ -228,6 +242,7 @@ export function RenderTab({
         sketchUrls:
           sourceMode === "sketch" ? sketches.map((s) => s.url) : [],
         oldDesignUrl: oldUrls[0],
+        oldDesignUrls: oldUrls,
         houseModelId: data.houseModel?.id ?? "ayesha",
         houseModelName: data.houseModel?.name ?? "Ayesha",
         promptMode: data.promptMode ?? sourceMode,
@@ -248,27 +263,44 @@ export function RenderTab({
   };
 
   const handleRefine = async () => {
-    if (!active || !draft || (!feedback.trim() && !refinePoseId)) return;
+    if (
+      !active ||
+      !draft ||
+      (!feedback.trim() && !refinePoseId && !refineBackgroundPreset)
+    ) {
+      return;
+    }
     setBusy(true);
     setBusyLabel("Refining…");
     setError(null);
+    // A new background from the Refine picker is sent as an explicit change
+    // request (the prompt treats "background" feedback as a scene swap).
+    const newBackground = STUDIO_BACKGROUND_PRESETS.find(
+      (p) => p.id === refineBackgroundPreset,
+    );
+    const refineFeedback = newBackground
+      ? [feedback.trim(), `Change the background to: ${newBackground.prompt}`]
+          .filter(Boolean)
+          .join(". ")
+      : feedback;
     try {
       const data = await refinePhotorealAction({
         baseImageUrl: active.imageUrl,
         sketchUrls: draft.sketchUrls,
         oldDesignUrl: draft.oldDesignUrl,
+        oldDesignUrls: draft.oldDesignUrls,
         parentVersionId: active.id,
         description: draft.description,
         shirtColour: draft.shirtColour,
         trouserColour: draft.trouserColour,
         fabric: draft.fabric,
-        feedback,
+        feedback: refineFeedback,
         previousTotalCost: totalCost,
         houseModelId: draft.houseModelId,
         promptMode: draft.promptMode,
         poseId: refinePoseId || null,
-        backgroundPreset: draft.backgroundPreset,
-        backgroundCustom: draft.backgroundCustom,
+        backgroundPreset: newBackground?.id ?? draft.backgroundPreset,
+        backgroundCustom: newBackground ? "" : draft.backgroundCustom,
       });
 
       if (!data.ok || !data.version) {
@@ -281,6 +313,14 @@ export function RenderTab({
       setActiveVersionId(data.version.id);
       setTotalCost(data.totalCost);
       setFeedback("");
+      if (newBackground) {
+        setDraft((d) =>
+          d
+            ? { ...d, backgroundPreset: newBackground.id, backgroundCustom: "" }
+            : d,
+        );
+        setRefineBackgroundPreset("");
+      }
       toast("Refinement complete");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Refine failed.");
@@ -334,6 +374,7 @@ export function RenderTab({
     setBackgroundPreset(DEFAULT_BACKGROUND_PRESET);
     setBackgroundCustom("");
     setRefinePoseId("");
+    setRefineBackgroundPreset("");
     setVersions([]);
     setActiveVersionId("");
     setDraft(null);
@@ -378,7 +419,7 @@ export function RenderTab({
                 label={
                   sourceMode === "sketch"
                     ? "Drop sketches here"
-                    : "Drop design photos here"
+                    : "Drop inspiration photos here"
                 }
                 sublabel="PNG, JPG, WEBP — multiple OK"
                 disabled={busy || uploading}
@@ -474,7 +515,7 @@ export function RenderTab({
                   value={poseId}
                   onChange={setPoseId}
                   disabled={busy}
-                  hint="Full commercial pose library — grouped by stance."
+                  hint="Full-length, portraits, close-ups and more."
                 />
                 <BackgroundSelect
                   presetId={backgroundPreset}
@@ -589,10 +630,14 @@ export function RenderTab({
             <Button
               type="button"
               disabled={!canGenerate || busy || uploading}
-              className="min-w-[9rem] rounded-[2px] border border-zari bg-zari px-5 py-2 text-[13px] font-semibold text-indigo hover:bg-zari/90"
+              className={studioPrimaryButtonClass}
               onClick={() => void handleGenerate()}
             >
-              {uploading ? "Uploading…" : busy ? busyLabel : "Generate"}
+              {uploading
+                ? "Uploading…"
+                : busy
+                  ? busyLabel
+                  : `Generate · ~PKR ${perImagePkr.toLocaleString("en-PK")}`}
             </Button>
             <button
               type="button"
@@ -611,7 +656,11 @@ export function RenderTab({
           {!active ? (
             <EmptyOutput
               title="Your render appears here"
-              subtitle="Add a sketch and press Generate. Refinements keep the same model until you clear."
+              subtitle={
+                sourceMode === "description"
+                  ? "Write a description and press Generate. Refinements keep the same model until you clear."
+                  : "Add your upload and press Generate. Refinements keep the same model until you clear."
+              }
             />
           ) : (
             <div className="space-y-5">
@@ -697,13 +746,39 @@ export function RenderTab({
                     />
                   </div>
 
-                  <PoseSelect
-                    id="refine-pose"
-                    value={refinePoseId}
-                    onChange={setRefinePoseId}
-                    disabled={busy}
-                    hint="Or pick a pose below — then Refine."
-                  />
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <PoseSelect
+                      id="refine-pose"
+                      value={refinePoseId}
+                      onChange={setRefinePoseId}
+                      disabled={busy}
+                      emptyLabel="Keep current pose"
+                      hint="Or pick a quick pose below."
+                    />
+                    <div>
+                      <label
+                        className={studioLabelClass}
+                        htmlFor="refine-background"
+                      >
+                        Background
+                      </label>
+                      <select
+                        id="refine-background"
+                        className={studioFieldClass}
+                        value={refineBackgroundPreset}
+                        disabled={busy}
+                        onChange={(e) =>
+                          setRefineBackgroundPreset(e.target.value)
+                        }
+                      >
+                        <option value="">Keep current background</option>
+                        <BackgroundOptions />
+                      </select>
+                      <p className={studioHintClass}>
+                        The dress stays the same — only the setting changes.
+                      </p>
+                    </div>
+                  </div>
 
                   <div>
                     <p className={studioLabelClass}>Quick pose</p>
@@ -734,7 +809,12 @@ export function RenderTab({
                       type="button"
                       size="sm"
                       variant="outline"
-                      disabled={busy || (!feedback.trim() && !refinePoseId)}
+                      disabled={
+                        busy ||
+                        (!feedback.trim() &&
+                          !refinePoseId &&
+                          !refineBackgroundPreset)
+                      }
                       className="rounded-[2px] border-zari text-[12px] text-zari hover:bg-indigo-lift"
                       onClick={() => void handleRefine()}
                     >
@@ -753,14 +833,16 @@ export function RenderTab({
                       <Save className="size-3.5" />
                       Save
                     </Button>
-                    <a
-                      href={active.imageUrl}
-                      download
+                    <button
+                      type="button"
+                      onClick={() =>
+                        downloadImage(active.imageUrl, `aks-look-${active.id.slice(0, 8)}.png`)
+                      }
                       className="inline-flex items-center gap-1 border border-indigo-lift px-2.5 py-1.5 text-[12px] text-greige rounded-[2px] hover:border-zari hover:text-zari"
                     >
                       <Download className="size-3.5" />
                       Download
-                    </a>
+                    </button>
                   </div>
                 </div>
               </StudioSection>
