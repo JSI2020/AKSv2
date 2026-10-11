@@ -1,13 +1,19 @@
+import { cookies } from "next/headers";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import type { Adapter } from "next-auth/adapters";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Credentials from "next-auth/providers/credentials";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { accounts, db, sessions, users, verificationTokens } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 
 import { authConfig } from "./auth.config";
+import {
+  OAUTH_LINK_COOKIE,
+  oauthLinkDecision,
+  readOAuthLinkCookie,
+} from "@/modules/account/oauth-link";
 import { findOrCreateCustomer } from "@/modules/auth/customer-account";
 import { configuredOAuthProviders } from "@/modules/auth/providers/oauth-providers";
 import {
@@ -69,6 +75,68 @@ function aksAuthAdapter(): Adapter {
         id: uuidv7(),
       } as Parameters<NonNullable<Adapter["linkAccount"]>>[0]);
     },
+  };
+}
+
+/**
+ * A signed-in customer who starts Facebook, Instagram, TikTok, or Google from
+ * the account page gets that provider attached to the open account.
+ */
+async function attachOAuthToSignedInCustomer(account: {
+  provider: string;
+  providerAccountId: string;
+}): Promise<
+  | { decision: "attach"; id: string; email: string; name: string | null }
+  | { decision: "refuse" | "continue" }
+> {
+  let linkUserId: string | null = null;
+  try {
+    const jar = await cookies();
+    linkUserId = readOAuthLinkCookie(
+      jar.get(OAUTH_LINK_COOKIE)?.value,
+      process.env.AUTH_SECRET?.trim() ?? "",
+      Date.now(),
+    );
+  } catch {
+    return { decision: "continue" };
+  }
+  if (!linkUserId) return { decision: "continue" };
+
+  const [owner] = await db
+    .select({
+      id: users.id,
+      role: users.role,
+      status: users.status,
+      deletedAt: users.deletedAt,
+      email: users.email,
+      name: users.name,
+    })
+    .from(users)
+    .where(eq(users.id, linkUserId))
+    .limit(1);
+  const [existing] = await db
+    .select({ userId: accounts.userId })
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.provider, account.provider),
+        eq(accounts.providerAccountId, account.providerAccountId),
+      ),
+    )
+    .limit(1);
+  const decision = oauthLinkDecision({
+    linkUserId,
+    owner: owner ?? null,
+    existingAccountUserId: existing?.userId ?? null,
+  });
+  if (decision !== "attach" || !owner) {
+    return { decision: decision === "attach" ? "refuse" : decision };
+  }
+  return {
+    decision: "attach",
+    id: owner.id,
+    email: owner.email,
+    name: owner.name,
   };
 }
 
@@ -549,6 +617,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
 
         const role = (user as { role?: string }).role;
         if (role && role !== "CUSTOMER") return false;
+
+        const linked = await attachOAuthToSignedInCustomer(account);
+        if (linked.decision === "refuse") return false;
+        if (linked.decision === "attach") {
+          user.id = linked.id;
+          user.email = linked.email;
+          user.name = linked.name ?? user.name;
+          return true;
+        }
 
         const resolved = await findOrCreateCustomer({
           email: user.email,

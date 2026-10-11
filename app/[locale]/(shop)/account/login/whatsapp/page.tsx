@@ -11,8 +11,8 @@ export default async function WhatsappLoginPage() {
   const session = await auth();
   const t = await getTranslations("AccountLogin");
 
-  if (session?.user?.id) {
-    redirect("/account/orders");
+  if (session?.user?.id && session.user.role === "CUSTOMER") {
+    redirect("/account");
   }
   if (!whatsappLoginEnabled()) {
     redirect("/account/login");
@@ -31,7 +31,7 @@ export default async function WhatsappLoginPage() {
             <p className="auth-gate-lead">{t("whatsappLead")}</p>
           </div>
 
-          <WhatsappLoginForm redirectTo="/account/orders" />
+          <WhatsappLoginForm redirectTo="/account" />
         </div>
       </section>
     </ShopPageContainer>

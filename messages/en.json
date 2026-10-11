@@ -144,7 +144,23 @@
     "phoneHint": "Include country code, e.g. +92… or +49… (Pakistan: 03… also works).",
     "whatsappCode": "Send code on WhatsApp",
     "differentPhone": "Use a different number",
-    "backToSignIn": "← Back to all sign-in options"
+    "backToSignIn": "← Back to all sign-in options",
+    "signupTitle": "Create an account",
+    "signupLead": "Same house account — a code, or Facebook, Instagram, TikTok, or WhatsApp. The first successful sign-in creates it.",
+    "noPassword": "There is no password to reset. A new code is how you get back in.",
+    "newHere": "New here?",
+    "haveAccount": "Already have an account?"
+  },
+  "AccountHome": {
+    "eyebrow": "Your account",
+    "title": "Your details",
+    "navLabel": "Account",
+    "navDetails": "Details",
+    "navOrders": "Orders",
+    "signOut": "Sign out",
+    "signedOut": "Sign in to see your details, addresses, and connected sign-ins.",
+    "signIn": "Sign in",
+    "create": "Create an account"
   },
   "HomeProto": {
     "heroSlotTag": "Hero · set in admin",

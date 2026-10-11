@@ -1498,11 +1498,13 @@
 }
 
 .shop-proto .auth-field input,
+.shop-proto .auth-field select,
 .shop-proto .auth-input-wrap {
   width: 100%;
 }
 
 .shop-proto .auth-field input,
+.shop-proto .auth-field select,
 .shop-proto .auth-input-wrap input {
   width: 100%;
   min-height: 48px;
@@ -1604,7 +1606,114 @@
 }
 
 .shop-proto .auth-footnote {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
   text-align: center;
+}
+
+.shop-proto .account-home {
+  width: min(100%, 40rem);
+  margin-inline: auto;
+  padding-block: 0.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.shop-proto .account-home-title {
+  margin: 0.4rem 0 0;
+  font-size: clamp(2rem, 4vw, 2.6rem);
+  font-weight: 300;
+  line-height: 1.1;
+}
+
+.shop-proto .account-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 1.25rem;
+  font-size: 13px;
+}
+
+.shop-proto .account-nav a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.shop-proto .account-nav a[aria-current="page"] {
+  text-decoration-thickness: 2px;
+}
+
+.shop-proto .account-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.shop-proto .account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding-block: 1.1rem;
+  border-block-start: 1px solid color-mix(in oklab, var(--ink) 12%, transparent);
+}
+
+.shop-proto .account-card h2 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 300;
+}
+
+.shop-proto .account-address-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.shop-proto .account-address-list p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.shop-proto .account-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  margin-block-start: 0.35rem;
+}
+
+.shop-proto .account-address-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.shop-proto .account-signed-out-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.85rem 1.25rem;
+  margin-block-start: 1rem;
+}
+
+.shop-proto .account-delete {
+  min-height: 48px;
+  padding: 0.7rem 1rem;
+  border: 1px solid var(--oxblood, #6e2e2a);
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--oxblood, #6e2e2a);
+  font-size: 14px;
+}
+
+.shop-proto .account-delete:disabled {
+  opacity: 0.45;
 }
 
 @media (prefers-reduced-motion: no-preference) {

@@ -63,7 +63,7 @@ export async function eraseProviderAccount(
       kept = true;
       continue;
     }
-    await eraseCustomer(link.userId);
+    await eraseCustomer(link.userId, "provider");
     erased = true;
   }
   if (erased) return "erased";
@@ -71,7 +71,30 @@ export async function eraseProviderAccount(
   return "none";
 }
 
-async function eraseCustomer(userId: string): Promise<void> {
+/**
+ * Anonymise one customer and drop linked provider accounts. Order snapshots
+ * stay. Staff logins are refused. The Meta callback and the account page
+ * both use this.
+ */
+export async function eraseCustomerById(
+  userId: string,
+  source: "self" | "provider" = "self",
+): Promise<DeletionOutcome> {
+  const [user] = await db
+    .select({ role: users.role })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) return "none";
+  if (user.role !== "CUSTOMER") return "kept";
+  await eraseCustomer(userId, source);
+  return "erased";
+}
+
+async function eraseCustomer(
+  userId: string,
+  source: "self" | "provider",
+): Promise<void> {
   const [user] = await db
     .select({
       id: users.id,
@@ -164,12 +187,12 @@ async function eraseCustomer(userId: string): Promise<void> {
 
     await tx.insert(auditLogs).values({
       id: uuidv7(),
-      actorId: null,
-      actorRole: "SYSTEM",
+      actorId: source === "self" ? userId : null,
+      actorRole: source === "self" ? "CUSTOMER" : "SYSTEM",
       action: "customer.data_deletion",
       entityType: "user",
       entityId: userId,
-      before: { providersCleared: true },
+      before: { providersCleared: true, source },
       after: { status: "DISABLED", accountEmailCleared: true },
     });
   });

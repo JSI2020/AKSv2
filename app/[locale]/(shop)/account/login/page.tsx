@@ -25,8 +25,8 @@ export default async function CustomerLoginPage({ searchParams }: Props) {
   const t = await getTranslations("AccountLogin");
   const params = await searchParams;
 
-  if (session?.user?.id) {
-    redirect("/account/orders");
+  if (session?.user?.id && session.user.role === "CUSTOMER") {
+    redirect("/account");
   }
 
   const channels = storefrontAuthChannels();
@@ -46,7 +46,8 @@ export default async function CustomerLoginPage({ searchParams }: Props) {
           </div>
 
           <CustomerLoginForm
-            redirectTo="/account/orders"
+            intent="sign-in"
+            redirectTo="/account"
             channels={channels}
             initialError={oauthError}
           />

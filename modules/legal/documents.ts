@@ -182,7 +182,8 @@ export const dataDeletionDocument: LegalDocument = {
     {
       heading: "Ask us directly",
       paragraphs: [
-        `Email ${LEGAL_PLACEHOLDERS.contactEmail} from the address on the account, or include the phone number you used. Say that you want your AKS account deleted. We disable the account and clear the profile fields named below.`,
+        `Signed in? Open your account and choose Delete my account. That uses the same removal as a Meta request: the profile, saved addresses, and linked sign-ins are cleared, and you are signed out. Order copies stay.`,
+        `You can also email ${LEGAL_PLACEHOLDERS.contactEmail} from the address on the account, or include the phone number you used. Say that you want your AKS account deleted.`,
         `You can also write to ${LEGAL_PLACEHOLDERS.individualName} at ${LEGAL_PLACEHOLDERS.postalAddress}, or call ${LEGAL_PLACEHOLDERS.contactPhone}.`,
       ],
     },

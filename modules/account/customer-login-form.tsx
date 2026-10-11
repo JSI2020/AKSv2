@@ -4,7 +4,7 @@ import { useState, useTransition, type ReactNode } from "react";
 import { signIn } from "next-auth/react";
 import { useTranslations } from "next-intl";
 
-import { useRouter } from "@/i18n/routing";
+import { Link, useRouter } from "@/i18n/routing";
 import { authChannelAction } from "@/modules/auth/social/channel";
 import type {
   AuthChannelKey,
@@ -23,12 +23,13 @@ import {
 type Step = "email" | "code" | "profile";
 
 type Props = {
-  /** Where to land after signing in (locale-relative, e.g. "/account/orders"). */
+  /** Where to land after signing in (locale-relative, e.g. "/account"). */
   redirectTo: string;
   /** Channel buttons: live ones sign in; soon ones stay visible but disabled. */
   channels: AuthChannelState[];
   /** Prefill from Auth.js redirect (?error=…) — shop OAuth failures. */
   initialError?: string | null;
+  intent?: "sign-in" | "create";
 };
 
 const CHANNEL_ICON: Record<AuthChannelKey, ReactNode> = {
@@ -43,6 +44,7 @@ export function CustomerLoginForm({
   redirectTo,
   channels,
   initialError = null,
+  intent = "sign-in",
 }: Props) {
   const t = useTranslations("AccountLogin");
   const router = useRouter();
@@ -153,21 +155,19 @@ export function CustomerLoginForm({
 
   const liveChannels = channels.filter((c) => c.status === "live");
   const soonChannels = channels.filter((c) => c.status === "soon");
-  const emailLeads = liveChannels.length === 0;
+  const visibleChannels = [...liveChannels, ...soonChannels];
 
   function renderChannels(list: AuthChannelState[]) {
     if (list.length === 0) return null;
     return (
-      <div className="auth-channels" role="list">
+      <div className="auth-channels">
         {list.map((channel) => {
           const live = channel.status === "live";
           return (
             <button
               key={channel.key}
               type="button"
-              role="listitem"
               disabled={!live || pending}
-              aria-disabled={!live}
               onClick={() => onChannel(channel)}
               className={`auth-channel${live ? "" : " is-soon"}`}
             >
@@ -189,9 +189,9 @@ export function CustomerLoginForm({
 
   return (
     <div className="auth-form">
-      {step === "email" && !emailLeads ? (
+      {step === "email" && visibleChannels.length > 0 ? (
         <>
-          {renderChannels(liveChannels)}
+          {renderChannels(visibleChannels)}
           <div className="auth-divider" role="separator">
             <span>{t("orEmail")}</span>
           </div>
@@ -321,15 +321,23 @@ export function CustomerLoginForm({
         ) : null}
       </form>
 
-      {step === "email" && soonChannels.length > 0 ? (
-        <details className="auth-soon-details">
-          <summary>{emailLeads ? t("orChannels") : t("alsoSoon")}</summary>
-          {renderChannels(soonChannels)}
-        </details>
-      ) : null}
-
       {step !== "profile" ? (
-        <p className="auth-footnote">{t("footnote")}</p>
+        <div className="auth-footnote">
+          <p>{t("footnote")}</p>
+          <p>{t("noPassword")}</p>
+          {intent === "create" ? (
+            <p>
+              {t("haveAccount")} <Link href="/account/login">{t("title")}</Link>
+            </p>
+          ) : (
+            <p>
+              {t("newHere")}{" "}
+              <Link href={"/account/signup" as "/account/login"}>
+                {t("signupTitle")}
+              </Link>
+            </p>
+          )}
+        </div>
       ) : null}
     </div>
   );

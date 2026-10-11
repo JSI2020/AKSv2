@@ -3,7 +3,13 @@
 import { useTransition } from "react";
 import { signOut } from "next-auth/react";
 
-export function SignOutButton() {
+export function SignOutButton({
+  redirectTo = "/",
+  label = "Sign out",
+}: {
+  redirectTo?: string;
+  label?: string;
+}) {
   const [pending, startTransition] = useTransition();
   return (
     <button
@@ -11,13 +17,12 @@ export function SignOutButton() {
       disabled={pending}
       onClick={() =>
         startTransition(async () => {
-          await signOut({ redirect: false });
-          window.location.reload();
+          await signOut({ callbackUrl: redirectTo });
         })
       }
-      className="text-[13px] text-ink/55 underline-offset-2 hover:text-ink hover:underline disabled:opacity-50"
+      className="auth-back"
     >
-      {pending ? "Signing out…" : "Sign out"}
+      {pending ? "Signing out…" : label}
     </button>
   );
 }
