@@ -48,6 +48,8 @@ export type CustomerDetailAddress = {
   recipientName: string;
   phone: string;
   lines: string[];
+  label: string | null;
+  isDefault: boolean;
 };
 
 export type CustomerDetail = {
@@ -71,7 +73,12 @@ export type CustomerDetail = {
     isDefault: boolean;
     updatedAt: Date;
   }[];
+  /** Default address, kept for summaries. */
   contactAddress: CustomerDetailAddress | null;
+  /** Every saved address, including ones added by a later checkout. */
+  addresses: CustomerDetailAddress[];
+  /** Phones from those addresses that are not the account phone or WhatsApp. */
+  additionalPhones: string[];
   mergeHref: string | null;
 };
 

@@ -128,6 +128,29 @@ async function ensureProfile(
   });
 }
 
+function contactKey(parts: {
+  recipientName: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2?: string | null;
+  city: string;
+  province: string;
+}): string {
+  return [
+    parts.recipientName.trim().toLowerCase(),
+    normalizePhoneDigits(parts.phone),
+    parts.addressLine1.trim().toLowerCase(),
+    (parts.addressLine2 ?? "").trim().toLowerCase(),
+    parts.city.trim().toLowerCase(),
+    parts.province,
+  ].join("|");
+}
+
+/**
+ * Keep the customer's existing phone and address. A later checkout that
+ * matches them (same email) adds the new phone and address as another row
+ * instead of overwriting the one already on file.
+ */
 async function ensureAddress(
   tx: DbTx,
   userId: string,
@@ -135,18 +158,27 @@ async function ensureAddress(
 ) {
   if (!address?.addressLine1 || !address.city || !address.recipientName) return;
 
-  const [existing] = await tx
-    .select({ id: addresses.id })
+  const existing = await tx
+    .select({
+      recipientName: addresses.recipientName,
+      phone: addresses.phone,
+      addressLine1: addresses.addressLine1,
+      addressLine2: addresses.addressLine2,
+      city: addresses.city,
+      province: addresses.province,
+    })
     .from(addresses)
-    .where(and(eq(addresses.userId, userId), isNull(addresses.deletedAt)))
-    .limit(1);
-  if (existing) return;
+    .where(and(eq(addresses.userId, userId), isNull(addresses.deletedAt)));
+
+  const incoming = contactKey(address);
+  if (existing.some((row) => contactKey(row) === incoming)) return;
 
   const now = new Date();
+  const isFirst = existing.length === 0;
   await tx.insert(addresses).values({
     id: uuidv7(),
     userId,
-    label: "Shipping",
+    label: isFirst ? "Shipping" : "Checkout",
     recipientName: address.recipientName,
     phone: address.phone,
     addressLine1: address.addressLine1,
@@ -155,7 +187,7 @@ async function ensureAddress(
     province: address.province,
     postalCode: address.postalCode ?? null,
     landmark: address.landmark ?? null,
-    isDefaultShipping: true,
+    isDefaultShipping: isFirst,
     createdAt: now,
     updatedAt: now,
   });
@@ -164,6 +196,8 @@ async function ensureAddress(
 /**
  * Find or create the CUSTOMER behind a checkout or manual order.
  * Staff accounts are never reused. Email and phone are the match keys.
+ * An email match keeps the customer's current phone and default address,
+ * and stores the checkout phone and address as further entries.
  */
 export async function linkOrderCustomer(
   tx: DbTx,
