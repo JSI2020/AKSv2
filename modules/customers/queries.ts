@@ -35,6 +35,10 @@ import {
   normalizePhoneDigits,
   phoneHammingDistance,
 } from "./phone";
+import {
+  linkOrderCustomer,
+  linkUnassignedOrders,
+} from "./link-order-customer";
 import { type CrmSourceFilter, parseCrmSource } from "./source";
 import type {
   CustomerDetail,
@@ -45,7 +49,8 @@ import type {
   PhoneMatchCandidate,
 } from "./types";
 
-const PLACED = sql`${orders.status} not in ('DRAFT', 'CANCELLED')`;
+/** Drafts are unfinished. Cancelled sales still belong on the customer. */
+const HISTORY = sql`${orders.status} <> 'DRAFT'`;
 
 /** Drizzle/sql aggregates may return Date or ISO string depending on driver. */
 function asDate(value: Date | string | null | undefined): Date | null {
@@ -80,7 +85,11 @@ export async function listCustomerDirectory(input?: {
   query?: string;
   source?: CrmSourceFilter;
 }): Promise<ListCustomerDirectoryResult> {
-  await requirePermission("customers.view");
+  const session = await requirePermission("customers.view");
+  await linkUnassignedOrders({
+    id: session.user.id,
+    role: session.user.role,
+  });
 
   const sourceFilter = input?.source ?? "ALL";
   const q = input?.query?.trim() ?? "";
@@ -194,7 +203,7 @@ export async function listCustomerDirectory(input?: {
         ltv: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
       })
       .from(orders)
-      .where(and(inArray(orders.userId, accountIds), PLACED))
+      .where(and(inArray(orders.userId, accountIds), HISTORY))
       .groupBy(orders.userId);
 
     const byUser = new Map(
@@ -231,7 +240,7 @@ export async function listCustomerDirectory(input?: {
       createdAt: orders.createdAt,
     })
     .from(orders)
-    .where(PLACED)
+    .where(HISTORY)
     .orderBy(asc(orders.placedAt))
     .limit(5000);
 
@@ -433,7 +442,7 @@ export async function getCustomerDetail(
       shippingAddressSnapshot: orders.shippingAddressSnapshot,
     })
     .from(orders)
-    .where(and(eq(orders.userId, userId), PLACED))
+    .where(and(eq(orders.userId, userId), HISTORY))
     .orderBy(desc(orders.placedAt));
 
   const profileRows = await db
@@ -481,6 +490,36 @@ export async function getCustomerDetail(
     };
   }
 
+  const latestOrder = orderRows[0];
+  if (
+    latestOrder &&
+    (!profile || (savedAddresses.length === 0 && latestOrder.shippingAddressSnapshot))
+  ) {
+    try {
+      await db.transaction(async (tx) => {
+        await linkOrderCustomer(tx, {
+          existingUserId: userId,
+          email: user.email,
+          name: user.name,
+          phone: user.phone ?? latestOrder.shippingAddressSnapshot.phone,
+          whatsappNumber:
+            profile?.whatsappNumber ??
+            latestOrder.shippingAddressSnapshot.whatsappNumber ??
+            latestOrder.shippingAddressSnapshot.phone,
+          source: latestOrder.source,
+          address: latestOrder.shippingAddressSnapshot,
+        });
+      });
+    } catch {
+      // The snapshot below still shows the address if the row cannot be saved.
+    }
+    if (!contactAddress) {
+      contactAddress = addressFromSnapshot(latestOrder.shippingAddressSnapshot);
+    }
+  }
+
+  const orderLtv = orderRows.reduce((sum, row) => sum + row.totalMinor, 0);
+
   const firstSource =
     profile?.source ??
     [...orderRows].reverse()[0]?.source ??
@@ -492,13 +531,16 @@ export async function getCustomerDetail(
     name: user.name,
     email: user.email?.endsWith("@customers.aks.local") ? null : user.email,
     phone: user.phone,
-    whatsappNumber: profile?.whatsappNumber ?? user.phone,
+    whatsappNumber:
+      profile?.whatsappNumber ??
+      user.phone ??
+      latestOrder?.shippingAddressSnapshot.whatsappNumber ??
+      null,
     phoneDigits: digits,
     firstContactSource: firstSource,
-    lifetimeValueMinor:
-      profile?.lifetimeValueMinor ??
-      orderRows.reduce((s, o) => s + o.totalMinor, 0),
-    totalOrdersCount: profile?.totalOrdersCount ?? orderRows.length,
+    lifetimeValueMinor: orderRows.length > 0 ? orderLtv : (profile?.lifetimeValueMinor ?? 0),
+    totalOrdersCount:
+      orderRows.length > 0 ? orderRows.length : (profile?.totalOrdersCount ?? 0),
     codRefusalCount: profile?.codRefusalCount ?? 0,
     lastOrderAt: asDate(orderRows[0]?.placedAt ?? null),
     orders: orderRows.map((row) => ({
@@ -543,7 +585,7 @@ export async function getGuestCustomerDetail(
           eq(orders.whatsappNumber, whatsappRaw),
           sql`regexp_replace(${orders.whatsappNumber}, '\\D', '', 'g') = ${digits}`,
         ),
-        PLACED,
+        HISTORY,
       ),
     )
     .orderBy(desc(orders.placedAt));

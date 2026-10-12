@@ -7,7 +7,6 @@ import {
   db,
   insertAuditLog,
   orderPayments,
-  users,
   type Database,
 } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
@@ -27,6 +26,7 @@ import { buildStandardMeasurementSnapshot } from "@/modules/orders/compute-cut-s
 import { priceAdjustmentReasonLabel } from "@/modules/orders/reason-codes";
 import { placeOrderCore } from "@/modules/orders/place-order-core";
 import { transitionOrder } from "@/modules/orders/transition-order";
+import { linkOrderCustomer } from "@/modules/customers/link-order-customer";
 
 import {
   getCustomerById,
@@ -41,6 +41,47 @@ import type {
   PlaceManualOrderInput,
   PlaceManualOrderResult,
 } from "./types";
+
+function digitsOnly(value: string | null | undefined): string {
+  return (value ?? "").replace(/\D/g, "");
+}
+
+/** One WhatsApp number, copied onto shipping when that field was left blank. */
+async function withCopiedWhatsapp(
+  input: PlaceManualOrderInput,
+): Promise<PlaceManualOrderInput | { error: string }> {
+  const fromAddress = digitsOnly(input.address.whatsappNumber);
+  let whatsapp = fromAddress;
+  if (input.customer.mode === "new") {
+    whatsapp = fromAddress || digitsOnly(input.customer.whatsappNumber);
+  } else {
+    const customer = await getCustomerById(input.customer.userId);
+    whatsapp =
+      fromAddress ||
+      digitsOnly(customer?.whatsappNumber) ||
+      digitsOnly(customer?.phone);
+  }
+
+  if (whatsapp.length < 10 || whatsapp.length > 15) {
+    return {
+      error:
+        "Enter a WhatsApp number on the customer. Shipping uses the same number.",
+    };
+  }
+
+  return {
+    ...input,
+    address: { ...input.address, whatsappNumber: whatsapp },
+    customer:
+      input.customer.mode === "new"
+        ? {
+            ...input.customer,
+            whatsappNumber:
+              digitsOnly(input.customer.whatsappNumber) || whatsapp,
+          }
+        : input.customer,
+  };
+}
 
 async function auditContext() {
   const h = await headers();
@@ -157,14 +198,17 @@ export async function placeManualOrderAction(
       plan: input.paymentPlan,
     });
 
+    const prepared = await withCopiedWhatsapp(input);
+    if ("error" in prepared) return { ok: false, error: prepared.error };
+
     const validation = validatePlaceManualOrderInput(
-      input,
+      prepared,
       subtotalMinor,
       depositAmountMinor,
     );
     if (!validation.ok) return validation;
 
-    const addressResult = input.address;
+    const addressResult = prepared.address;
     const shippingSnapshot = toShippingSnapshot({
       ...addressResult,
       guestEmail: undefined,
@@ -173,39 +217,45 @@ export async function placeManualOrderAction(
 
     const ctx = await auditContext();
 
-    const result = await db.transaction(async (tx) => {
-      let userId: string | null = null;
-      let guestEmail: string | null = null;
-      let guestPhone: string | null = null;
+    const existingCustomer =
+      prepared.customer.mode === "existing"
+        ? await getCustomerById(prepared.customer.userId)
+        : null;
+    if (prepared.customer.mode === "existing" && !existingCustomer) {
+      return { ok: false, error: "Selected customer no longer exists." };
+    }
 
-      if (input.customer.mode === "existing") {
-        const customer = await getCustomerById(input.customer.userId);
-        if (!customer) {
-          throw new Error("Selected customer no longer exists.");
-        }
-        userId = customer.id;
-        guestEmail = customer.email;
-        guestPhone = customer.phone;
-      } else {
-        const email =
-          input.customer.email?.trim() ||
-          `${input.customer.phone}@customers.aks.local`;
-        const customerId = uuidv7();
-        await tx.insert(users).values({
-          id: customerId,
-          email,
-          name: input.customer.name,
-          phone: input.customer.phone,
-          role: "CUSTOMER",
-          status: "ACTIVE",
-          emailVerified: null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        userId = customerId;
-        guestEmail = email;
-        guestPhone = input.customer.phone;
+    const newCustomerEmail =
+      prepared.customer.mode === "new"
+        ? prepared.customer.email?.trim().toLowerCase() ||
+          `${digitsOnly(prepared.customer.phone)}@customers.aks.local`
+        : null;
+
+    const result = await db.transaction(async (tx) => {
+      const userId = await linkOrderCustomer(tx, {
+        existingUserId: existingCustomer?.id ?? null,
+        email: existingCustomer?.email ?? newCustomerEmail,
+        name:
+          prepared.customer.mode === "new"
+            ? prepared.customer.name
+            : (existingCustomer?.name ?? addressResult.recipientName),
+        phone:
+          prepared.customer.mode === "new"
+            ? prepared.customer.phone
+            : (existingCustomer?.phone ?? addressResult.phone),
+        whatsappNumber: addressResult.whatsappNumber,
+        source: validation.source,
+        address: shippingSnapshot,
+      });
+      if (!userId) {
+        throw new Error("Could not save the customer.");
       }
+
+      const guestEmail = existingCustomer?.email ?? newCustomerEmail;
+      const guestPhone =
+        prepared.customer.mode === "new"
+          ? prepared.customer.phone
+          : (existingCustomer?.phone ?? addressResult.phone);
 
       const whatsappNumber = addressResult.whatsappNumber;
 
@@ -296,6 +346,7 @@ export async function placeManualOrderAction(
 
     revalidatePath("/admin/orders");
     revalidatePath(`/admin/orders/${result.orderId}`);
+    revalidatePath("/admin/customers");
 
     return {
       ok: true,

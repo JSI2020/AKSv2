@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Link, useRouter } from "@/i18n/routing";
 import { useCart } from "@/modules/cart/cart-context";
@@ -9,7 +9,6 @@ import type { CartPublic } from "@/modules/cart";
 
 import { placeOrder } from "./actions";
 import { AddressStep } from "./address-step";
-import { DiscountCodeField } from "./discount-code-field";
 import { PaymentStep } from "./payment-step";
 import { ReviewStep } from "./review-step";
 import { trackCheckoutStarted, trackOrderPlaced } from "@/modules/analytics";
@@ -41,6 +40,13 @@ export function CheckoutFlow({
 }: Props) {
   const router = useRouter();
   const { clearBag } = useCart();
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem("aks-checkout-resume-attempts");
+    } catch {
+      // Ignore storage failures.
+    }
+  }, []);
   const [step, setStep] = useState<CheckoutStep>("address");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);

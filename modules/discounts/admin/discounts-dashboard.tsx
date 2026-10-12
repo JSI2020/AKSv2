@@ -5,7 +5,8 @@ import { useMemo, useState, useTransition } from "react";
 import { Money } from "@/modules/ui";
 import type { HouseCollectionPublic } from "@/modules/catalog/house-collections-queries";
 
-import { saveDiscount } from "../actions";
+import { archiveDiscount, deleteDiscount, saveDiscount } from "../actions";
+import { formatPktDatetimeLocal } from "../pkt-time";
 import {
   formatPreviewSentence,
   previewDiscountOnSampleOrder,
@@ -43,21 +44,19 @@ const EMPTY_FORM: FormState = {
   value: "15",
   appliesTo: "ORDER",
   targetIds: "",
-  minSpendMinor: "2500000",
+  minSpendMinor: "",
   maxDiscountMinor: "",
   firstOrderOnly: true,
   oncePerCustomer: true,
-  usageLimit: "1",
+  usageLimit: "",
   startsAt: "",
   endsAt: "",
   stackable: false,
   status: "ACTIVE",
 };
 
-function toDatetimeLocal(value: Date | null): string {
-  if (!value) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}T${pad(value.getHours())}:${pad(value.getMinutes())}`;
+function toDatetimeLocal(value: Date | string | null): string {
+  return formatPktDatetimeLocal(value);
 }
 
 function rowToForm(row: DiscountListRow): FormState {
@@ -69,7 +68,7 @@ function rowToForm(row: DiscountListRow): FormState {
     value: String(row.value),
     appliesTo: row.appliesTo,
     targetIds: row.targetIds.join(", "),
-    minSpendMinor: String(row.minSpendMinor),
+    minSpendMinor: row.minSpendMinor > 0 ? String(row.minSpendMinor) : "",
     maxDiscountMinor:
       row.maxDiscountMinor != null ? String(row.maxDiscountMinor) : "",
     firstOrderOnly: row.firstOrderOnly,
@@ -143,7 +142,9 @@ export function DiscountsDashboard({
 
   const preview = useMemo(() => {
     const value = Number.parseInt(form.value, 10);
-    const minSpendMinor = Number.parseInt(form.minSpendMinor, 10);
+    const minSpendMinor = form.minSpendMinor.trim()
+      ? Number.parseInt(form.minSpendMinor, 10)
+      : 0;
     const maxDiscountMinor = form.maxDiscountMinor.trim()
       ? Number.parseInt(form.maxDiscountMinor, 10)
       : null;
@@ -402,7 +403,7 @@ export function DiscountsDashboard({
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Minimum spend (paisa)">
+            <Field label="Minimum spend (paisa, blank = none)">
               <input
                 name="minSpendMinor"
                 value={form.minSpendMinor}
@@ -434,7 +435,7 @@ export function DiscountsDashboard({
           </Field>
 
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Starts at">
+            <Field label="Starts at (PKT)">
               <input
                 type="datetime-local"
                 name="startsAt"
@@ -443,7 +444,7 @@ export function DiscountsDashboard({
                 className="w-full border border-indigo-lift bg-indigo px-3 py-2 text-[13px] text-greige"
               />
             </Field>
-            <Field label="Ends at">
+            <Field label="Ends at (PKT)">
               <input
                 type="datetime-local"
                 name="endsAt"
@@ -525,6 +526,54 @@ export function DiscountsDashboard({
           >
             {pending ? "Saving…" : form.id ? "Update discount" : "Create discount"}
           </button>
+
+          {form.id ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={pending || form.status === "PAUSED"}
+                onClick={() => {
+                  const id = form.id;
+                  setMessage(null);
+                  startTransition(async () => {
+                    const result = await archiveDiscount(id);
+                    if (!result.ok) {
+                      setMessage(result.error);
+                      return;
+                    }
+                    setForm((current) => ({ ...current, status: "PAUSED" }));
+                    setMessage("Discount archived.");
+                  });
+                }}
+                className="flex-1 border border-chalk px-4 py-2 text-[12px] uppercase tracking-[0.08em] text-chalk disabled:opacity-40"
+              >
+                Archive
+              </button>
+              <button
+                type="button"
+                disabled={
+                  pending ||
+                  (rows.find((row) => row.id === form.id)?.usageCount ?? 0) > 0
+                }
+                onClick={() => {
+                  const id = form.id;
+                  setMessage(null);
+                  startTransition(async () => {
+                    const result = await deleteDiscount(id);
+                    if (!result.ok) {
+                      setMessage(result.error);
+                      return;
+                    }
+                    setForm(EMPTY_FORM);
+                    setMessage("Discount deleted.");
+                  });
+                }}
+                className="flex-1 border border-madder px-4 py-2 text-[12px] uppercase tracking-[0.08em] text-madder disabled:opacity-40"
+              >
+                Delete
+              </button>
+            </div>
+          ) : null}
         </form>
       </section>
     </div>

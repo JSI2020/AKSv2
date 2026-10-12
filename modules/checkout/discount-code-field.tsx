@@ -26,8 +26,7 @@ export function DiscountCodeField({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function handleApply(event: React.FormEvent) {
-    event.preventDefault();
+  function apply() {
     if (!paymentPlan) {
       setError("Choose a payment plan before applying a code.");
       return;
@@ -61,24 +60,32 @@ export function DiscountCodeField({
       <h3 className="text-[12px] uppercase tracking-[0.08em] text-ink/55">
         Discount code
       </h3>
-      <form onSubmit={handleApply} className="mt-3 flex flex-col gap-3 sm:flex-row">
+      <div className="mt-3 flex flex-col gap-3 sm:flex-row">
         <input
           value={code}
           onChange={(e) => onCodeChange(e.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              apply();
+            }
+          }}
           placeholder="Enter code"
+          aria-label="Discount code"
           className="min-w-0 flex-1 border border-greige-deep bg-greige px-3 py-2.5 text-[15px] text-ink outline-none focus:border-ink"
         />
         <button
-          type="submit"
+          type="button"
+          onClick={apply}
           disabled={pending || !code.trim()}
           className="border border-ink px-4 py-2.5 text-[12px] uppercase tracking-[0.08em] text-ink disabled:opacity-40"
         >
           {pending ? "Checking…" : "Apply"}
         </button>
-      </form>
+      </div>
 
       {applied ? (
-        <p className="mt-2 text-[13px] text-ink/70">
+        <p className="mt-2 text-[13px] text-ink/70" role="status">
           <span className="uppercase">{applied.code}</span> applied —{" "}
           <Money value={applied.discountMinor} className="inline" /> off · Total{" "}
           <Money value={applied.totalMinor} className="inline" />

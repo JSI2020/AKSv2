@@ -6,38 +6,80 @@ import { Link, useRouter } from "@/i18n/routing";
 import { isPersistedCartLineId } from "@/modules/cart/line-id";
 import { useCart } from "@/modules/cart/cart-context";
 
-const RESUME_KEY = "aks-checkout-resume";
+const MAX_ATTEMPTS = 12;
+const ATTEMPT_KEY = "aks-checkout-resume-attempts";
+
+function readAttempts(): number {
+  try {
+    return Number(sessionStorage.getItem(ATTEMPT_KEY) ?? "0") || 0;
+  } catch {
+    return 0;
+  }
+}
+
+function writeAttempts(value: number) {
+  try {
+    sessionStorage.setItem(ATTEMPT_KEY, String(value));
+  } catch {
+    // Private mode can block storage; the in-memory timer still retries.
+  }
+}
+
+function clearAttempts() {
+  try {
+    sessionStorage.removeItem(ATTEMPT_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
 
 /**
  * Checkout's server render saw an empty bag. The browser may still be
- * saving it, or restoring it after a reload. Wait, then refresh once so
- * the server can render the form. A bag that is really empty goes home.
+ * saving it. Refresh until the server cart arrives, then this view
+ * unmounts. A bag that never lands gets a way back instead of spinning.
  */
 export function CheckoutResume() {
   const { cart, bagHydrated } = useCart();
   const router = useRouter();
-  const [waited, setWaited] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+  const lineCount = cart.lines.length;
   const persisted =
-    cart.lines.length > 0 &&
-    cart.lines.every((line) => isPersistedCartLineId(line.id));
+    lineCount > 0 && cart.lines.every((line) => isPersistedCartLineId(line.id));
 
   useEffect(() => {
     if (!bagHydrated) return;
-    if (cart.lines.length === 0) {
-      sessionStorage.removeItem(RESUME_KEY);
+    if (lineCount === 0) {
+      clearAttempts();
       router.replace("/");
       return;
     }
-    if (!persisted) return;
-    if (sessionStorage.getItem(RESUME_KEY) === "1") {
-      setWaited(true);
-      return;
-    }
-    sessionStorage.setItem(RESUME_KEY, "1");
-    router.refresh();
-  }, [bagHydrated, cart.lines.length, persisted, router]);
 
-  if (waited) {
+    setGaveUp(false);
+    let cancelled = false;
+    let attempts = readAttempts();
+    let timer: ReturnType<typeof setTimeout>;
+
+    const tick = () => {
+      if (cancelled) return;
+      attempts += 1;
+      writeAttempts(attempts);
+      if (attempts >= MAX_ATTEMPTS) {
+        setGaveUp(true);
+        return;
+      }
+      router.refresh();
+      timer = setTimeout(tick, 500);
+    };
+
+    timer = setTimeout(tick, persisted ? 50 : 300);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [bagHydrated, lineCount, persisted, router]);
+
+  if (gaveUp) {
     return (
       <p className="py-16 text-[15px]" style={{ color: "var(--taupe)" }}>
         The bag did not reach checkout.{" "}
@@ -51,7 +93,7 @@ export function CheckoutResume() {
 
   return (
     <p className="py-16 text-[15px]" style={{ color: "var(--taupe)" }}>
-      {cart.lines.length > 0 ? "Saving your bag…" : "Opening checkout…"}
+      {lineCount > 0 ? "Saving your bag…" : "Opening checkout…"}
     </p>
   );
 }

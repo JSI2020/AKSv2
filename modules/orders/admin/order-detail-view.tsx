@@ -1198,6 +1198,16 @@ function PaymentPanel({
   return (
     <Panel title="Payment">
       <dl className="grid gap-2 text-[13px]">
+        {order.discountMinor > 0 ? (
+          <Kv
+            label="Discount"
+            value={
+              <span className="font-data text-[12px]">
+                −<Money value={order.discountMinor} className="inline" />
+              </span>
+            }
+          />
+        ) : null}
         <Kv
           label="Total"
           value={

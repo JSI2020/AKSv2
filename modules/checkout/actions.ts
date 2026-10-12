@@ -39,6 +39,7 @@ import {
   type ValidatedCartLine,
 } from "./validate";
 import { getSiteSettings } from "@/modules/content/site-settings";
+import { linkOrderCustomer } from "@/modules/customers/link-order-customer";
 
 async function getCartContext(): Promise<CartContext> {
   const session = await auth();
@@ -244,9 +245,22 @@ export async function placeOrder(
         });
       }
 
+      let orderUserId = ctx.userId;
+      if (!orderUserId) {
+        orderUserId = await linkOrderCustomer(tx, {
+          email: guestEmail,
+          name: addressResult.data.recipientName,
+          phone: addressResult.data.phone,
+          whatsappNumber:
+            addressResult.data.whatsappNumber || addressResult.data.phone,
+          source: "WEB",
+          address: shippingSnapshot,
+        });
+      }
+
       const result = await placeOrderCore(
         {
-          userId: ctx.userId,
+          userId: orderUserId,
           guestEmail,
           guestPhone: addressResult.data.phone,
           whatsappNumber: addressResult.data.whatsappNumber,
@@ -263,7 +277,9 @@ export async function placeOrder(
           totalMinor,
           lines: resolvedLines,
           actor: { id: actorId },
-          transitionNote: ctx.userId ? "Checkout placed" : "Guest checkout placed",
+          transitionNote: ctx.userId
+            ? "Checkout placed"
+            : "Guest checkout placed",
         },
         tx,
       );

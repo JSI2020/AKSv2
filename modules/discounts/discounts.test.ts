@@ -157,7 +157,7 @@ describe("checkout discounts", () => {
 
     expect(secondAttempt.ok).toBe(false);
     if (secondAttempt.ok) return;
-    expect(secondAttempt.error).toMatch(/cannot be applied/i);
+    expect(secondAttempt.error).toMatch(/first order/i);
 
     await expect(
       db.transaction(async (tx) =>

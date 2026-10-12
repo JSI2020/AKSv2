@@ -75,6 +75,8 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(
     null,
   );
+  const [selectedCustomer, setSelectedCustomer] =
+    useState<CustomerSearchResult | null>(null);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
     email: "",
@@ -175,7 +177,8 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
       ...prev,
       recipientName: customer.name ?? prev.recipientName,
       phone: customer.phone ?? prev.phone,
-      whatsappNumber: customer.phone ?? prev.whatsappNumber,
+      whatsappNumber:
+        customer.whatsappNumber || customer.phone || prev.whatsappNumber,
     }));
   }
 
@@ -255,6 +258,10 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
       fillAddressFromNewCustomer();
     }
 
+    const customerWhatsapp =
+      customerMode === "new"
+        ? newCustomer.whatsappNumber
+        : selectedCustomer?.whatsappNumber || selectedCustomer?.phone || "";
     const payload: PlaceManualOrderInput = {
       source,
       customer:
@@ -265,9 +272,12 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
               name: newCustomer.name,
               email: newCustomer.email || undefined,
               phone: newCustomer.phone,
-              whatsappNumber: newCustomer.whatsappNumber,
+              whatsappNumber: newCustomer.whatsappNumber || customerWhatsapp,
             },
-      address,
+      address: {
+        ...address,
+        whatsappNumber: address.whatsappNumber.trim() || customerWhatsapp,
+      },
       lines: lines.map((line) => {
         const {
           clientId: _clientId,
@@ -385,6 +395,7 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
                       type="button"
                       onClick={() => {
                         setSelectedCustomerId(customer.id);
+                        setSelectedCustomer(customer);
                         fillAddressFromCustomer(customer);
                       }}
                       className={`block w-full px-2 py-1.5 text-start text-[13px] hover:bg-indigo-lift ${
@@ -472,13 +483,13 @@ export function ManualOrderForm({ designs }: ManualOrderFormProps) {
               className={inputClass}
             />
           </Field>
-          <Field label="WhatsApp" required>
+          <Field label="WhatsApp">
             <input
-              required
               value={address.whatsappNumber}
               onChange={(e) =>
                 setAddress((a) => ({ ...a, whatsappNumber: e.target.value }))
               }
+              placeholder="Copied from the customer if left blank"
               className={inputClass}
             />
           </Field>

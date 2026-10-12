@@ -9,6 +9,7 @@ import { uuidv7 } from "@aks/shared";
 import { requirePermission } from "@/modules/auth";
 
 import { normalizeDiscountCode } from "./compute";
+import { parsePktDatetimeLocal } from "./pkt-time";
 
 export type DiscountActionResult =
   | { ok: true; id: string }
@@ -28,10 +29,15 @@ function parseRequiredInt(raw: string, label: string): number | null {
 }
 
 function parseDate(raw: string): Date | null {
+  return parsePktDatetimeLocal(raw);
+}
+
+/** Blank minimum spend means no minimum. */
+function parseMinSpend(raw: string): number | null {
   const trimmed = raw.trim();
-  if (!trimmed) return null;
-  const date = new Date(trimmed);
-  return Number.isNaN(date.getTime()) ? null : date;
+  if (!trimmed) return 0;
+  const parsed = Number.parseInt(trimmed, 10);
+  return Number.isInteger(parsed) ? parsed : null;
 }
 
 function parseTargetIds(raw: string): string[] {
@@ -56,9 +62,8 @@ export async function saveDiscount(formData: FormData): Promise<DiscountActionRe
     const appliesTo = String(formData.get("appliesTo") ?? "");
     const status = String(formData.get("status") ?? "DRAFT");
     const value = parseRequiredInt(String(formData.get("value") ?? ""), "value");
-    const minSpendMinor = parseRequiredInt(
-      String(formData.get("minSpendMinor") ?? "0"),
-      "minSpendMinor",
+    const minSpendMinor = parseMinSpend(
+      String(formData.get("minSpendMinor") ?? ""),
     );
     const maxDiscountMinor = parseOptionalInt(
       String(formData.get("maxDiscountMinor") ?? ""),
@@ -221,6 +226,44 @@ export async function deleteDiscount(id: string): Promise<DiscountActionResult> 
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Could not delete discount.";
+    return { ok: false, error: message };
+  }
+}
+
+/** Pause a discount so it stays on file without applying at checkout. */
+export async function archiveDiscount(id: string): Promise<DiscountActionResult> {
+  try {
+    const session = await requirePermission("discounts.edit");
+    const [before] = await db
+      .select()
+      .from(discounts)
+      .where(eq(discounts.id, id))
+      .limit(1);
+
+    if (!before) return { ok: false, error: "Discount not found." };
+    if (before.status === "PAUSED") return { ok: true, id };
+
+    await db
+      .update(discounts)
+      .set({ status: "PAUSED", updatedAt: new Date() })
+      .where(eq(discounts.id, id));
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "discount.archive",
+      entityType: "discount",
+      entityId: id,
+      before,
+      after: { status: "PAUSED" },
+    });
+
+    revalidatePath("/admin/discounts");
+    return { ok: true, id };
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Could not archive discount.";
     return { ok: false, error: message };
   }
 }

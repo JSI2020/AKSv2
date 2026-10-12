@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   computeDiscountAmountParts,
+  discountCodeBlockedReason,
   formatPreviewSentence,
   previewDiscountOnSampleOrder,
   selectAppliedDiscounts,
 } from "./compute";
+import { formatPktDatetimeLocal, parsePktDatetimeLocal } from "./pkt-time";
 
 describe("discount compute", () => {
   it("previews a 15% welcome discount on a PKR 30,000 sample order", () => {
@@ -81,5 +83,26 @@ describe("discount compute", () => {
     );
 
     expect(parts.totalDiscountMinor).toBe(3_000_00);
+  });
+
+  it("keeps discount end times in PKT", () => {
+    const saved = parsePktDatetimeLocal("2026-10-13T23:59");
+    expect(saved?.toISOString()).toBe("2026-10-13T18:59:00.000Z");
+    expect(formatPktDatetimeLocal(saved)).toBe("2026-10-13T23:59");
+  });
+
+  it("names a paused code instead of calling it invalid", () => {
+    expect(
+      discountCodeBlockedReason(
+        {
+          status: "PAUSED",
+          startsAt: null,
+          endsAt: null,
+          usageLimit: null,
+          usageCount: 0,
+        },
+        new Date("2026-10-13T12:00:00Z"),
+      ),
+    ).toBe("That discount code is paused.");
   });
 });
