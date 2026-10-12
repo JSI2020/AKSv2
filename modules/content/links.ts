@@ -7,7 +7,7 @@ const SHOP_ROUTE_SLUGS: Record<string, string> = {
   collections: "/collections",
   checkout: "/checkout",
   account: "/account/orders",
-  cart: "/checkout",
+  cart: "/cart",
 };
 
 /** Resolve a content link picker value to a storefront path or absolute URL. */

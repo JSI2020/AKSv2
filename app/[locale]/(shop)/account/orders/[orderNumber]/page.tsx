@@ -29,7 +29,10 @@ export default async function AccountOrderDetailPage({ params }: Props) {
           <p className="text-[13px] uppercase tracking-[0.08em] text-ink/55">
             Total
           </p>
-          <Money value={order.totalMinor} className="mt-1 text-[18px] text-ink" />
+          <Money
+            value={order.totalMinor}
+            className="mt-1 text-[18px] text-ink"
+          />
         </div>
 
         {order.customerNotes ? (

@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -17,8 +18,15 @@ import {
   addToCart,
   fetchCart,
   removeCartLine,
+  restoreBag,
   updateCartLineQuantity,
 } from "./actions";
+import {
+  cartFromStoredBag,
+  readStoredBag,
+  writeStoredBag,
+} from "./bag-storage";
+import { isPersistedCartLineId } from "./line-id";
 import type { AddToCartInput, CartLinePublic, CartPublic } from "./types";
 
 type OptimisticMeta = {
@@ -44,6 +52,8 @@ type CartContextValue = {
   setLineQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
   pending: boolean;
+  /** False until the browser bag has been read. Checkout waits on this. */
+  bagHydrated: boolean;
   cartNotice: string | null;
   clearCartNotice: () => void;
   /** Design name for add-to-cart toast (prototype C). */
@@ -77,6 +87,15 @@ function optimisticLine(input: AddToCartInput, designMeta: OptimisticMeta): Cart
     thumbnailUrl: designMeta.thumbnailUrl,
     leadTimeDays: designMeta.leadTimeDays,
   };
+}
+
+function lineIdentityKey(line: {
+  designId: string;
+  colourwayId: string;
+  sizeMode: string;
+  sizeLabel: string | null;
+}): string {
+  return `${line.designId}|${line.colourwayId}|${line.sizeMode}|${line.sizeLabel ?? ""}`;
 }
 
 function capLineQuantity(line: CartLinePublic, quantity: number): number {
@@ -122,10 +141,15 @@ export function CartProvider({
   const [cart, setCart] = useState(initialCart);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [bagHydrated, setBagHydrated] = useState(false);
   const [lastAddedName, setLastAddedName] = useState<string | null>(null);
   const [cartNotice, setCartNotice] = useState<string | null>(null);
   const drawerOpenRef = useRef(drawerOpen);
   drawerOpenRef.current = drawerOpen;
+  const pendingLineOps = useRef(
+    new Map<string, { quantity: number | "remove" }>(),
+  );
+  const hydratedRef = useRef(false);
 
   // Keep client cart aligned when the server layout re-hydrates (e.g. after consolidate).
   const serverStamp = `${initialCart.id}:${initialCart.lines
@@ -134,8 +158,41 @@ export function CartProvider({
   const [seenStamp, setSeenStamp] = useState(serverStamp);
   if (serverStamp !== seenStamp) {
     setSeenStamp(serverStamp);
-    setCart(initialCart);
+    // An empty server payload must not wipe a bag that is still saving
+    // or was restored from this browser.
+    if (initialCart.lines.length > 0 || cart.lines.length === 0) {
+      setCart(initialCart);
+    }
   }
+
+  useEffect(() => {
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      if (initialCart.lines.length === 0) {
+        const stored = readStoredBag();
+        if (stored.length > 0) {
+          setCart(cartFromStoredBag(stored));
+          setBagHydrated(true);
+          startTransition(async () => {
+            const result = await restoreBag(
+              stored.map((line) => ({
+                designId: line.designId,
+                colourwayId: line.colourwayId,
+                sizeMode: line.sizeMode,
+                sizeLabel: line.sizeLabel,
+                quantity: line.quantity,
+              })),
+            );
+            if (result.ok) setCart(result.cart);
+            else setCartNotice(result.error);
+          });
+          return;
+        }
+      }
+      setBagHydrated(true);
+    }
+    writeStoredBag(cart);
+  }, [cart, initialCart.lines.length, startTransition]);
 
   const refreshCart = useCallback(() => {
     startTransition(async () => {
@@ -171,7 +228,31 @@ export function CartProvider({
 
       const result = await addToCart(input);
       if (result.ok) {
-        setCart(result.cart);
+        const key = lineIdentityKey({
+          designId: input.designId,
+          colourwayId: input.colourwayId,
+          sizeMode: input.sizeMode,
+          sizeLabel: input.sizeLabel,
+        });
+        const pendingOp = pendingLineOps.current.get(key);
+        pendingLineOps.current.delete(key);
+
+        if (pendingOp?.quantity === "remove") {
+          const removed = await removeCartLine({ lineId: result.lineId });
+          setCart(removed.ok ? removed.cart : result.cart);
+        } else if (
+          typeof pendingOp?.quantity === "number" &&
+          pendingOp.quantity !== input.quantity
+        ) {
+          const updated = await updateCartLineQuantity({
+            lineId: result.lineId,
+            quantity: pendingOp.quantity,
+          });
+          setCart(updated.ok ? updated.cart : result.cart);
+        } else {
+          setCart(result.cart);
+        }
+
         setCartNotice(null);
         setLastAddedName(
           `${designMeta.designName} — ${designMeta.colourwayName}`,
@@ -202,10 +283,22 @@ export function CartProvider({
   const setLineQuantity = useCallback((lineId: string, quantity: number) => {
     let nextQuantity = quantity;
     let blockedNotice: string | null = null;
+    let identity: {
+      designId: string;
+      colourwayId: string;
+      sizeMode: CartLinePublic["sizeMode"];
+      sizeLabel: string | null;
+    } | null = null;
 
     setCart((prev) => {
       const line = prev.lines.find((l) => l.id === lineId);
       if (!line) return prev;
+      identity = {
+        designId: line.designId,
+        colourwayId: line.colourwayId,
+        sizeMode: line.sizeMode,
+        sizeLabel: line.sizeLabel,
+      };
 
       nextQuantity = capLineQuantity(line, quantity);
       if (nextQuantity === line.quantity) {
@@ -232,6 +325,15 @@ export function CartProvider({
       return;
     }
 
+    if (!isPersistedCartLineId(lineId)) {
+      if (identity) {
+        pendingLineOps.current.set(lineIdentityKey(identity), {
+          quantity: nextQuantity,
+        });
+      }
+      return;
+    }
+
     startTransition(async () => {
       const result = await updateCartLineQuantity({
         lineId,
@@ -254,10 +356,33 @@ export function CartProvider({
   }, []);
 
   const removeLine = useCallback((lineId: string) => {
+    let identity: {
+      designId: string;
+      colourwayId: string;
+      sizeMode: CartLinePublic["sizeMode"];
+      sizeLabel: string | null;
+    } | null = null;
+
     setCart((prev) => {
+      const line = prev.lines.find((entry) => entry.id === lineId);
+      if (line) {
+        identity = {
+          designId: line.designId,
+          colourwayId: line.colourwayId,
+          sizeMode: line.sizeMode,
+          sizeLabel: line.sizeLabel,
+        };
+      }
       const lines = prev.lines.filter((l) => l.id !== lineId);
       return { ...prev, lines, ...summarize(lines) };
     });
+
+    if (identity && !isPersistedCartLineId(lineId)) {
+      pendingLineOps.current.set(lineIdentityKey(identity), {
+        quantity: "remove",
+      });
+      return;
+    }
 
     startTransition(async () => {
       const result = await removeCartLine({ lineId });
@@ -276,6 +401,7 @@ export function CartProvider({
       setLineQuantity,
       removeLine,
       pending,
+      bagHydrated,
       cartNotice,
       clearCartNotice,
       lastAddedName,
@@ -291,6 +417,7 @@ export function CartProvider({
       setLineQuantity,
       removeLine,
       pending,
+      bagHydrated,
       cartNotice,
       clearCartNotice,
       lastAddedName,

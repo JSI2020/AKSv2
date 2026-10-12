@@ -1,4 +1,22 @@
 aks-atelier.com, www.aks-atelier.com {
+	# Auth.js builds the OAuth redirect from AUTH_URL (www) but stores the
+	# state cookie on the host that started sign-in. Keep one host.
+	route /7ihec70lyq912ykhs0tftujmd21mcl.html {
+		header Content-Type text/html
+		respond "7ihec70lyq912ykhs0tftujmd21mcl" 200
+	}
+
+	route /48b4qpu1lh14rj1jprwgpdh5e4f3wu.html {
+		header Content-Type text/html
+		respond "48b4qpu1lh14rj1jprwgpdh5e4f3wu" 200
+	}
+
+	@apex {
+		host aks-atelier.com
+		not path /48b4qpu1lh14rj1jprwgpdh5e4f3wu.html /7ihec70lyq912ykhs0tftujmd21mcl.html
+	}
+	redir @apex https://www.aks-atelier.com{uri} 308
+
 	encode gzip
 	reverse_proxy app:3000 {
 		header_up X-Forwarded-Proto {scheme}

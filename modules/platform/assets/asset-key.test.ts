@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { assertSafeAssetKey } from "./r2";
+import { assertSafeAssetKey, localDiskUploadsEnabled } from "./r2";
 
 describe("assertSafeAssetKey", () => {
   it("accepts normal relative keys", () => {
@@ -30,6 +30,22 @@ describe("assertSafeAssetKey", () => {
     expect(() => assertSafeAssetKey("foo\\bar.jpg")).toThrow(
       /Invalid asset key/,
     );
+  });
+
+  it("allows disk uploads in production when R2_FORCE_LOCAL is set", () => {
+    const previousNode = process.env.NODE_ENV;
+    const previousForce = process.env.R2_FORCE_LOCAL;
+    process.env.NODE_ENV = "production";
+    process.env.R2_FORCE_LOCAL = "1";
+    try {
+      expect(localDiskUploadsEnabled()).toBe(true);
+      delete process.env.R2_FORCE_LOCAL;
+      expect(localDiskUploadsEnabled()).toBe(false);
+    } finally {
+      process.env.NODE_ENV = previousNode;
+      if (previousForce === undefined) delete process.env.R2_FORCE_LOCAL;
+      else process.env.R2_FORCE_LOCAL = previousForce;
+    }
   });
 
   it("rejects empty and null-byte keys", () => {

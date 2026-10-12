@@ -50,7 +50,7 @@ export default async function InventoryDesignsPage() {
 
       {cards.length === 0 ? (
         <p className="text-[13px] text-ink/55">
-          No designs with colourways yet. Publish a design first.
+          No designs with colourways yet. Drafts appear here once a shade exists.
         </p>
       ) : (
         <RtwDesignsInventoryView

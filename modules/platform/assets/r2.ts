@@ -81,6 +81,8 @@ export async function ensureBucket(client = createR2Client()): Promise<void> {
 
 function isLocalDevStorage(): boolean {
   // Hetzner fallback when MinIO/R2 images or credentials are unavailable.
+  // R2_FORCE_LOCAL is set in production compose, so this must stay true
+  // even when NODE_ENV is production.
   if (
     process.env.R2_FORCE_LOCAL === "1" ||
     process.env.R2_FORCE_LOCAL === "true"
@@ -90,6 +92,11 @@ function isLocalDevStorage(): boolean {
   if (process.env.NODE_ENV === "production") return false;
   const endpoint = process.env.R2_ENDPOINT ?? "";
   return /127\.0\.0\.1|localhost/.test(endpoint);
+}
+
+/** Disk uploads (the local-upload route) are on whenever local storage is. */
+export function localDiskUploadsEnabled(): boolean {
+  return isLocalDevStorage();
 }
 
 function localAssetPath(key: string): string {
@@ -138,7 +145,7 @@ function localPublicAssetUrl(key: string): string | null {
   return `/api/assets/serve?key=${encodeURIComponent(key)}`;
 }
 
-/** Dev-only: persist upload bytes when MinIO/R2 is offline. */
+/** Persist upload bytes on local disk when MinIO/R2 is offline or forced local. */
 export function saveLocalDevAsset(key: string, body: Buffer): void {
   if (!isLocalDevStorage()) {
     throw new Error("Local asset storage is only available in development");

@@ -94,7 +94,12 @@
     "facebook": "Facebook",
     "tiktok": "TikTok",
     "footerTagline": "AKS – عکس. Made to fit you.",
-    "footerCopyright": "© 2026 AKS"
+    "footerCopyright": "© AKS Atelier · Operated by Qamar Un Nisa",
+    "footerLegal": "Legal",
+    "footerTrack": "Track order",
+    "footerPrivacy": "Privacy",
+    "footerTerms": "Terms",
+    "footerDataDeletion": "Delete your data"
   },
   "AccountLogin": {
     "eyebrow": "Your account",
@@ -131,15 +136,32 @@
     "errorSendCode": "Could not send a code. Try again.",
     "errorBadCode": "That code didn't work. Request a new one and try again.",
     "errorOAuthAccessDenied": "That email belongs to a staff account. Sign in at the admin portal instead.",
-    "errorOAuthNotLinked": "This email already has an account. Try email code, or use the same Facebook account you linked before.",
-    "errorOAuthGeneric": "Facebook sign-in didn't finish. Try again, or use an email code.",
+    "errorOAuthNotLinked": "This email already has an account. Try an email code, or the same social account you used before.",
+    "errorOAuthCancelled": "Sign-in was cancelled. Nothing was changed.",
+    "errorOAuthGeneric": "That sign-in didn't finish. If you closed the window, nothing changed. Try again, or use an email code.",
     "whatsappTitle": "Sign in with WhatsApp",
     "whatsappLead": "We'll send a one-time code to your WhatsApp number.",
     "phoneLabel": "WhatsApp number",
     "phoneHint": "Include country code, e.g. +92… or +49… (Pakistan: 03… also works).",
     "whatsappCode": "Send code on WhatsApp",
     "differentPhone": "Use a different number",
-    "backToSignIn": "← Back to all sign-in options"
+    "backToSignIn": "← Back to all sign-in options",
+    "signupTitle": "Create an account",
+    "signupLead": "Same house account — a code, or Facebook, Instagram, TikTok, or WhatsApp. The first successful sign-in creates it.",
+    "noPassword": "There is no password to reset. A new code is how you get back in.",
+    "newHere": "New here?",
+    "haveAccount": "Already have an account?"
+  },
+  "AccountHome": {
+    "eyebrow": "Your account",
+    "title": "Your details",
+    "navLabel": "Account",
+    "navDetails": "Details",
+    "navOrders": "Orders",
+    "signOut": "Sign out",
+    "signedOut": "Sign in to see your details, addresses, and connected sign-ins.",
+    "signIn": "Sign in",
+    "create": "Create an account"
   },
   "HomeProto": {
     "heroSlotTag": "Hero · set in admin",

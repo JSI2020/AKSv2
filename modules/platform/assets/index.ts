@@ -15,5 +15,6 @@ export {
   purgeExpiredAssets,
   uploadKeyOwnedByPrefix,
   saveLocalDevAsset,
+  localDiskUploadsEnabled,
 } from "./r2";
 export type { CompleteUploadInput } from "./r2";

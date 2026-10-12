@@ -12,6 +12,37 @@
  * template registered in Meta Business Manager.
  */
 
+type WhatsappGraphBody = {
+  messages?: Array<{ id: string }>;
+  error?: {
+    message?: string;
+    type?: string;
+    code?: number;
+    error_subcode?: number;
+    fbtrace_id?: string;
+  };
+};
+
+/** Server log line for a Cloud API failure. Never includes the access token. */
+export function whatsappGraphError(status: number, body: WhatsappGraphBody): string {
+  const error = body.error;
+  const message =
+    error?.message?.trim() || `WhatsApp send failed (HTTP ${status})`;
+  const parts = [message];
+  if (typeof error?.code === "number") parts.push(`code ${error.code}`);
+  if (typeof error?.error_subcode === "number") {
+    parts.push(`subcode ${error.error_subcode}`);
+  }
+  if (error?.type?.trim()) parts.push(error.type.trim());
+  if (error?.fbtrace_id && /^[A-Za-z0-9_-]{6,80}$/.test(error.fbtrace_id)) {
+    parts.push(`fbtrace ${error.fbtrace_id}`);
+  }
+  return parts
+    .join(" ")
+    .replace(/[A-Za-z0-9_\-~.]{80,}/g, "[redacted]")
+    .slice(0, 300);
+}
+
 export async function sendWhatsappText(input: {
   to: string;
   body: string;
@@ -41,15 +72,10 @@ export async function sendWhatsappText(input: {
     },
   );
 
-  const json = (await res.json().catch(() => ({}))) as {
-    messages?: Array<{ id: string }>;
-    error?: { message?: string };
-  };
+  const json = (await res.json().catch(() => ({}))) as WhatsappGraphBody;
 
   if (!res.ok) {
-    throw new Error(
-      json.error?.message ?? `WhatsApp send failed (HTTP ${res.status})`,
-    );
+    throw new Error(whatsappGraphError(res.status, json));
   }
 
   return { id: json.messages?.[0]?.id ?? "sent" };
@@ -123,15 +149,10 @@ export async function sendWhatsappTemplate(input: {
     },
   );
 
-  const json = (await res.json().catch(() => ({}))) as {
-    messages?: Array<{ id: string }>;
-    error?: { message?: string };
-  };
+  const json = (await res.json().catch(() => ({}))) as WhatsappGraphBody;
 
   if (!res.ok) {
-    throw new Error(
-      json.error?.message ?? `WhatsApp template send failed (HTTP ${res.status})`,
-    );
+    throw new Error(whatsappGraphError(res.status, json));
   }
 
   return { id: json.messages?.[0]?.id ?? "sent" };

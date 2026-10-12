@@ -49,9 +49,7 @@ export async function ShopHeader() {
   return (
     <div
       className={
-        tickerItems.length > 0
-          ? "shop-topchrome has-ticker"
-          : "shop-topchrome"
+        tickerItems.length > 0 ? "shop-topchrome has-ticker" : "shop-topchrome"
       }
     >
       <AnnouncementTicker items={tickerItems} />
@@ -213,8 +211,14 @@ export async function ShopFooter() {
       </div>
 
       <div className="foot-base">
+        <nav className="foot-legal" aria-label={t("footerLegal")}>
+          <Link href={"/track" as "/"}>{t("footerTrack")}</Link>
+          <Link href={"/privacy" as "/"}>{t("footerPrivacy")}</Link>
+          <Link href={"/terms" as "/"}>{t("footerTerms")}</Link>
+          <Link href={"/data-deletion" as "/"}>{t("footerDataDeletion")}</Link>
+        </nav>
         <span>{t("footerTagline")}</span>
-        <span>{t("footerCopyright")}</span>
+        <span className="foot-operator">{t("footerCopyright")}</span>
       </div>
     </footer>
   );

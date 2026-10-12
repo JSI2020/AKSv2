@@ -19,6 +19,7 @@ import {
   type StockLedgerDetail,
 } from "./ledger-types";
 import { recordStockMovement } from "./record-movement-action";
+import { rtwReceiveDeductionCopy } from "./rtw-receive-confirm";
 
 function formatQty(value: number, unit: "pcs" | "m"): string {
   if (unit === "m") {
@@ -150,6 +151,17 @@ export function StockLedgerView({ detail }: { detail: StockLedgerDetail }) {
         return;
       }
       quantity = n;
+    }
+    if (
+      detail.stockKind === "rtw" &&
+      type === "RECEIVED" &&
+      figures.unit === "pcs"
+    ) {
+      const copy = rtwReceiveDeductionCopy(
+        quantity,
+        detail.fabricMetresPerPiece ?? 0,
+      );
+      if (!window.confirm(`${copy} Continue?`)) return;
     }
     startTransition(async () => {
       const res = await recordStockMovement({
@@ -321,6 +333,16 @@ export function StockLedgerView({ detail }: { detail: StockLedgerDetail }) {
                     className="border border-ink/12 bg-greige/40 px-3 py-2 text-[13px] text-ink outline-none focus:border-ink"
                   />
                 </label>
+                {detail.stockKind === "rtw" &&
+                type === "RECEIVED" &&
+                Number.parseInt(qty, 10) > 0 ? (
+                  <p className="mb-2 text-[12px] text-ink/70">
+                    {rtwReceiveDeductionCopy(
+                      Number.parseInt(qty, 10),
+                      detail.fabricMetresPerPiece ?? 0,
+                    )}
+                  </p>
+                ) : null}
                 {error ? (
                   <p className="mb-2 text-[12px] text-madder" role="alert">
                     {error}

@@ -3,16 +3,18 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import {
+  localDiskUploadsEnabled,
   saveLocalDevAsset,
   uploadKeyOwnedByPrefix,
 } from "@/modules/platform/assets";
 
 /**
- * Dev fallback when MinIO/R2 is offline — accepts the same PUT the presign
- * flow uses, writing bytes under public/<key> for local serving.
+ * Accepts the same PUT the presign flow uses when object storage is offline
+ * or R2_FORCE_LOCAL is set. Bytes land under public/<key> (production mounts
+ * public/uploads on a Docker volume) and are served by /api/assets/serve.
  */
 export async function PUT(request: Request) {
-  if (process.env.NODE_ENV === "production") {
+  if (!localDiskUploadsEnabled()) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 

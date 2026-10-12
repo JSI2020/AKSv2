@@ -1,10 +1,8 @@
-import { getLocale } from "next-intl/server";
-
-import { redirect } from "@/i18n/routing";
 import { auth } from "@/auth";
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { loadActiveCart } from "@/modules/cart/queries";
 import { CheckoutFlow, getCheckoutCodStatus, getCheckoutShippingQuote } from "@/modules/checkout";
+import { CheckoutResume } from "@/modules/checkout/checkout-resume";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 export default async function CheckoutPage() {
@@ -14,8 +12,11 @@ export default async function CheckoutPage() {
   const cart = await loadActiveCart({ userId, anonId });
 
   if (cart.lines.length === 0) {
-    const locale = await getLocale();
-    redirect({ href: "/", locale });
+    return (
+      <ShopPageContainer>
+        <CheckoutResume />
+      </ShopPageContainer>
+    );
   }
 
   const [codStatus, shipping] = await Promise.all([

@@ -4,7 +4,12 @@ type IconProps = { className?: string; title?: string };
 
 export function EmailChannelIcon({ className, title = "Email" }: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden={title ? undefined : true} role={title ? "img" : undefined}>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
       {title ? <title>{title}</title> : null}
       <path
         fill="currentColor"
@@ -14,9 +19,17 @@ export function EmailChannelIcon({ className, title = "Email" }: IconProps) {
   );
 }
 
-export function WhatsAppChannelIcon({ className, title = "WhatsApp" }: IconProps) {
+export function WhatsAppChannelIcon({
+  className,
+  title = "WhatsApp",
+}: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden={title ? undefined : true} role={title ? "img" : undefined}>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
       {title ? <title>{title}</title> : null}
       <path
         fill="currentColor"
@@ -26,9 +39,17 @@ export function WhatsAppChannelIcon({ className, title = "WhatsApp" }: IconProps
   );
 }
 
-export function FacebookChannelIcon({ className, title = "Facebook" }: IconProps) {
+export function FacebookChannelIcon({
+  className,
+  title = "Facebook",
+}: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden={title ? undefined : true} role={title ? "img" : undefined}>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
       {title ? <title>{title}</title> : null}
       <path
         fill="currentColor"
@@ -38,9 +59,17 @@ export function FacebookChannelIcon({ className, title = "Facebook" }: IconProps
   );
 }
 
-export function InstagramChannelIcon({ className, title = "Instagram" }: IconProps) {
+export function InstagramChannelIcon({
+  className,
+  title = "Instagram",
+}: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden={title ? undefined : true} role={title ? "img" : undefined}>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
       {title ? <title>{title}</title> : null}
       <path
         fill="currentColor"
@@ -52,7 +81,12 @@ export function InstagramChannelIcon({ className, title = "Instagram" }: IconPro
 
 export function TikTokChannelIcon({ className, title = "TikTok" }: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden={title ? undefined : true} role={title ? "img" : undefined}>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
       {title ? <title>{title}</title> : null}
       <path
         fill="currentColor"
@@ -64,7 +98,12 @@ export function TikTokChannelIcon({ className, title = "TikTok" }: IconProps) {
 
 export function GoogleChannelIcon({ className, title = "Google" }: IconProps) {
   return (
-    <svg className={className} viewBox="0 0 24 24" aria-hidden={title ? undefined : true} role={title ? "img" : undefined}>
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      aria-hidden={title ? undefined : true}
+      role={title ? "img" : undefined}
+    >
       {title ? <title>{title}</title> : null}
       <path
         fill="currentColor"
