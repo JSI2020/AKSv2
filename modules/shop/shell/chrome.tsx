@@ -212,6 +212,7 @@ export async function ShopFooter() {
 
       <div className="foot-base">
         <nav className="foot-legal" aria-label={t("footerLegal")}>
+          <Link href={"/track" as "/"}>{t("footerTrack")}</Link>
           <Link href={"/privacy" as "/"}>{t("footerPrivacy")}</Link>
           <Link href={"/terms" as "/"}>{t("footerTerms")}</Link>
           <Link href={"/data-deletion" as "/"}>{t("footerDataDeletion")}</Link>
