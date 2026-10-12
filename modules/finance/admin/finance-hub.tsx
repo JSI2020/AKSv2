@@ -306,7 +306,8 @@ function OrdersPaymentPanel({
       return data.rows.filter(
         (r) =>
           r.paymentStatus === "BALANCE_DUE" ||
-          r.paymentStatus === "DEPOSIT_PAID",
+          r.paymentStatus === "DEPOSIT_PAID" ||
+          r.paymentStatus === "COD_UNPAID",
       );
     if (chip === "full")
       return data.rows.filter((r) => r.paymentStatus === "PAID");
@@ -323,7 +324,7 @@ function OrdersPaymentPanel({
     },
     {
       id: "due",
-      label: `Balance due · ${data.rows.filter((r) => r.paymentStatus === "BALANCE_DUE" || r.paymentStatus === "DEPOSIT_PAID").length}`,
+      label: `Balance due · ${data.rows.filter((r) => r.paymentStatus === "BALANCE_DUE" || r.paymentStatus === "DEPOSIT_PAID" || r.paymentStatus === "COD_UNPAID").length}`,
     },
     {
       id: "full",

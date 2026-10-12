@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 
 import { Link, useRouter } from "@/i18n/routing";
+import { useCart } from "@/modules/cart/cart-context";
 import { Money } from "@/modules/ui";
 import type { CartPublic } from "@/modules/cart";
 
@@ -18,6 +19,7 @@ import type { CheckoutAddressInput, CheckoutDiscountPreview, CheckoutStep } from
 type Props = {
   cart: CartPublic;
   isSignedIn: boolean;
+  accountEmail?: string | null;
   codDisabled?: boolean;
   shippingMinor?: number;
   shippingLabel?: string;
@@ -32,11 +34,13 @@ const STEPS: { key: CheckoutStep; label: string }[] = [
 export function CheckoutFlow({
   cart,
   isSignedIn,
+  accountEmail = null,
   codDisabled = false,
   shippingMinor = 0,
   shippingLabel = "Free shipping within Pakistan",
 }: Props) {
   const router = useRouter();
+  const { clearBag } = useCart();
   const [step, setStep] = useState<CheckoutStep>("address");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +56,7 @@ export function CheckoutFlow({
     province: "PUNJAB",
     postalCode: "",
     landmark: "",
-    guestEmail: "",
+    guestEmail: accountEmail ?? "",
     saveAddress: false,
     addressLabel: "Home",
   });
@@ -108,6 +112,7 @@ export function CheckoutFlow({
         totalMinor: cartTotalMinor,
       });
 
+      clearBag();
       router.push(`/checkout/confirmation?order=${encodeURIComponent(result.orderNumber)}`);
     });
   }

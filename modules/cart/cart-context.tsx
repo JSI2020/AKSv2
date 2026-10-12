@@ -22,7 +22,10 @@ import {
   updateCartLineQuantity,
 } from "./actions";
 import {
+  bagOrderedThisSession,
   cartFromStoredBag,
+  clearBagOrderedFlag,
+  markBagOrdered,
   readStoredBag,
   writeStoredBag,
 } from "./bag-storage";
@@ -51,6 +54,8 @@ type CartContextValue = {
   ) => Promise<{ ok: boolean; error?: string }>;
   setLineQuantity: (lineId: string, quantity: number) => void;
   removeLine: (lineId: string) => void;
+  /** Drop the bag after a successful order so it does not come back. */
+  clearBag: () => void;
   pending: boolean;
   /** False until the browser bag has been read. Checkout waits on this. */
   bagHydrated: boolean;
@@ -158,9 +163,15 @@ export function CartProvider({
   const [seenStamp, setSeenStamp] = useState(serverStamp);
   if (serverStamp !== seenStamp) {
     setSeenStamp(serverStamp);
-    // An empty server payload must not wipe a bag that is still saving
-    // or was restored from this browser.
-    if (initialCart.lines.length > 0 || cart.lines.length === 0) {
+    if (bagOrderedThisSession()) {
+      setCart((prev) =>
+        prev.lines.length === 0
+          ? prev
+          : { ...prev, lines: [], itemCount: 0, subtotalMinor: 0 },
+      );
+    } else if (initialCart.lines.length > 0 || cart.lines.length === 0) {
+      // An empty server payload must not wipe a bag that is still saving
+      // or was restored from this browser.
       setCart(initialCart);
     }
   }
@@ -168,7 +179,7 @@ export function CartProvider({
   useEffect(() => {
     if (!hydratedRef.current) {
       hydratedRef.current = true;
-      if (initialCart.lines.length === 0) {
+      if (initialCart.lines.length === 0 && !bagOrderedThisSession()) {
         const stored = readStoredBag();
         if (stored.length > 0) {
           setCart(cartFromStoredBag(stored));
@@ -191,6 +202,7 @@ export function CartProvider({
       }
       setBagHydrated(true);
     }
+    if (bagOrderedThisSession() && cart.lines.length > 0) return;
     writeStoredBag(cart);
   }, [cart, initialCart.lines.length, startTransition]);
 
@@ -218,8 +230,19 @@ export function CartProvider({
   const clearLastAdded = useCallback(() => setLastAddedName(null), []);
   const clearCartNotice = useCallback(() => setCartNotice(null), []);
 
+  const clearBag = useCallback(() => {
+    markBagOrdered();
+    setCart((prev) => ({
+      ...prev,
+      lines: [],
+      itemCount: 0,
+      subtotalMinor: 0,
+    }));
+  }, []);
+
   const addItem = useCallback(
     async (input: AddToCartInput, designMeta: OptimisticMeta) => {
+      clearBagOrderedFlag();
       const draft = optimisticLine(input, designMeta);
       const draftId = draft.id;
 
@@ -400,6 +423,7 @@ export function CartProvider({
       addItem,
       setLineQuantity,
       removeLine,
+      clearBag,
       pending,
       bagHydrated,
       cartNotice,
@@ -416,6 +440,7 @@ export function CartProvider({
       addItem,
       setLineQuantity,
       removeLine,
+      clearBag,
       pending,
       bagHydrated,
       cartNotice,

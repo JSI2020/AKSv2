@@ -30,6 +30,7 @@ export default async function CheckoutPage() {
         <CheckoutFlow
           cart={cart}
           isSignedIn={Boolean(userId)}
+          accountEmail={session?.user?.email ?? null}
           codDisabled={codStatus.codDisabled}
           shippingMinor={shipping.shippingMinor}
           shippingLabel={shipping.label}

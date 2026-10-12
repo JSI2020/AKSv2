@@ -237,7 +237,7 @@ describe("bank transfer and COD", () => {
       id: orderId,
       orderNumber: "AKS-330003",
       whatsappNumber: "+923001234567",
-      status: "DISPATCHED",
+      status: "DELIVERED",
       subtotalMinor: 1000000,
       discountMinor: 0,
       shippingMinor: 0,
@@ -277,6 +277,12 @@ describe("bank transfer and COD", () => {
     expect(codBalance[0]?.provider).toBe("COD");
     expect(codBalance[0]?.kind).toBe("BALANCE");
     expect(codBalance[0]?.amountMinor).toBe(500000);
+
+    const [stillDue] = await db
+      .select({ balanceAmountMinor: orders.balanceAmountMinor })
+      .from(orders)
+      .where(eq(orders.id, orderId));
+    expect(stillDue?.balanceAmountMinor).toBe(500000);
   });
 
   it("disables COD after delivery refusal", async () => {

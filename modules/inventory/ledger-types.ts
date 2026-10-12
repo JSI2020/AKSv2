@@ -8,7 +8,9 @@ export type ManualMovementType =
 
 export type InventoryMovementReason =
   | ManualMovementType
-  | "ORDER_DISPATCH";
+  | "ORDER_DISPATCH"
+  | "RESERVED"
+  | "RELEASED";
 
 export type LedgerMovementRow = {
   id: string;
@@ -83,6 +85,10 @@ export function movementLabel(reason: string): string {
       return "Count correction";
     case "ORDER_DISPATCH":
       return "Order dispatch";
+    case "RESERVED":
+      return "Reserved";
+    case "RELEASED":
+      return "Released";
     case "SAMPLING":
       return "Sampling";
     case "CUTTING_WASTE":

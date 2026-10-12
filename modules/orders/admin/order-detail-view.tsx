@@ -119,9 +119,13 @@ export function OrderDetailView({
   const stagePick = buildStagePick(order.status, order.skipEmbroidery);
   const gateNote = gateNoteForStage(order.status, order.skipEmbroidery);
   const pipeline = buildAdminProductionPipeline(order.status);
+  const customerTerminal =
+    order.status === "DELIVERED" ||
+    order.status === "COMPLETED" ||
+    isTerminalOrderStatus(order.status);
   const canShowAdvance =
     canAdvance &&
-    !isTerminalOrderStatus(order.status) &&
+    !customerTerminal &&
     (order.status === "AWAITING_DEPOSIT" ||
       order.status === "DEPOSIT_PAID" ||
       Boolean(nextStage));
@@ -369,7 +373,7 @@ export function OrderDetailView({
             <span className="font-medium text-ink">
               {PRODUCTION_STATUS_LABELS[order.productionStatus]}
             </span>
-            {nextStage ? (
+            {nextStage && !customerTerminal ? (
               <>
                 {" "}
                 — next is{" "}
@@ -698,7 +702,9 @@ export function OrderDetailView({
                               : 0
                           }%`
                         : p.kind === "BALANCE"
-                          ? "Balance paid"
+                          ? p.provider === "COD"
+                            ? "Cash collected on delivery"
+                            : "Balance paid"
                           : p.kind === "FULL"
                             ? "Paid in full"
                             : `Payment · ${p.kind}`,

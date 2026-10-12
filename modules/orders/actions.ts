@@ -164,6 +164,16 @@ export async function advanceStageAction(input: {
       if (!order) throw new Error("Order not found.");
       orderNumber = order.orderNumber;
       const from = order.status as OrderStatus;
+      if (
+        from === "DELIVERED" ||
+        from === "COMPLETED" ||
+        from === "CANCELLED" ||
+        from === "REFUNDED" ||
+        from === "WRITE_OFF" ||
+        from === "DELIVERY_REFUSED"
+      ) {
+        throw new Error("This order is already at its last stage.");
+      }
       const to = getNextProductionStage(from, order.skipEmbroidery);
       if (!to) {
         throw new Error(`No next stage from ${from}.`);

@@ -1,13 +1,14 @@
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, desc, eq, inArray, notInArray, or, sql } from "drizzle-orm";
 
 import {
+  assets,
   db,
   orderEvents,
   orderItems,
   orderPhotos,
   orders,
+  payments,
   users,
-  assets,
 } from "@aks/db";
 
 import { auth } from "@/auth";
@@ -31,6 +32,9 @@ export type CustomerOrderView = {
   placedAt: Date | null;
   promisedShipDate: Date | null;
   totalMinor: number;
+  paidMinor: number;
+  balanceAmountMinor: number;
+  paymentPlan: string;
   currency: string;
   customerNotes: string | null;
   courierName: string | null;
@@ -141,6 +145,19 @@ async function mapCustomerOrder(
     }),
     order.placedAt,
   );
+  const [paidRow] = await db
+    .select({
+      total: sql<number>`coalesce(sum(${payments.amountMinor}), 0)`,
+    })
+    .from(payments)
+    .where(
+      and(
+        eq(payments.orderId, order.id),
+        inArray(payments.status, ["SUCCEEDED", "REFUNDED"]),
+        notInArray(payments.kind, ["REFUND"]),
+      ),
+    );
+
   return {
     orderNumber: order.orderNumber,
     status,
@@ -150,6 +167,9 @@ async function mapCustomerOrder(
     placedAt: order.placedAt,
     promisedShipDate: order.promisedShipDate,
     totalMinor: order.totalMinor,
+    paidMinor: Number(paidRow?.total ?? 0),
+    balanceAmountMinor: order.balanceAmountMinor,
+    paymentPlan: order.paymentPlan,
     currency: order.currency,
     customerNotes: order.customerNotes,
     courierName: order.courierName,

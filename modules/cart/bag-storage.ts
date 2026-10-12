@@ -1,6 +1,7 @@
 import type { CartLinePublic, CartPublic } from "./types";
 
 const STORAGE_KEY = "aks-bag-v1";
+const ORDERED_FLAG = "aks-bag-ordered";
 
 export type StoredBagLine = {
   designId: string;
@@ -39,6 +40,35 @@ export function readStoredBag(): StoredBagLine[] {
     return parsed.lines.filter(isStoredLine);
   } catch {
     return [];
+  }
+}
+
+/** Remember that checkout succeeded so a reload does not put the bag back. */
+export function markBagOrdered(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.setItem(ORDERED_FLAG, "1");
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Private mode can block storage; the in-memory bag is still cleared.
+  }
+}
+
+export function bagOrderedThisSession(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.sessionStorage.getItem(ORDERED_FLAG) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function clearBagOrderedFlag(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.sessionStorage.removeItem(ORDERED_FLAG);
+  } catch {
+    // Ignore storage failures.
   }
 }
 

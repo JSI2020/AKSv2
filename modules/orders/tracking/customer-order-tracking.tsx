@@ -1,8 +1,9 @@
 import { getSiteSettings } from "@/modules/content";
 import { AksLogoImage } from "@/modules/shop/shell/brand";
+import { Money } from "@/modules/ui";
 import type { CustomerOrderView } from "../customer-queries";
 import { ProductionTimeline } from "./production-timeline";
-import { isTerminalOrderStatus } from "../status";
+import { isTerminalOrderStatus, paymentStatusLabel } from "../status";
 
 function formatPromised(value: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -23,13 +24,25 @@ export async function CustomerOrderTracking({
     ? formatPromised(order.promisedShipDate)
     : null;
   const inFlight = !isTerminalOrderStatus(order.status);
-  const promiseLine = promised
-    ? inFlight
+  const currentStep = order.timeline.find((step) => step.state === "current");
+  const pastMaking =
+    order.status === "READY_TO_SHIP" ||
+    order.status === "DISPATCHED" ||
+    order.status === "DELIVERED" ||
+    order.status === "COMPLETED" ||
+    !inFlight;
+  const promiseLine = pastMaking
+    ? (currentStep?.message ?? null)
+    : promised
       ? `Promised by ${promised} · being made now`
-      : `Promised by ${promised}`
-    : inFlight
-      ? "Being made now"
-      : null;
+      : (currentStep?.message ?? "Being made now");
+  const paymentLabel = paymentStatusLabel({
+    status: order.status,
+    balanceAmountMinor: order.balanceAmountMinor,
+    paidMinor: order.paidMinor,
+    totalMinor: order.totalMinor,
+    paymentPlan: order.paymentPlan,
+  });
 
   return (
     <div className="mx-auto max-w-[560px] overflow-hidden border border-ink/12 bg-milk">
@@ -43,6 +56,31 @@ export async function CustomerOrderTracking({
         {promiseLine ? (
           <p className="mt-4 text-[13px] text-ink/85">{promiseLine}</p>
         ) : null}
+        <p className="mt-2 text-[13px] text-ink/70">{paymentLabel}</p>
+      </div>
+
+      <div className="border-t border-ink/12 px-8 py-5">
+        <p className="text-[12px] uppercase tracking-[0.08em] text-ink/55">
+          Pieces
+        </p>
+        <ul className="mt-3 space-y-2">
+          {order.items.map((item, index) => (
+            <li
+              key={`${item.designName}-${item.sizeLabel ?? "size"}-${index}`}
+              className="flex items-baseline justify-between gap-4 text-[15px] text-ink"
+            >
+              <span>
+                {item.designName}
+                {item.sizeLabel ? ` · ${item.sizeLabel}` : ""}
+                {item.quantity > 1 ? ` · ×${item.quantity}` : ""}
+              </span>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-4 flex items-baseline justify-between gap-4 border-t border-ink/12 pt-3 text-[15px]">
+          <span className="text-ink/55">Total</span>
+          <Money value={order.totalMinor} />
+        </div>
       </div>
 
       <div className="px-8 py-8">

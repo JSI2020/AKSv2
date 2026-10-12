@@ -62,6 +62,8 @@ export const inventoryMovementReasonEnum = pgEnum("inventory_movement_reason", [
   "DAMAGE",
   "COUNT_CORRECTION",
   "ORDER_DISPATCH",
+  "RESERVED",
+  "RELEASED",
 ]);
 
 export const suppliers = pgTable("suppliers", {
