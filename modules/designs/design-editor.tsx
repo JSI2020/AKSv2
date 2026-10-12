@@ -534,18 +534,25 @@ export function DesignEditor({
               Unpublish
             </button>
           ) : canPublish ? (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                const fd = new FormData();
-                fd.set("id", d.id);
-                run(publishDesign, fd);
-              }}
-              className="border border-zari bg-zari px-4 py-2 text-[12px] uppercase tracking-[0.06em] text-indigo disabled:opacity-50"
-            >
-              Publish
-            </button>
+            <div className="flex max-w-xl flex-col gap-1.5">
+              <button
+                type="button"
+                disabled={pending || !readiness.ready}
+                onClick={() => {
+                  const fd = new FormData();
+                  fd.set("id", d.id);
+                  run(publishDesign, fd);
+                }}
+                className="self-start border border-zari bg-zari px-4 py-2 text-[12px] uppercase tracking-[0.06em] text-indigo disabled:opacity-50"
+              >
+                Publish
+              </button>
+              {!readiness.ready ? (
+                <p className="text-[12px] text-madder">
+                  Publish needs: {readiness.missing.join("; ")}.
+                </p>
+              ) : null}
+            </div>
           ) : null}
           {!isArchived ? (
             <ComingSoonControl
@@ -745,6 +752,7 @@ export function DesignEditor({
               costing={costing}
               pending={pending}
               canPublish={canPublish}
+              publishMissing={readiness.missing}
               onPublish={() => {
                 const fd = new FormData();
                 fd.set("id", d.id);

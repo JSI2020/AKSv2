@@ -8,6 +8,8 @@ import { RtwQuickStockAdjust } from "./rtw-quick-stock-adjust";
 export type RtwDesignStockDetail = {
   id: string;
   name: string;
+  /** Integer hundredths of a metre deducted per finished piece received. */
+  fabricMetresPerPiece: number;
   colourways: {
     id: string;
     name: string;
@@ -115,6 +117,7 @@ export function RtwDesignStockView({
       <RtwQuickStockAdjust
         designName={detail.name}
         colourwayName={colour.name}
+        fabricMetresPerPiece={detail.fabricMetresPerPiece}
         sizes={colour.sizes.map((s) => ({
           label: s.label,
           onHand: s.onHand,

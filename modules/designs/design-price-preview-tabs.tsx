@@ -300,6 +300,7 @@ export function PreviewPublishTab({
   costing,
   pending,
   canPublish,
+  publishMissing = [],
   onPublish,
   onEditTab,
 }: {
@@ -307,6 +308,8 @@ export function PreviewPublishTab({
   costing: DesignCostingData | null | undefined;
   pending: boolean;
   canPublish: boolean;
+  /** Checklist gaps. When non-empty the publish button stays disabled. */
+  publishMissing?: string[];
   onPublish: () => void;
   onEditTab: (
     tab: "Details" | "Photos" | "Sizing" | "Costing" | "Price" | "Preview",
@@ -689,14 +692,21 @@ export function PreviewPublishTab({
       </div>
 
       {canPublish ? (
-        <button
-          type="button"
-          disabled={pending}
-          onClick={onPublish}
-          className="self-start border border-zari bg-zari px-5 py-2.5 text-[13px] text-indigo disabled:opacity-50"
-        >
-          Publish to storefront
-        </button>
+        <div className="flex max-w-xl flex-col gap-1.5">
+          <button
+            type="button"
+            disabled={pending || publishMissing.length > 0}
+            onClick={onPublish}
+            className="self-start border border-zari bg-zari px-5 py-2.5 text-[13px] text-indigo disabled:opacity-50"
+          >
+            Publish to storefront
+          </button>
+          {publishMissing.length > 0 ? (
+            <p className="text-[12px] text-madder">
+              Publish needs: {publishMissing.join("; ")}.
+            </p>
+          ) : null}
+        </div>
       ) : (
         <p className="text-[13px] text-ink/45">
           {d.status === "PUBLISHED"
