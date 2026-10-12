@@ -7,7 +7,7 @@ import {
   privacyDocument,
   termsDocument,
 } from "./documents";
-import { LEGAL_PLACEHOLDER_LIST } from "./placeholders";
+import { LEGAL_OPERATOR_LINE, LEGAL_PLACEHOLDERS } from "./placeholders";
 import {
   DATA_DELETION_STATUS_PATH,
   META_DATA_DELETION_PATH,
@@ -66,12 +66,15 @@ describe("legal documents", () => {
     expect(text).toContain("staff login");
   });
 
-  it("marks unknown seller details and invents none of the banned labels", () => {
+  it("names the seller and invents none of the banned labels", () => {
     for (const doc of legalDocuments) {
       const text = documentText(doc);
-      for (const placeholder of LEGAL_PLACEHOLDER_LIST) {
-        expect(text).toContain(placeholder);
-      }
+      expect(text).toContain(LEGAL_OPERATOR_LINE);
+      expect(text).toContain(LEGAL_PLACEHOLDERS.individualName);
+      expect(text).toContain(LEGAL_PLACEHOLDERS.contactEmail);
+      expect(text).toContain("Karachi, Pakistan");
+      expect(text).not.toContain("[OWNER:");
+      expect(text).not.toContain("03323595785");
       for (const banned of BANNED) {
         const pattern = new RegExp(
           `\\b${banned.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`,

@@ -83,7 +83,7 @@ TikTok and Meta ask for public URLs before an app can go live. This shop publish
 
 Paste the privacy and terms URLs into the Facebook, Instagram, and TikTok app settings. Paste the callback into the Meta app’s Data Deletion Request URL. The callback checks `signed_request` with `AUTH_FACEBOOK_SECRET`, `AUTH_INSTAGRAM_SECRET`, or `WHATSAPP_APP_SECRET`, then returns a confirmation code. The status page is `https://www.aks-atelier.com/data-deletion/status?code=…`.
 
-The seller’s own name, postal address, email, and phone are still marked `[OWNER: …]` on those pages. Fill them in before you send a reviewer to the site. There is no company registration or VAT number on the pages: the shop is an individual.
+The pages name Qamar Un Nisa, Karachi, Pakistan, and info@aks-atelier.com. The phone on those pages is the existing customer number +923378520110. There is no company registration or VAT number: the shop is a sole proprietorship.
 
 `/privacy-policy`, `/datenschutz`, `/terms-of-service`, `/agb`, `/tos`, `/impressum`, and `/imprint` redirect to the English pages. There is no separate German legal notice.
 

@@ -1,4 +1,4 @@
-import { LEGAL_PLACEHOLDERS } from "./placeholders";
+import { LEGAL_OPERATOR_LINE, LEGAL_PLACEHOLDERS } from "./placeholders";
 import {
   DATA_DELETION_PATH,
   DATA_DELETION_STATUS_PATH,
@@ -20,7 +20,7 @@ export type LegalDocument = {
   sections: LegalSection[];
 };
 
-export const LEGAL_UPDATED = "11 October 2026";
+export const LEGAL_UPDATED = "12 October 2026";
 
 const contactBlock = [
   LEGAL_PLACEHOLDERS.individualName,
@@ -37,7 +37,7 @@ export const privacyDocument: LegalDocument = {
     {
       heading: "Who runs this shop",
       paragraphs: [
-        `AKS is the shop at aks-atelier.com. It is run by an individual, ${LEGAL_PLACEHOLDERS.individualName}. There is no registered company. This notice is in English, which is the language of the shop.`,
+        `${LEGAL_OPERATOR_LINE} Email ${LEGAL_PLACEHOLDERS.contactEmail}. There is no registered company. This notice is in English, which is the language of the shop.`,
       ],
     },
     {
@@ -122,7 +122,7 @@ export const termsDocument: LegalDocument = {
     {
       heading: "Who you are buying from",
       paragraphs: [
-        `These terms are between you and ${LEGAL_PLACEHOLDERS.individualName}, the individual who runs AKS at aks-atelier.com. There is no registered company behind the shop.`,
+        `${LEGAL_OPERATOR_LINE} These terms are between you and ${LEGAL_PLACEHOLDERS.individualName}. Email ${LEGAL_PLACEHOLDERS.contactEmail}. There is no registered company behind the shop.`,
       ],
     },
     {
@@ -182,6 +182,7 @@ export const dataDeletionDocument: LegalDocument = {
     {
       heading: "Ask us directly",
       paragraphs: [
+        `${LEGAL_OPERATOR_LINE} Email ${LEGAL_PLACEHOLDERS.contactEmail}.`,
         `Signed in? Open your account and choose Delete my account. That uses the same removal as a Meta request: the profile, saved addresses, and linked sign-ins are cleared, and you are signed out. Order copies stay.`,
         `You can also email ${LEGAL_PLACEHOLDERS.contactEmail} from the address on the account, or include the phone number you used. Say that you want your AKS account deleted.`,
         `You can also write to ${LEGAL_PLACEHOLDERS.individualName} at ${LEGAL_PLACEHOLDERS.postalAddress}, or call ${LEGAL_PLACEHOLDERS.contactPhone}.`,

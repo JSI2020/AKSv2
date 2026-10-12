@@ -2792,6 +2792,12 @@
   color: inherit;
 }
 
+.shop-proto .foot-operator {
+  text-transform: none;
+  letter-spacing: 0.04em;
+  font-size: 12px;
+}
+
 .shop-proto .legal-placeholder {
   background: color-mix(in srgb, var(--sand) 45%, transparent);
   color: var(--espresso);

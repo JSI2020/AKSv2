@@ -217,7 +217,7 @@ export async function ShopFooter() {
           <Link href={"/data-deletion" as "/"}>{t("footerDataDeletion")}</Link>
         </nav>
         <span>{t("footerTagline")}</span>
-        <span>{t("footerCopyright")}</span>
+        <span className="foot-operator">{t("footerCopyright")}</span>
       </div>
     </footer>
   );
