@@ -4,7 +4,10 @@ import { Link } from "@/i18n/routing";
 import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { listActiveAnnouncements } from "@/modules/content/announcements";
 import { listActiveNav } from "@/modules/content/nav";
-import { getSiteSettings } from "@/modules/content/site-settings";
+import {
+  alignBannerWithLeadTime,
+  getSiteSettings,
+} from "@/modules/content/site-settings";
 
 import { AnnouncementTicker } from "./announcement-ticker";
 import { AksBrandLogo } from "./aks-brand-logo";
@@ -33,7 +36,7 @@ export async function ShopHeader() {
     listActiveAnnouncements(),
   ]);
 
-  const tickerItems =
+  const tickerSource =
     announcements.length > 0
       ? announcements
       : settings.announcementFallback
@@ -41,10 +44,14 @@ export async function ShopHeader() {
             {
               id: "fallback",
               message: settings.announcementFallback,
-              href: null,
+              href: null as string | null,
             },
           ]
         : [];
+  const tickerItems = tickerSource.map((item) => ({
+    ...item,
+    message: alignBannerWithLeadTime(item.message, settings),
+  }));
 
   return (
     <div
@@ -215,6 +222,9 @@ export async function ShopFooter() {
           <Link href={"/track" as "/"}>{t("footerTrack")}</Link>
           <Link href={"/privacy" as "/"}>{t("footerPrivacy")}</Link>
           <Link href={"/terms" as "/"}>{t("footerTerms")}</Link>
+          <Link href={"/pages/shipping-returns" as const}>
+            {t("footerShipping")}
+          </Link>
           <Link href={"/data-deletion" as "/"}>{t("footerDataDeletion")}</Link>
         </nav>
         <span>{t("footerTagline")}</span>

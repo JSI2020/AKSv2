@@ -8,6 +8,7 @@ import {
 } from "@/modules/auth";
 import { getDesignCostingData } from "@/modules/money/queries";
 import { getDesign, getDesignFormOptions } from "@/modules/designs";
+import { getDesignStoredCostMinor } from "@/modules/designs/publish-gaps";
 import { DesignEditor } from "@/modules/designs/design-editor";
 
 const TABS = [
@@ -51,6 +52,8 @@ export default async function DesignDetailPage({
 
   if (!detail) redirect("/admin/designs");
 
+  const storedCostMinor = await getDesignStoredCostMinor(id);
+
   const session = await auth();
   const permissions = session?.user?.id
     ? await getPermissionsForUser(session.user.id)
@@ -84,6 +87,7 @@ export default async function DesignDetailPage({
       canViewMargin={canViewMargin}
       canEditCosts={canEditCosts}
       initialTab={initialTab}
+      designCostMinor={storedCostMinor}
     />
   );
 }

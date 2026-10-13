@@ -22,6 +22,7 @@ function ensureAnonId(req: NextRequest): string {
 function withAnonRequest(req: NextRequest, anonId: string): NextRequest {
   const headers = new Headers(req.headers);
   headers.set(ANON_HEADER, anonId);
+  headers.set("x-aks-pathname", req.nextUrl.pathname);
   return new NextRequest(req, { headers });
 }
 

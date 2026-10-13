@@ -136,7 +136,7 @@ export function SiteSettingsForm({
         </label>
         <label className="flex flex-col gap-1 sm:col-span-2">
           <span className="text-[10px] uppercase tracking-[0.1em] text-ink/55">
-            Announcement fallback
+            Storefront banner
           </span>
           <input
             className="border border-ink/12 bg-greige px-3 py-2 text-[13px] text-ink outline-none focus:border-ink"
@@ -144,8 +144,13 @@ export function SiteSettingsForm({
             onChange={(e) =>
               setForm((f) => ({ ...f, announcementFallback: e.target.value }))
             }
-            placeholder="Shown when no active announcement rows"
+            placeholder="Shown when no announcement is active"
           />
+          <p className="mt-1 text-[11.5px] text-ink/55">
+            Use the same promise as lead time. If pieces ship, don&apos;t say
+            the collection is still being prepared. Active announcements on
+            the Announcements tab replace this line.
+          </p>
         </label>
         <label className="flex flex-col gap-1">
           <span className="text-[10px] uppercase tracking-[0.1em] text-ink/55">

@@ -51,6 +51,7 @@ describe("legal documents", () => {
     expect(text).toContain("only within Pakistan");
     expect(text).toContain("outside Pakistan");
     expect(text).toContain("XS–XL");
+    expect(text).toContain("/pages/shipping-returns");
     expect(text).toContain("Prevention of Electronic Crimes Act, 2016");
     expect(text).toContain("laws of Pakistan");
     expect(text).toContain("no registered company");

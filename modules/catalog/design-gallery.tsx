@@ -115,6 +115,7 @@ export function DesignGallery({
         {activeFabric?.url ? (
           <div className="layer" style={{ opacity: 1 }}>
             <Image
+              key={activeFabric.url}
               src={activeFabric.url}
               alt={activeFabric.altText || `${designName} — fabric`}
               fill
@@ -124,32 +125,25 @@ export function DesignGallery({
             />
           </div>
         ) : (
-          angles.map((a) => {
-            const img = images[a];
-            const visible = fabricIdx == null && a === shownAngle;
-            return (
-              <div
-                key={a}
-                aria-hidden={!visible}
-                className="layer"
-                style={{ opacity: visible ? 1 : 0 }}
-              >
-                {img?.url ? (
-                  <Image
-                    src={img.url}
-                    alt={img.altText || `${designName} — ${ANGLE_LABELS[a]}`}
-                    fill
-                    sizes="(max-width: 768px) 100vw, 55vw"
-                    className="object-cover"
-                    priority={a === "FRONT"}
-                    unoptimized
-                  />
-                ) : (
-                  <ImageSlotPlaceholder silhouette={sil} />
-                )}
-              </div>
-            );
-          })
+          <div className="layer" style={{ opacity: 1 }}>
+            {images[shownAngle]?.url ? (
+              <Image
+                key={`${shownAngle}-${images[shownAngle]!.url}`}
+                src={images[shownAngle]!.url!}
+                alt={
+                  images[shownAngle]!.altText ||
+                  `${designName} — ${ANGLE_LABELS[shownAngle]}`
+                }
+                fill
+                sizes="(max-width: 768px) 100vw, 55vw"
+                className="object-cover"
+                priority={shownAngle === "FRONT"}
+                unoptimized
+              />
+            ) : (
+              <ImageSlotPlaceholder silhouette={sil} />
+            )}
+          </div>
         )}
 
         {fabricIdx == null &&

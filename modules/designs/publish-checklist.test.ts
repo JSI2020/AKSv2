@@ -3,7 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   evaluatePublishChecklist,
   hasEffectiveFabricConsumption,
+  publishMarginWarning,
   resolveEffectiveBasePriceMinor,
+  resolveEffectiveCostMinor,
 } from "./publish-checklist";
 
 const baseDesign = {
@@ -28,6 +30,7 @@ describe("evaluatePublishChecklist", () => {
       renders: baseRenders,
       tags: baseTags,
       sizeBlockRowCount: 0,
+      designCostMinor: 120_000,
     });
     expect(missing.some((m) => m.includes("measurement rows"))).toBe(true);
   });
@@ -39,6 +42,7 @@ describe("evaluatePublishChecklist", () => {
       renders: baseRenders,
       tags: baseTags,
       sizeBlockRowCount: 3,
+      designCostMinor: 120_000,
     });
     expect(missing).toEqual([]);
   });
@@ -74,7 +78,7 @@ describe("evaluatePublishChecklist", () => {
               },
             ],
             totalLumpsumMinor: null,
-            totalCostMinor: 0,
+            totalCostMinor: 400_000,
             marginPercent: 0,
             sellingPriceMinor: 1_250_000,
           },
@@ -97,6 +101,53 @@ describe("evaluatePublishChecklist", () => {
     });
     expect(missing).not.toContain("fit profile");
     expect(missing).toContain("occasion tag");
+  });
+
+  it("blocks publish without a real photo or a cost above zero", () => {
+    const missing = evaluatePublishChecklist({
+      design: baseDesign,
+      colourways: [{ id: "cw-1", name: "Ivory" }],
+      renders: [
+        {
+          colourwayId: "cw-1",
+          angle: "FRONT",
+          altText: "Front",
+          isAiGenerated: true,
+        },
+      ],
+      tags: baseTags,
+      sizeBlockRowCount: 3,
+      designCostMinor: 0,
+    });
+    expect(missing).toContain("a photo");
+    expect(missing).toContain("cost");
+  });
+
+  it("warns when cost is at or above price and does not block on that alone", () => {
+    expect(publishMarginWarning(500_000, 400_000)).toMatch(/margin/i);
+    expect(publishMarginWarning(100_000, 400_000)).toBeNull();
+    expect(
+      resolveEffectiveCostMinor(
+        [
+          {
+            costingSnapshot: {
+              fabricId: "fab-1",
+              fabricMeters: 250,
+              packagingMinor: 0,
+              shippingMinor: 0,
+              overheadMinor: 0,
+              costingMode: "DETAILED_PER_PIECE",
+              pieceCosts: [],
+              totalLumpsumMinor: null,
+              totalCostMinor: 90_000,
+              marginPercent: 0,
+              sellingPriceMinor: 400_000,
+            },
+          },
+        ],
+        0,
+      ),
+    ).toBe(90_000);
   });
 
   it("accepts shade costing snapshot for fabric consumption", () => {

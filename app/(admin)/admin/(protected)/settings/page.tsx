@@ -4,6 +4,7 @@ import {
   FileText,
   Palette,
   Ruler,
+  ScrollText,
   ShieldCheck,
   Store,
   Users,
@@ -98,6 +99,12 @@ export default async function AdminSettingsPage() {
           title: "Content & pages",
           desc: "Homepage, nav, announcements, static pages and the size-guide copy.",
           icon: FileText,
+        },
+        {
+          href: "/admin/settings/audit",
+          title: "Audit log",
+          desc: "Who changed what — the latest entries from the audit log.",
+          icon: ScrollText,
         },
       ],
     });

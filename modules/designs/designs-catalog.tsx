@@ -28,20 +28,36 @@ function piecesLabel(design: StudioCatalogCard) {
   return design.components.map((c) => c.toUpperCase()).join(" + ");
 }
 
+function statusQueryMatches(status: string, query: string): boolean {
+  const wanted = query.trim().toUpperCase();
+  if (!wanted || wanted === "ALL") return true;
+  if (wanted === "REVIEW") return needsReview(status);
+  if (wanted === "PUBLISHED") return isPublished(status);
+  if (wanted === "DRAFT") return !isPublished(status) && !needsReview(status);
+  return status.toUpperCase() === wanted;
+}
+
 export function DesignsCatalog({
   groups,
   initialFilter = "all",
+  initialStatus = "",
 }: {
   groups: StudioCatalogGroup[];
   initialFilter?: Filter;
+  /** `?status=` — PUBLISHED, DRAFT, REVIEW, or a pipeline status. */
+  initialStatus?: string;
 }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>(initialFilter);
+  const [statusQuery, setStatusQuery] = useState(initialStatus);
 
   const designs = useMemo(() => {
     const flat = groups.flatMap((g) => g.designs);
     const term = q.trim().toLowerCase();
     return flat.filter((d) => {
+      if (statusQuery && !statusQueryMatches(d.status, statusQuery)) {
+        return false;
+      }
       if (filter === "published" && !isPublished(d.status)) return false;
       if (filter === "draft" && isPublished(d.status)) return false;
       if (filter === "review" && !needsReview(d.status)) return false;
@@ -53,7 +69,7 @@ export function DesignsCatalog({
         d.categoryKey.toLowerCase().includes(term)
       );
     });
-  }, [groups, q, filter]);
+  }, [groups, q, filter, statusQuery]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -75,7 +91,10 @@ export function DesignsCatalog({
           <button
             key={key}
             type="button"
-            onClick={() => setFilter(key)}
+            onClick={() => {
+              setFilter(key);
+              setStatusQuery("");
+            }}
             className={
               filter === key
                 ? "border border-ink bg-ink px-3 py-1.5 text-[11px] uppercase tracking-[0.05em] text-milk"
@@ -86,6 +105,11 @@ export function DesignsCatalog({
           </button>
         ))}
       </div>
+
+      <p className="font-data text-[12px] text-ink/55">
+        {designs.length} design{designs.length === 1 ? "" : "s"} shown
+        {statusQuery ? ` · status ${statusQuery}` : ""}
+      </p>
 
       {designs.length === 0 ? (
         <EmptyState

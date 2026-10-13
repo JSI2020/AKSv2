@@ -447,7 +447,7 @@ export function InsightsDashboard({ data }: { data: InsightsReportData }) {
       {/* Drill-down tables */}
       <section className="flex flex-col gap-3">
         <h2 className="font-sans text-[10px] uppercase tracking-[0.2em] text-chalk">
-          Detailed reports · export CSV
+          Detailed reports
         </h2>
 
         <ReportTable

@@ -391,11 +391,18 @@ export async function seedContentDefaults(): Promise<void> {
     .select({ id: announcements.id, message: announcements.message })
     .from(announcements);
   for (const row of staleAnnouncements) {
-    if (!row.message.toLowerCase().includes("worldwide")) continue;
+    const lower = row.message.toLowerCase();
+    const stalePrepared = lower.includes(
+      "white collection and house doors are being prepared",
+    );
+    if (!lower.includes("worldwide") && !stalePrepared) continue;
+    const message = stalePrepared
+      ? "Ready to wear · ships in 14–18 days · Free shipping within Pakistan"
+      : "Ready to wear, cut by hand · Free shipping within Pakistan";
     await db
       .update(announcements)
       .set({
-        message: "Ready to wear, cut by hand · Free shipping within Pakistan",
+        message,
         updatedAt: new Date(),
       })
       .where(eq(announcements.id, row.id));

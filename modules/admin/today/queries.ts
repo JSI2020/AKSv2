@@ -6,13 +6,17 @@ import {
   designCosts,
   designs,
   orderEvents,
+  rtwStock,
   orderPayments,
   orders,
   payments,
 } from "@aks/db";
 
 import { can } from "@/modules/auth";
-import { countFabricsBelowReorderPoint } from "@/modules/inventory";
+import {
+  countFabricStockAlert,
+  countFabricsBelowReorderPoint,
+} from "@/modules/inventory";
 import type { OrderStatus } from "@/modules/orders/constants";
 import { isOrderAtRisk } from "@/modules/orders/status";
 
@@ -66,13 +70,60 @@ const AT_RISK_TERMINAL: readonly OrderStatus[] = [
   "DELIVERY_REFUSED",
 ];
 
+export type StockAlert = {
+  /** Published designs with a size at zero. */
+  designsOut: number;
+  /** Published designs with a size above zero and at or under reorder. */
+  designsLow: number;
+  fabricsOut: number;
+  fabricsLow: number;
+};
+
 export type TodayScreenData = {
   cards: TodayActionCard[];
   stats: TodayStats | null;
   summary: OverviewSummary;
   allClear: boolean;
+  stockAlert: StockAlert;
   range: OverviewRange;
 };
+
+const EMPTY_STOCK_ALERT: StockAlert = {
+  designsOut: 0,
+  designsLow: 0,
+  fabricsOut: 0,
+  fabricsLow: 0,
+};
+
+async function countDesignStockAlert(): Promise<
+  Pick<StockAlert, "designsOut" | "designsLow">
+> {
+  const rows = await db
+    .select({
+      designId: rtwStock.designId,
+      onHand: rtwStock.quantityOnHand,
+      reorder: rtwStock.reorderPoint,
+    })
+    .from(rtwStock)
+    .innerJoin(designs, eq(designs.id, rtwStock.designId))
+    .where(eq(designs.status, "PUBLISHED"));
+
+  const byDesign = new Map<string, { out: boolean; low: boolean }>();
+  for (const row of rows) {
+    const current = byDesign.get(row.designId) ?? { out: false, low: false };
+    if (row.onHand <= 0) current.out = true;
+    else if (row.onHand <= row.reorder) current.low = true;
+    byDesign.set(row.designId, current);
+  }
+
+  let designsOut = 0;
+  let designsLow = 0;
+  for (const flags of byDesign.values()) {
+    if (flags.out) designsOut += 1;
+    else if (flags.low) designsLow += 1;
+  }
+  return { designsOut, designsLow };
+}
 
 async function countOrdersByStatus(status: OrderStatus): Promise<number> {
   const [row] = await db
@@ -289,9 +340,30 @@ export async function getTodayScreenData(
     getOverviewSummary(granted),
   ]);
 
-  const allClear = cards.length > 0 && cards.every((card) => card.count === 0);
+  const stockAlert: StockAlert = { ...EMPTY_STOCK_ALERT };
+  if (can(granted, "designs.view") || can(granted, "inventory.view")) {
+    const designStock = await countDesignStockAlert();
+    stockAlert.designsOut = designStock.designsOut;
+    stockAlert.designsLow = designStock.designsLow;
+  }
+  if (can(granted, "fabric.view") || can(granted, "inventory.view")) {
+    const fabricStock = await countFabricStockAlert();
+    stockAlert.fabricsOut = fabricStock.outOfStock;
+    stockAlert.fabricsLow = fabricStock.belowReorder;
+  }
 
-  return { cards, stats, summary, allClear, range };
+  const stockOpen =
+    stockAlert.designsOut +
+      stockAlert.designsLow +
+      stockAlert.fabricsOut +
+      stockAlert.fabricsLow >
+    0;
+  const allClear =
+    cards.length > 0 &&
+    cards.every((card) => card.count === 0) &&
+    !stockOpen;
+
+  return { cards, stats, summary, allClear, stockAlert, range };
 }
 
 /** @internal exported for tests */

@@ -34,11 +34,33 @@ const nextConfig: NextConfig = {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
   async redirects() {
-    return legalRedirects().map((entry) => ({
-      source: entry.source,
-      destination: entry.destination,
-      permanent: true,
-    }));
+    return [
+      ...legalRedirects().map((entry) => ({
+        source: entry.source,
+        destination: entry.destination,
+        permanent: true,
+      })),
+      {
+        source: "/returns",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+      {
+        source: "/shipping",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+      {
+        source: "/en/returns",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+      {
+        source: "/en/shipping",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+    ];
   },
   // localePrefix "never": map public paths → /en/* without middleware rewrites.
   // Config rewrites stay internal; middleware absolute https rewrites did not

@@ -134,7 +134,7 @@ export const termsDocument: LegalDocument = {
     {
       heading: "Delivery",
       paragraphs: [
-        "We deliver only within Pakistan. We do not ship to an address outside Pakistan. Any shipping charge is the amount shown at checkout before you place the order.",
+        "We deliver only within Pakistan. We do not ship to an address outside Pakistan. Any shipping charge is the amount shown at checkout before you place the order. Shipping and returns are at /pages/shipping-returns.",
       ],
     },
     {
@@ -146,7 +146,7 @@ export const termsDocument: LegalDocument = {
     {
       heading: "Returns",
       paragraphs: [
-        "If a piece arrives and you want to send it back, follow the returns note published on the site and write to the contact below. We will tell you the next step. The address on the order has to be in Pakistan.",
+        "If a piece arrives and you want to send it back, follow /pages/shipping-returns and write to the contact below. We will tell you the next step. The address on the order has to be in Pakistan.",
       ],
     },
     {

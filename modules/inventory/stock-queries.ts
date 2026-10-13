@@ -95,3 +95,38 @@ export async function countFabricsBelowReorderPoint(): Promise<number> {
   const rows = await listFabricsBelowReorderPoint();
   return rows.length;
 }
+
+export type FabricStockAlert = {
+  /** Active fabrics with no metres available. */
+  outOfStock: number;
+  /** Active fabrics still in stock, but under the reorder point. */
+  belowReorder: number;
+};
+
+/** Counts for the overview. Out of stock and below-reorder do not overlap. */
+export async function countFabricStockAlert(): Promise<FabricStockAlert> {
+  const masters = await db
+    .select({
+      id: fabrics.id,
+      reorderPointMeters: fabrics.reorderPointMeters,
+    })
+    .from(fabrics)
+    .where(eq(fabrics.active, true));
+
+  let outOfStock = 0;
+  let belowReorder = 0;
+  for (const master of masters) {
+    const available = await sumFabricAvailableMeters(master.id);
+    if (available <= 0) {
+      outOfStock += 1;
+      continue;
+    }
+    if (
+      master.reorderPointMeters > 0 &&
+      available < master.reorderPointMeters
+    ) {
+      belowReorder += 1;
+    }
+  }
+  return { outOfStock, belowReorder };
+}

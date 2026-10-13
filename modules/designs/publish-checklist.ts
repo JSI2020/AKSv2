@@ -52,6 +52,10 @@ export type PublishChecklistRender = {
 
   altText: string;
 
+  /** Real uploads count as a photo. AI visualisations do not. */
+
+  isAiGenerated?: boolean;
+
 };
 
 
@@ -172,6 +176,82 @@ export function hasEffectiveFabricConsumption(
 
 
 
+const GARMENT_ANGLES = new Set(["FRONT", "THREE_QUARTER", "BACK", "DETAIL"]);
+
+
+
+/** A stored garment image that is not an AI visualisation. */
+
+export function isPublishPhoto(render: PublishChecklistRender): boolean {
+
+  if (render.isAiGenerated === true) return false;
+
+  return GARMENT_ANGLES.has(render.angle);
+
+}
+
+
+
+/**
+
+ * Cost in paisa. Design-level total wins when it is set; otherwise the
+
+ * highest saved shade snapshot.
+
+ */
+
+export function resolveEffectiveCostMinor(
+
+  colourways: Pick<PublishChecklistColourway, "costingSnapshot">[],
+
+  designCostMinor?: number | null,
+
+): number {
+
+  if (designCostMinor != null && designCostMinor > 0) return designCostMinor;
+
+  let best = 0;
+
+  for (const cw of colourways) {
+
+    const parsed = parseShadeCostingSnapshot(cw.costingSnapshot);
+
+    const cost = parsed?.totalCostMinor ?? 0;
+
+    if (cost > best) best = cost;
+
+  }
+
+  return best;
+
+}
+
+
+
+/** Warning only — cost at or above price does not block publish. */
+
+export function publishMarginWarning(
+
+  costMinor: number,
+
+  priceMinor: number,
+
+): string | null {
+
+  if (costMinor <= 0 || priceMinor <= 0) return null;
+
+  if (costMinor >= priceMinor) {
+
+    return "Cost is at or above the selling price. The margin is zero or negative.";
+
+  }
+
+  return null;
+
+}
+
+
+
 export function evaluatePublishChecklist(input: {
 
   design: PublishChecklistDesign;
@@ -181,6 +261,10 @@ export function evaluatePublishChecklist(input: {
   renders: PublishChecklistRender[];
 
   tags: PublishChecklistTag[];
+
+  /** Design-level `design_costs.total_cost_minor`, when a row exists. */
+
+  designCostMinor?: number | null;
 
   /** When provided, blocks publish if the size chart pointer exists but has no rows. */
 
@@ -216,9 +300,21 @@ export function evaluatePublishChecklist(input: {
 
   }
 
+  if (!input.renders.some(isPublishPhoto)) {
+
+    missing.push("a photo");
+
+  }
+
   if (resolveEffectiveBasePriceMinor(input.design, input.colourways) <= 0) {
 
     missing.push("base price");
+
+  }
+
+  if (resolveEffectiveCostMinor(input.colourways, input.designCostMinor) <= 0) {
+
+    missing.push("cost");
 
   }
 

@@ -2,11 +2,23 @@ import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 
 import { adminTwoFactorEnforced } from "@/modules/auth";
+import { isShopOAuthError } from "@/modules/auth/social/oauth-errors";
 import { AksLogoImage } from "@/modules/shop/shell/brand";
 
 import { LoginForm } from "./login-form";
 
-export default async function AdminLoginPage() {
+export default async function AdminLoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const params = await searchParams;
+  if (isShopOAuthError(params.error)) {
+    redirect(
+      `/account/login?error=${encodeURIComponent(params.error ?? "")}`,
+    );
+  }
+
   const session = await auth();
   if (session?.user && session.user.role !== "CUSTOMER") {
     if (

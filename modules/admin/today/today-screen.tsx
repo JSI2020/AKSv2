@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Check } from "lucide-react";
 
 import { Eyebrow } from "@/modules/ui";
@@ -22,7 +23,8 @@ type TodayScreenProps = {
 
 export async function TodayScreen({ permissions, from, to }: TodayScreenProps) {
   const granted = new Set(permissions);
-  const { cards, stats, summary, allClear, range } = await getTodayScreenData(
+  const { cards, stats, summary, allClear, stockAlert, range } =
+    await getTodayScreenData(
     granted,
     { from, to },
   );
@@ -32,6 +34,12 @@ export async function TodayScreen({ permissions, from, to }: TodayScreenProps) {
 
   const charts = await getOverviewCharts({ from: range.from, to: range.to });
 
+  const stockOpen =
+    stockAlert.designsOut +
+      stockAlert.designsLow +
+      stockAlert.fabricsOut +
+      stockAlert.fabricsLow >
+    0;
   const needsYou = cards.filter((c) => c.count > 0);
   const clearCards = cards.filter((c) => c.count === 0);
   const rangeLabel =
@@ -68,6 +76,33 @@ export async function TodayScreen({ permissions, from, to }: TodayScreenProps) {
             </span>
           )}
         </div>
+
+        {stockOpen ? (
+          <div className="border border-madder/40 bg-milk px-4 py-3 text-[13px] text-ink">
+            <p className="font-sans text-[10px] uppercase tracking-[0.16em] text-madder">
+              Stock
+            </p>
+            <p className="mt-1">
+              {stockAlert.designsOut} design
+              {stockAlert.designsOut === 1 ? "" : "s"} out of stock
+              {" · "}
+              {stockAlert.designsLow} below reorder
+              {" · "}
+              {stockAlert.fabricsOut} fabric
+              {stockAlert.fabricsOut === 1 ? "" : "s"} out of stock
+              {" · "}
+              {stockAlert.fabricsLow} below reorder
+            </p>
+            <p className="mt-2 flex flex-wrap gap-3 text-[12px]">
+              <Link href="/admin/inventory/designs" className="underline">
+                Design stock
+              </Link>
+              <Link href="/admin/fabrics?lowStock=true" className="underline">
+                Fabrics
+              </Link>
+            </p>
+          </div>
+        ) : null}
 
         {allClear ? (
           <div className="flex flex-col items-center gap-3 border border-ink/12 bg-milk px-6 py-12 text-center">

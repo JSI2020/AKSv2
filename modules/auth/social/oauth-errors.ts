@@ -54,6 +54,21 @@ export type CustomerOAuthErrorKey =
  * `access_denied` is swallowed by Auth.js). `AccessDenied` is our signIn
  * callback refusing a staff or disabled account.
  */
+const SHOP_OAUTH_ERRORS = new Set([
+  "OAuthSignin",
+  "OAuthCallback",
+  "OAuthCallbackError",
+  "OAuthCreateAccount",
+  "OAuthAccountNotLinked",
+  "Callback",
+  "AccessDenied",
+]);
+
+/** Shopper OAuth failures must not land on the staff sign-in page. */
+export function isShopOAuthError(error: string | null | undefined): boolean {
+  return Boolean(error && SHOP_OAUTH_ERRORS.has(error));
+}
+
 export function customerOAuthErrorKey(
   error: string | null | undefined,
 ): CustomerOAuthErrorKey | null {
