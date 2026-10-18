@@ -41,7 +41,7 @@ export default async function AdminLoginPage({
       </p>
       <h1 className="mt-2 font-display text-4xl text-greige">Sign in</h1>
       <p className="mt-2 max-w-md text-sm text-chalk">
-        Passwordless access. We email a one-time code — valid for 24 hours.
+        Passwordless access. We email a one-time code — valid for 10 minutes.
       </p>
       <LoginForm />
     </main>

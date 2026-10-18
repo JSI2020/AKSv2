@@ -236,7 +236,7 @@ export function verificationCodeEmail(code: string): RenderedEmail {
     eyebrow: "Verification code",
     heading: "Use this code to continue to your AKS Atelier account.",
     highlight: { value: code, spaced: true },
-    note: "This code expires in 24 hours. Enter it on the page where you asked to sign in. Didn’t request it? You can safely ignore this email — no one can sign in without the code.",
+    note: "This code expires in 10 minutes. Enter it on the page where you asked to sign in. Didn’t request it? You can safely ignore this email — no one can sign in without the code.",
   });
 
   const text = [
@@ -247,7 +247,7 @@ export function verificationCodeEmail(code: string): RenderedEmail {
     `    ${code}`,
     "",
     "Use this code to continue to your AKS Atelier account.",
-    "It expires in 24 hours.",
+    "It expires in 10 minutes.",
     "",
     "Didn't request this? You can safely ignore this email — no one can sign in without the code.",
     "",

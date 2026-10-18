@@ -9,6 +9,7 @@ import {
   logSignInAttempt,
   normalizeEmail,
 } from "@/modules/auth";
+import { staffOtpGate } from "@/modules/auth/staff-otp";
 
 export const runtime = "nodejs";
 
@@ -51,8 +52,8 @@ export async function POST(request: Request) {
     );
   }
 
-  // Always record the attempt for rate limiting — even if the user is unknown
-  // (avoid email enumeration via timing/status).
+  // Count every request toward the hourly cap, including addresses that are
+  // not staff. The response itself says when no code was sent.
   await logSignInAttempt({
     email,
     ip,
@@ -72,26 +73,16 @@ export async function POST(request: Request) {
     .where(eq(users.email, email))
     .limit(1);
 
-  // Staff-only portal: only existing non-customer accounts receive codes.
-  const isStaff =
-    user &&
-    !user.deletedAt &&
-    user.status !== "DISABLED" &&
-    user.role !== "CUSTOMER";
-
-  if (!isStaff) {
-    // Same response shape as success — do not reveal whether the email exists.
-    return NextResponse.json({
-      ok: true,
-      message: "If that email is registered, a code has been sent.",
-    });
+  const gate = staffOtpGate(user ?? null);
+  if (!gate.ok) {
+    return NextResponse.json({ error: gate.error }, { status: 403 });
   }
 
   const issued = await issueEmailOtp({ email });
 
   return NextResponse.json({
     ok: true,
-    message: "If that email is registered, a code has been sent.",
+    message: "A sign-in code is on its way. It expires in 10 minutes.",
     ...(issued.devCode ? { devCode: issued.devCode } : {}),
   });
 }

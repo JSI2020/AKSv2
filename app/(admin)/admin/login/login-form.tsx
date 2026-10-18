@@ -38,7 +38,7 @@ export function LoginForm() {
       }
       setMessage(
         data.devCode
-          ? `Dev code filled below — valid 24 hours.`
+          ? `Dev code filled below — valid 10 minutes.`
           : (data.message ?? "Check your email for a sign-in code."),
       );
       if (data.devCode) {
