@@ -462,13 +462,13 @@ export function DesignPhotosTab({
                             : `${photos.length} photo${photos.length === 1 ? "" : "s"}`}
                         </p>
                       </div>
-                      <label className="border border-zari bg-zari px-3 py-2 text-[12px] text-indigo has-[:disabled]:opacity-50">
-                        {busy ? "Uploading…" : "Add photo"}
+                      <label className="relative inline-flex min-h-11 cursor-pointer items-center border border-zari bg-zari px-4 text-[12px] text-indigo has-[:disabled]:opacity-50">
+                        <span>{busy ? "Uploading…" : "Add photo"}</span>
                         <input
                           type="file"
                           accept="image/*"
                           disabled={busy}
-                          className="sr-only"
+                          className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
                           onChange={(e) => {
                             const file = e.target.files?.[0];
                             if (file) void addPhoto(setIdx, file);

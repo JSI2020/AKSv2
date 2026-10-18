@@ -555,7 +555,7 @@ function FilterChips<T extends string>({
             type="button"
             onClick={() => onToggle(value)}
             className={cn(
-              "border border-ink/12 px-2.5 py-1 text-[11.5px] text-ink/55 transition-colors hover:border-ink hover:text-ink",
+              "inline-flex min-h-11 items-center border border-ink/12 px-3 text-[12px] text-ink/55 transition-colors hover:border-ink hover:text-ink lg:min-h-0 lg:px-2.5 lg:py-1 lg:text-[11.5px]",
               isActive && "border-ink text-ink",
             )}
           >

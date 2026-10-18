@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useCallback, useState, type ReactNode } from "react";
 
 import { AdminCommandMenu } from "./admin-command-menu";
 import { AdminHeader } from "./admin-header";
@@ -17,17 +17,22 @@ type AdminShellProps = {
  */
 export function AdminShell({ email, children }: AdminShellProps) {
   const [commandOpen, setCommandOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   return (
-    <div className="admin-shell flex min-h-dvh bg-greige text-[14px] text-ink">
+    <div className="admin-shell flex min-h-dvh max-w-[100vw] bg-greige text-[14px] text-ink">
       <AdminSidebar email={email} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <AdminHeader onOpenCommand={() => setCommandOpen(true)} />
-        <main className="mx-auto w-full max-w-[1400px] flex-1 px-4 pb-20 pt-6 md:px-8 md:pb-10">
+        <AdminHeader
+          onOpenCommand={() => setCommandOpen(true)}
+          onOpenMenu={() => setMenuOpen(true)}
+        />
+        <main className="mx-auto w-full min-w-0 max-w-[1400px] flex-1 px-4 pb-8 pt-4 md:px-8 md:pb-10 md:pt-6">
           {children}
         </main>
       </div>
-      <AdminMobileNav />
+      <AdminMobileNav open={menuOpen} onClose={closeMenu} />
       <AdminCommandMenu open={commandOpen} onOpenChange={setCommandOpen} />
     </div>
   );

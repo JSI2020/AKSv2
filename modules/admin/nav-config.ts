@@ -145,6 +145,12 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
   },
 ] as const;
 
+/** Extra settings destinations shown in the phone menu. */
+export const ADMIN_SETTINGS_SHORTCUTS: readonly { title: string; href: string }[] = [
+  { title: "Audit log", href: "/admin/settings/audit" },
+  { title: "WhatsApp", href: "/admin/settings/whatsapp" },
+];
+
 export const ADMIN_NAV_GROUPS: readonly AdminNavGroup[] = [
   {
     id: "today",

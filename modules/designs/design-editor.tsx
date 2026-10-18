@@ -639,10 +639,10 @@ export function DesignEditor({
               }}
               className={
                 tab === t
-                  ? "-mb-px inline-flex items-center gap-1.5 border-b-2 border-zari px-4 py-2.5 text-[12.5px] text-ink"
+                  ? "-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 border-zari px-3 py-2 text-[12.5px] text-ink"
                   : locked
-                    ? "-mb-px inline-flex cursor-not-allowed items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/30"
-                    : "-mb-px inline-flex items-center gap-1.5 border-b-2 border-transparent px-4 py-2.5 text-[12.5px] text-ink/55 hover:text-ink"
+                    ? "-mb-px inline-flex min-h-11 cursor-not-allowed items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[12.5px] text-ink/30"
+                    : "-mb-px inline-flex min-h-11 items-center gap-1.5 border-b-2 border-transparent px-3 py-2 text-[12.5px] text-ink/55 hover:text-ink"
               }
             >
               <span

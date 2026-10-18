@@ -32,7 +32,9 @@ export function AdminPageHeader({
           <p className="max-w-2xl text-[13px] text-ink/55">{description}</p>
         ) : null}
       </div>
-      {action ? <div className="flex items-center gap-2">{action}</div> : null}
+      {action ? (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">{action}</div>
+      ) : null}
     </div>
   );
 }

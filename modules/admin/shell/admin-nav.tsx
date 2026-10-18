@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -11,6 +11,7 @@ import { AksLogoImage } from "@/modules/shop/shell/brand";
 import {
   ADMIN_NAV_GROUPS,
   ADMIN_NAV_ITEMS,
+  ADMIN_SETTINGS_SHORTCUTS,
   type AdminNavGroup,
   type AdminNavGroupId,
   type AdminNavItem,
@@ -131,7 +132,7 @@ export function AdminSidebar({ email }: { email?: string | null }) {
   >({});
 
   return (
-    <aside className="hidden min-h-dvh w-[236px] shrink-0 flex-col bg-indigo md:flex">
+    <aside className="hidden min-h-dvh w-[236px] shrink-0 flex-col bg-indigo lg:flex">
       <div className="border-b border-white/10 px-5 py-5">
         <Link href="/admin" className="inline-block leading-none" aria-label="AKS admin">
           <AksLogoImage size="admin" priority />
@@ -194,35 +195,111 @@ export function AdminSidebar({ email }: { email?: string | null }) {
   );
 }
 
-/** Mobile bottom bar — primary destinations only (not every leaf). */
-export function AdminMobileNav() {
+/** Full-screen phone and tablet menu. Every permitted section is listed. */
+export function AdminMobileNav({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
   const groups = useVisibleGroups();
-  const mobileItems = useMemo(() => {
-    const pick = [
-      "/admin",
-      "/admin/orders",
-      "/admin/production",
-      "/admin/designs",
-      "/admin/content",
-      "/admin/settings",
-    ];
-    const flat = groups.flatMap((g) => g.items);
-    return pick
-      .map((href) => flat.find((i) => i.href === href))
-      .filter((i): i is AdminNavItem => Boolean(i));
-  }, [groups]);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  const skipClose = useRef(true);
+  useEffect(() => {
+    if (skipClose.current) {
+      skipClose.current = false;
+      return;
+    }
+    onClose();
+  }, [pathname, onClose]);
+
+  if (!open) return null;
 
   return (
-    <nav
-      className="fixed inset-inline-0 bottom-0 z-40 flex gap-0.5 overflow-x-auto border-t border-indigo-lift bg-indigo px-1 py-1 md:hidden"
-      aria-label="Admin mobile"
+    <div
+      className="admin-menu fixed inset-0 z-50 flex flex-col bg-indigo text-greige lg:hidden"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Admin menu"
     >
-      {mobileItems.map((item) => (
-        <div key={item.href} className="min-w-[4.25rem] flex-1">
-          <NavLink item={item} compact />
-        </div>
-      ))}
-    </nav>
+      <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+        <p className="font-sans text-[11px] uppercase tracking-[0.16em] text-greige/70">
+          Menu
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          className="inline-flex size-11 items-center justify-center border border-white/15 text-greige"
+          aria-label="Close menu"
+        >
+          <span aria-hidden className="text-lg leading-none">
+            ×
+          </span>
+        </button>
+      </div>
+      <nav className="flex-1 overflow-y-auto overscroll-contain px-3 py-3" aria-label="Admin">
+        {groups.map((group) => (
+          <div key={group.id} className="mt-3 first:mt-0">
+            {group.label ? (
+              <p className="px-3 py-1 font-sans text-[10px] uppercase tracking-[0.2em] text-greige/40">
+                {group.label}
+              </p>
+            ) : null}
+            <div className="flex flex-col">
+              {group.items.map((item) => (
+                <MobileNavLink key={item.href} item={item} />
+              ))}
+              {group.id === "settings"
+                ? ADMIN_SETTINGS_SHORTCUTS.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className="flex min-h-11 items-center px-3 ps-9 text-[14px] text-greige/80"
+                    >
+                      {link.title}
+                    </Link>
+                  ))
+                : null}
+            </div>
+          </div>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+function MobileNavLink({ item }: { item: AdminNavItem }) {
+  const pathname = usePathname();
+  const Icon = item.icon;
+  const active = itemIsActive(pathname, item);
+  return (
+    <Link
+      href={item.href}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-11 items-center gap-3 px-3 text-[15px] text-greige/85",
+        active && "bg-indigo-lift text-greige",
+      )}
+    >
+      <Icon className="size-4 shrink-0" aria-hidden />
+      <span>{item.title}</span>
+    </Link>
   );
 }
 
