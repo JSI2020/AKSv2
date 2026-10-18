@@ -45,8 +45,9 @@ export function tikTokEndpoints(scopes = tikTokScopes()) {
 }
 
 /**
- * TikTok Login Kit requires `client_key`. Auth.js sends `client_id`.
- * Rewrite the token body so the official parameter name is what gets posted.
+ * TikTok Login Kit for Web requires `client_key`, not OAuth's `client_id`.
+ * `code_verifier` is for the mobile and desktop PKCE flow. The web token
+ * exchange rejects it, which Auth.js then surfaces as `error=Configuration`.
  */
 export function rewriteTikTokTokenBody(body: URLSearchParams): URLSearchParams {
   const next = new URLSearchParams(body);
@@ -55,7 +56,39 @@ export function rewriteTikTokTokenBody(body: URLSearchParams): URLSearchParams {
     next.set("client_key", clientId);
   }
   next.delete("client_id");
+  next.delete("code_verifier");
   return next;
+}
+
+function tikTokTokenRecord(body: unknown): Record<string, unknown> {
+  if (!body || typeof body !== "object") return {};
+  const record = body as Record<string, unknown>;
+  const data = record.data;
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const nested = data as Record<string, unknown>;
+    if (typeof nested.access_token === "string") {
+      return { ...record, ...nested };
+    }
+  }
+  return record;
+}
+
+/** Non-empty provider error. An empty string or `{ code: "ok" }` is success. */
+function tikTokTokenError(record: Record<string, unknown>): string | null {
+  const error = record.error;
+  if (typeof error === "string") {
+    const code = error.trim();
+    return code || null;
+  }
+  if (error && typeof error === "object") {
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === "string") {
+      const trimmed = code.trim();
+      if (trimmed && trimmed !== "ok") return trimmed;
+    }
+    if (typeof code === "number" && code !== 0) return String(code);
+  }
+  return null;
 }
 
 export async function conformTikTokTokenResponse(
@@ -63,21 +96,27 @@ export async function conformTikTokTokenResponse(
 ): Promise<Response> {
   const body = await readJsonBody(response);
   const message = graphErrorMessage(body);
-  const record =
-    body && typeof body === "object" ? (body as Record<string, unknown>) : {};
+  const record = tikTokTokenRecord(body);
   const accessToken =
     typeof record.access_token === "string" ? record.access_token.trim() : "";
-  if (!response.ok || !accessToken || typeof record.error === "string") {
+  const tokenError = tikTokTokenError(record);
+  if (!response.ok || !accessToken || tokenError) {
+    const description = sanitizeProviderMessage(
+      message ??
+        (response.ok
+          ? "TikTok did not return an access token."
+          : `HTTP ${response.status}`),
+    );
+    console.error(
+      "[auth] tiktok token",
+      response.status,
+      tokenError ?? "invalid_grant",
+      description,
+    );
     return new Response(
       JSON.stringify({
-        error:
-          typeof record.error === "string" ? record.error : "invalid_grant",
-        error_description: sanitizeProviderMessage(
-          message ??
-            (response.ok
-              ? "TikTok did not return an access token."
-              : `HTTP ${response.status}`),
-        ),
+        error: tokenError ?? "invalid_grant",
+        error_description: description,
       }),
       { status: 400, headers: { "content-type": "application/json" } },
     );

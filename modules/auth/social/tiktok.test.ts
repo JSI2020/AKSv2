@@ -23,7 +23,7 @@ describe("TikTok Login Kit", () => {
     );
   });
 
-  it("renames client_id to client_key and drops client_id", () => {
+  it("renames client_id to client_key and drops PKCE for the web token exchange", () => {
     const body = rewriteTikTokTokenBody(
       new URLSearchParams({
         client_id: "key-1",
@@ -36,7 +36,7 @@ describe("TikTok Login Kit", () => {
     expect(body.get("client_key")).toBe("key-1");
     expect(body.get("client_id")).toBeNull();
     expect(body.get("client_secret")).toBe("secret-1");
-    expect(body.get("code_verifier")).toBe("verifier");
+    expect(body.get("code_verifier")).toBeNull();
   });
 
   it("normalizes a token response and turns provider errors into OAuth errors", async () => {
@@ -55,6 +55,38 @@ describe("TikTok Login Kit", () => {
       access_token: "tt",
       token_type: "bearer",
       expires_in: 86400,
+    });
+
+    const emptyError = await conformTikTokTokenResponse(
+      new Response(
+        JSON.stringify({
+          access_token: "tt-2",
+          token_type: "Bearer",
+          error: "",
+          error_description: "",
+        }),
+        { status: 200 },
+      ),
+    );
+    expect(emptyError.status).toBe(200);
+    await expect(emptyError.json()).resolves.toMatchObject({
+      access_token: "tt-2",
+      token_type: "bearer",
+    });
+
+    const nested = await conformTikTokTokenResponse(
+      new Response(
+        JSON.stringify({
+          data: { access_token: "tt-3", expires_in: 3600 },
+          error: { code: "ok", message: "" },
+        }),
+        { status: 200 },
+      ),
+    );
+    expect(nested.status).toBe(200);
+    await expect(nested.json()).resolves.toMatchObject({
+      access_token: "tt-3",
+      token_type: "bearer",
     });
 
     const cancelled = await conformTikTokTokenResponse(

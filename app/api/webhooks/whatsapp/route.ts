@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { ingestWhatsappCoexistenceWebhook } from "@/modules/messaging/whatsapp-coexistence";
 import {
   verifyWhatsappWebhookSignature,
   verifyWhatsappWebhookSubscription,
@@ -41,19 +42,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  // Ack fast — Meta retries on non-200. Capture payload for later inbox/status work.
-  if (process.env.NODE_ENV !== "production") {
-    try {
-      const json = JSON.parse(rawBody) as {
-        object?: string;
-        entry?: unknown[];
-      };
-      console.log(
-        `[whatsapp.webhook] object=${json.object ?? "?"} entries=${json.entry?.length ?? 0}`,
-      );
-    } catch {
-      console.log("[whatsapp.webhook] non-JSON body");
-    }
+  let json: unknown = null;
+  try {
+    json = JSON.parse(rawBody) as unknown;
+  } catch {
+    return NextResponse.json({ received: true });
+  }
+
+  try {
+    await ingestWhatsappCoexistenceWebhook(json);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : "webhook failed";
+    console.error(
+      "[whatsapp.webhook]",
+      detail.replace(/[A-Za-z0-9_\-~.]{24,}/g, "[redacted]").slice(0, 180),
+    );
+    return NextResponse.json({ error: "retry" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

@@ -25,3 +25,4 @@ export * from "./tryon";
 export * from "./photoreal";
 export * from "./content";
 export * from "./dress-sizing";
+export * from "./whatsapp-connection";

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import {
   FileText,
+  MessageCircle,
   Palette,
   Ruler,
   ScrollText,
@@ -93,6 +94,12 @@ export default async function AdminSettingsPage() {
           title: "Storefront",
           desc: "Lead-time promise, WhatsApp and Instagram links, brand name and announcement.",
           icon: Store,
+        },
+        {
+          href: "/admin/settings/whatsapp",
+          title: "WhatsApp",
+          desc: "Link the shop WhatsApp Business app to the Cloud API with a QR scan. The phone app stays signed in.",
+          icon: MessageCircle,
         },
         {
           href: "/admin/content",
