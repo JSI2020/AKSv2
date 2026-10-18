@@ -183,7 +183,9 @@ export function configuredOAuthProviders(
       clientId: tiktok.clientId,
       clientSecret: tiktok.clientSecret,
       allowDangerousEmailAccountLinking: true,
-      checks: ["pkce", "state"],
+      // State only. Web Login Kit does not use PKCE; code_verifier on the
+      // token POST is rejected (Auth.js then reports error=Configuration).
+      checks: ["state"],
       client: { token_endpoint_auth_method: "client_secret_post" },
       authorization: {
         url: tiktokUrls.authorize,

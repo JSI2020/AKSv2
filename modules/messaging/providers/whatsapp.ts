@@ -43,16 +43,33 @@ export function whatsappGraphError(status: number, body: WhatsappGraphBody): str
     .slice(0, 300);
 }
 
+async function cloudSendTarget(): Promise<{
+  token: string;
+  phoneNumberId: string;
+  version: string;
+}> {
+  const { resolveWhatsappCloudTarget } = await import(
+    "@/modules/messaging/whatsapp-credentials"
+  );
+  const { whatsappGraphVersion } = await import(
+    "@/modules/messaging/whatsapp-coexistence-parse"
+  );
+  const target = await resolveWhatsappCloudTarget();
+  if (!target.token || !target.phoneNumberId) {
+    throw new Error("WhatsApp is not configured");
+  }
+  return {
+    token: target.token,
+    phoneNumberId: target.phoneNumberId,
+    version: whatsappGraphVersion(),
+  };
+}
+
 export async function sendWhatsappText(input: {
   to: string;
   body: string;
 }): Promise<{ id: string }> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
-  const version = process.env.WHATSAPP_API_VERSION?.trim() || "v21.0";
-  if (!token || !phoneNumberId) {
-    throw new Error("WhatsApp is not configured");
-  }
+  const { token, phoneNumberId, version } = await cloudSendTarget();
 
   const res = await fetch(
     `https://graph.facebook.com/${version}/${phoneNumberId}/messages`,
@@ -101,12 +118,7 @@ export async function sendWhatsappTemplate(input: {
    */
   buttonParameter?: string;
 }): Promise<{ id: string }> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN?.trim();
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID?.trim();
-  const version = process.env.WHATSAPP_API_VERSION?.trim() || "v21.0";
-  if (!token || !phoneNumberId) {
-    throw new Error("WhatsApp is not configured");
-  }
+  const { token, phoneNumberId, version } = await cloudSendTarget();
 
   const components: Array<Record<string, unknown>> = [];
   if (input.bodyParameters.length > 0) {

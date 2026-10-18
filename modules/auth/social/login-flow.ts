@@ -146,9 +146,6 @@ async function exchangeCode(input: {
   } else {
     tokenUrl = tikTokEndpoints(tikTokScopes(input.env)).token;
     posted = rewriteTikTokTokenBody(body);
-    if (input.codeVerifier && !posted.get("code_verifier")) {
-      posted.set("code_verifier", input.codeVerifier);
-    }
   }
 
   const response = await input.fetchImpl(

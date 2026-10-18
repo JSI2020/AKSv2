@@ -21,6 +21,11 @@ import {
   isSocialOAuthProvider,
 } from "@/modules/auth/social/identity";
 import {
+  emailFromOAuthProfile,
+  oauthSessionUserLinkable,
+  stuckOAuthAccountAction,
+} from "@/modules/auth/social/oauth-guard";
+import {
   checkOtpVerifyRateLimit,
   clientIpFromHeaders,
   consumeEmailOtp,
@@ -66,6 +71,13 @@ function aksAuthAdapter(): Adapter {
   });
   return {
     ...base,
+    async getUser(id) {
+      const user = await base.getUser!(id);
+      // A disabled, deleted, or staff session cookie must not become the
+      // account Auth.js links a new shop OAuth provider to.
+      if (!user || !oauthSessionUserLinkable(user)) return null;
+      return user;
+    },
     async createUser(data) {
       return base.createUser!({ ...data, id: uuidv7() });
     },
@@ -76,6 +88,48 @@ function aksAuthAdapter(): Adapter {
       } as Parameters<NonNullable<Adapter["linkAccount"]>>[0]);
     },
   };
+}
+
+const USER_ID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * A provider linked to a disabled or deleted user makes every later attempt
+ * AccessDenied. Drop that row so the shopper can sign in on their own account.
+ * An active staff owner is left in place and the sign-in is refused.
+ */
+async function releaseStuckOAuthAccount(account: {
+  provider: string;
+  providerAccountId: string;
+}): Promise<"keep" | "released" | "refuse"> {
+  const [row] = await db
+    .select({
+      accountId: accounts.id,
+      role: users.role,
+      status: users.status,
+      deletedAt: users.deletedAt,
+    })
+    .from(accounts)
+    .innerJoin(users, eq(users.id, accounts.userId))
+    .where(
+      and(
+        eq(accounts.provider, account.provider),
+        eq(accounts.providerAccountId, account.providerAccountId),
+      ),
+    )
+    .limit(1);
+  const action = stuckOAuthAccountAction(
+    row
+      ? { role: row.role, status: row.status, deletedAt: row.deletedAt }
+      : null,
+  );
+  if (action === "refuse") return "refuse";
+  if (action === "release" && row) {
+    await db.delete(accounts).where(eq(accounts.id, row.accountId));
+    console.error("[auth] released social account", account.provider);
+    return "released";
+  }
+  return "keep";
 }
 
 /**
@@ -144,12 +198,34 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
   logger: {
     error(error) {
-      const name = error instanceof Error ? error.name : "Error";
-      const message = error instanceof Error ? error.message : String(error);
-      const safe = message
+      const type =
+        error &&
+        typeof error === "object" &&
+        "type" in error &&
+        typeof error.type === "string"
+          ? error.type
+          : error instanceof Error
+            ? error.name
+            : "Error";
+      const cause = error instanceof Error ? error.cause : undefined;
+      const causeErr =
+        cause &&
+        typeof cause === "object" &&
+        "err" in cause &&
+        cause.err instanceof Error
+          ? cause.err
+          : cause instanceof Error
+            ? cause
+            : undefined;
+      const raw =
+        causeErr?.message ||
+        (error instanceof Error ? error.message : String(error));
+      const safe = raw
         .replace(/[A-Za-z0-9_\-~.]{24,}/g, "[redacted]")
+        .replace(/https:\/\/errors\.authjs\.dev\S*/g, "")
+        .trim()
         .slice(0, 240);
-      console.error("[auth]", name, safe);
+      console.error("[auth]", type, safe || type);
     },
   },
   // Credentials + JWT: adapter is available for account/user lookups; sessions are
@@ -596,9 +672,16 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         account.provider !== "customer-whatsapp"
       ) {
         if (isSocialOAuthProvider(account.provider)) {
+          const held = await releaseStuckOAuthAccount(account);
+          if (held === "refuse") return false;
+          // `user` may be the previously linked account (often the disabled
+          // audit customer). The provider profile is who just consented.
+          // After a release, do not fall back to that account's email.
           const linkedEmail = ensureOAuthProfileEmail({
             provider: account.provider,
-            email: user.email,
+            email:
+              emailFromOAuthProfile(profile) ??
+              (held === "released" ? null : user.email),
             providerAccountId: account.providerAccountId,
           });
           if (!linkedEmail) return false;
@@ -637,9 +720,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           return true;
         }
 
+        const profileName = (profile as { name?: string } | undefined)?.name;
         const resolved = await findOrCreateCustomer({
           email: user.email,
-          name: user.name ?? (profile as { name?: string } | undefined)?.name,
+          name: profileName ?? user.name,
           provider: account.provider,
         });
         if (!resolved.ok) return false;
@@ -660,6 +744,28 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           user as { requires2faEnrolment?: boolean }
         ).requires2faEnrolment;
         token.sessionId = (user as { sessionId?: string }).sessionId;
+      }
+
+      // A disabled account must not keep a customer session. That is the
+      // "Sign out" plus "Sign in to see your details" mismatch.
+      if (token.sub && USER_ID.test(token.sub)) {
+        const [accountUser] = await db
+          .select({
+            status: users.status,
+            deletedAt: users.deletedAt,
+          })
+          .from(users)
+          .where(eq(users.id, token.sub))
+          .limit(1);
+        if (
+          !accountUser ||
+          accountUser.deletedAt ||
+          accountUser.status === "DISABLED"
+        ) {
+          return null;
+        }
+      } else if (token.sub) {
+        return null;
       }
 
       // OAuth first sign-in: the adapter created or matched a CUSTOMER user, but

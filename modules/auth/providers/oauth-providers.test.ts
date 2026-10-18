@@ -60,7 +60,7 @@ describe("configuredOAuthProviders", () => {
     const tiktok = byId(env, "tiktok");
     expect(tiktok).toMatchObject({
       id: "tiktok",
-      checks: ["pkce", "state"],
+      checks: ["state"],
       clientId: "tiktok-key",
       authorization: {
         params: {
@@ -111,6 +111,7 @@ describe("configuredOAuthProviders", () => {
     const tiktokBody = fetchSpy.mock.calls.at(-1)?.[1]?.body as URLSearchParams;
     expect(tiktokBody.get("client_key")).toBe("tiktok-key");
     expect(tiktokBody.get("client_id")).toBeNull();
+    expect(tiktokBody.get("code_verifier")).toBeNull();
 
     fetchSpy.mockRestore();
   });

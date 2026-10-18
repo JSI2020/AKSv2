@@ -138,13 +138,13 @@ describe("resumeSocialLogin", () => {
     });
   });
 
-  it("posts TikTok's client_key and PKCE verifier, then reads the nested user", async () => {
+  it("posts TikTok's client_key without a PKCE verifier, then reads the nested user", async () => {
     const fetchImpl = routingFetch({
       "https://open.tiktokapis.com/v2/oauth/token": (init) => {
         const body = new URLSearchParams(String(init?.body));
         expect(body.get("client_key")).toBe("app-id");
         expect(body.get("client_id")).toBeNull();
-        expect(body.get("code_verifier")).toBe("verifier");
+        expect(body.get("code_verifier")).toBeNull();
         return new Response(
           JSON.stringify({
             access_token: "tt-token",
