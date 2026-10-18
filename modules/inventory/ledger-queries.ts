@@ -1,6 +1,6 @@
 "use server";
 
-import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm";
 
 import {
   assets,
@@ -111,7 +111,7 @@ export async function listRtwDesignCards(): Promise<RtwDesignCard[]> {
       availableSizeLabels: designs.availableSizeLabels,
     })
     .from(designs)
-    .where(eq(designs.status, "PUBLISHED"))
+    .where(ne(designs.status, "ARCHIVED"))
     .orderBy(desc(designs.updatedAt));
 
   const collections = await listHouseCollections({ activeOnly: false });
@@ -193,6 +193,8 @@ export async function listRtwDesignCards(): Promise<RtwDesignCard[]> {
 export type RtwDesignDetail = {
   id: string;
   name: string;
+  /** Integer hundredths of a metre deducted per piece received. */
+  fabricMetresPerPiece: number;
   colourways: {
     id: string;
     name: string;
@@ -253,7 +255,12 @@ export async function getRtwDesignDetail(
     });
   }
 
-  return { id: d.id, name: d.name, colourways: colourwayList };
+  return {
+    id: d.id,
+    name: d.name,
+    fabricMetresPerPiece: d.fabricConsumptionMeters,
+    colourways: colourwayList,
+  };
 }
 
 export async function getRtwLedger(
@@ -271,7 +278,10 @@ export async function getRtwLedger(
   if (!row) return null;
 
   const [d] = await db
-    .select({ name: designs.name })
+    .select({
+      name: designs.name,
+      fabricConsumptionMeters: designs.fabricConsumptionMeters,
+    })
     .from(designs)
     .where(eq(designs.id, designId))
     .limit(1);
@@ -316,6 +326,7 @@ export async function getRtwLedger(
     movements: movs.map(mapMov),
     stockKind: "rtw",
     stockId,
+    fabricMetresPerPiece: d?.fabricConsumptionMeters ?? 0,
   };
 }
 

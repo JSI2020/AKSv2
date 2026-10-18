@@ -219,6 +219,13 @@ export function CustomerDetailView({ detail, canEdit }: Props) {
                 </span>
               }
             />
+            {detail.additionalPhones.map((phone) => (
+              <Kv
+                key={phone}
+                k="Also"
+                v={<span className="font-data">{maskPhone(phone)}</span>}
+              />
+            ))}
             <Kv k="Email" v={detail.email ?? "— not given"} />
             <Kv
               k="First order via"
@@ -230,14 +237,28 @@ export function CustomerDetailView({ detail, canEdit }: Props) {
             <h2 className="mb-4 text-[10px] uppercase tracking-[0.16em] text-ink/55">
               Deliver to
             </h2>
-            {detail.contactAddress ? (
-              <div className="text-[13px] leading-relaxed text-ink/70">
-                {detail.contactAddress.lines.map((line) => (
-                  <div key={line}>{line}</div>
-                ))}
-              </div>
-            ) : (
+            {detail.addresses.length === 0 ? (
               <p className="text-[13px] text-ink/55">No address on file.</p>
+            ) : (
+              <ul className="flex flex-col gap-4">
+                {detail.addresses.map((address) => (
+                  <li
+                    key={`${address.phone}-${address.lines.join("|")}`}
+                    className="text-[13px] leading-relaxed text-ink/70"
+                  >
+                    <div className="mb-1 text-[10px] uppercase tracking-[0.12em] text-ink/45">
+                      {address.isDefault
+                        ? "Default"
+                        : (address.label ?? "Also")}
+                    </div>
+                    <div className="text-ink">{address.recipientName}</div>
+                    {address.lines.map((line) => (
+                      <div key={line}>{line}</div>
+                    ))}
+                    <div className="font-data">{maskPhone(address.phone)}</div>
+                  </li>
+                ))}
+              </ul>
             )}
           </section>
         </div>

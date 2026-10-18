@@ -33,7 +33,7 @@ export function AddressStep({ initial, isSignedIn, onContinue }: Props) {
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    const result = validateCheckoutAddress(form);
+    const result = validateCheckoutAddress(form, { requireEmail: !isSignedIn });
     if (!result.ok) {
       setError(result.error);
       return;
@@ -83,6 +83,27 @@ export function AddressStep({ initial, isSignedIn, onContinue }: Props) {
         />
       </div>
 
+      <div>
+        <label htmlFor="guestEmail" className={labelClass}>
+          Email
+        </label>
+        <input
+          id="guestEmail"
+          name="guestEmail"
+          type="email"
+          autoComplete="email"
+          className={inputClass}
+          value={form.guestEmail ?? ""}
+          onChange={(e) => update("guestEmail", e.target.value)}
+          required={!isSignedIn}
+        />
+        <p className="mt-1 text-[12px] text-ink/55">
+          {isSignedIn
+            ? "Order updates and the track link go here. We filled in your account email."
+            : "We send the confirmation and the track link here. No account needed."}
+        </p>
+      </div>
+
       <div className="border border-greige-deep bg-greige/40 p-4">
         <label className="flex items-start gap-3 text-[14px] text-ink/80">
           <input
@@ -92,9 +113,10 @@ export function AddressStep({ initial, isSignedIn, onContinue }: Props) {
             className="mt-1"
           />
           <span>
-            Send my order updates on WhatsApp — cutting, stitching, and dispatch.
+            Notify me on WhatsApp
             <span className="mt-0.5 block text-[13px] text-ink/55">
-              Optional. Leave it off and we&apos;ll reach you by phone instead.
+              Optional. Cutting, stitching, and dispatch. Leave it off and we
+              reach you by phone and email.
             </span>
           </span>
         </label>
@@ -117,28 +139,6 @@ export function AddressStep({ initial, isSignedIn, onContinue }: Props) {
           </div>
         ) : null}
       </div>
-
-      {!isSignedIn ? (
-        <div>
-          <label htmlFor="guestEmail" className={labelClass}>
-            Email — for tracking
-          </label>
-          <input
-            id="guestEmail"
-            name="guestEmail"
-            type="email"
-            autoComplete="email"
-            className={inputClass}
-            value={form.guestEmail ?? ""}
-            onChange={(e) => update("guestEmail", e.target.value)}
-            required
-          />
-          <p className="mt-1 text-[12px] text-ink/55">
-            We use this to send order updates and the track link. No account
-            needed.
-          </p>
-        </div>
-      ) : null}
 
       <div>
         <label htmlFor="addressLine1" className={labelClass}>

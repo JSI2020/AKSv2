@@ -2,7 +2,9 @@ import { eq } from "drizzle-orm";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  addresses,
   colourways,
+  customerProfiles,
   db,
   designs,
   fabrics,
@@ -13,6 +15,7 @@ import {
   orderPayments,
   orders,
   outbox,
+  rtwMovements,
   permissions,
   rolePermissions,
   rtwStock,
@@ -228,7 +231,10 @@ describe("manual order entry", () => {
     await db.delete(orderEvents);
     await db.delete(orderPayments);
     await db.delete(orderItems);
+    await db.delete(rtwMovements);
     await db.delete(orders);
+    await db.delete(addresses);
+    await db.delete(customerProfiles);
     await db.delete(outbox);
     await db.delete(users).where(eq(users.role, "CUSTOMER"));
   });
@@ -308,6 +314,23 @@ describe("manual order entry", () => {
     expect(order?.source).toBe("WHATSAPP");
     expect(order?.status).toBe("DEPOSIT_PAID");
     expect(order?.placedAt).toBeTruthy();
+    expect(order?.userId).toBeTruthy();
+    expect(order?.whatsappNumber).toBe("923001112233");
+
+    const [profile] = await db
+      .select()
+      .from(customerProfiles)
+      .where(eq(customerProfiles.userId, order!.userId!))
+      .limit(1);
+    expect(profile?.whatsappNumber).toBe("923001112233");
+
+    const [savedAddress] = await db
+      .select()
+      .from(addresses)
+      .where(eq(addresses.userId, order!.userId!))
+      .limit(1);
+    expect(savedAddress?.city).toBe("Lahore");
+    expect(savedAddress?.addressLine1).toBe("House 12, Gulberg");
 
     const [item] = await db
       .select()
@@ -337,6 +360,55 @@ describe("manual order entry", () => {
 
     const queued = await db.select().from(outbox);
     expect(queued.some((row) => row.topic === "order.transitioned")).toBe(true);
+  });
+
+  it("copies the customer WhatsApp onto shipping when that field is blank", async () => {
+    authMock.mockResolvedValue({
+      user: { id: managerId, role: "MANAGER" },
+      expires: new Date(Date.now() + 3600_000).toISOString(),
+    } as never);
+
+    const result = await placeManualOrderAction({
+      source: "PHONE",
+      customer: {
+        mode: "new",
+        name: "Audit Manual",
+        phone: "03001234999",
+        whatsappNumber: "03001234999",
+      },
+      address: {
+        recipientName: "Audit Manual",
+        phone: "03001234999",
+        whatsappNumber: "",
+        addressLine1: "Audit lane",
+        city: "Karachi",
+        province: "SINDH",
+      },
+      lines: [
+        {
+          designId: fixture.designId,
+          colourwayId: fixture.colourwayId,
+          sizeMode: "STANDARD",
+          sizeLabel: fixture.sizeLabel,
+          measurements: {},
+          customizationSelections: {},
+          quantity: 1,
+        },
+      ],
+      paymentPlan: "FULL_COD",
+    });
+
+    if (!result.ok) throw new Error(result.error);
+
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.id, result.orderId))
+      .limit(1);
+
+    expect(order?.whatsappNumber).toBe("03001234999");
+    expect(order?.shippingAddressSnapshot.whatsappNumber).toBe("03001234999");
+    expect(order?.userId).toBeTruthy();
   });
 
   it("denies staff without orders.create", async () => {

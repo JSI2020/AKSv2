@@ -92,6 +92,7 @@ export type CustomerSearchResult = {
   name: string | null;
   email: string;
   phone: string | null;
+  whatsappNumber: string | null;
 };
 
 export type ManualOrderDesignOption = {

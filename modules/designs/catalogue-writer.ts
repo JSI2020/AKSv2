@@ -67,6 +67,8 @@ export type CreatePublishedCatalogueDesignInput = {
   colourways: CatalogueColourwayInput[];
   /** When set, replaces the single placeholder FRONT render per colourway. */
   renderSpecs?: CatalogueRenderSpec[];
+  /** Paisa. Required to publish — the checklist rejects a zero cost. */
+  totalCostMinor?: number;
   /** When set, seeds RTW inventory rows on publish (matches admin publishDesign). */
   availableSizeLabels?: readonly string[];
   placeholderAssetId: string;
@@ -226,8 +228,10 @@ export async function createPublishedCatalogueDesign(
       colourwayId: r.colourwayId,
       angle: r.angle,
       altText: r.altText,
+      isAiGenerated: r.isAiGenerated,
     })),
     tags: input.tags,
+    designCostMinor: input.totalCostMinor ?? null,
   });
   if (missing.length) {
     throw new Error(`Publish checklist: ${missing.join("; ")}`);

@@ -59,6 +59,14 @@ export function ProductionFilters({ staff }: ProductionFiltersProps) {
                 ? "border-zari text-greige"
                 : "border-chalk/30 text-chalk",
             )}
+            title={
+              mode === "STANDARD"
+                ? "Standard house sizes, ready to wear"
+                : "Made to measure"
+            }
+            aria-label={
+              mode === "STANDARD" ? "Ready to wear" : "Made to measure"
+            }
             onClick={() => {
               const next = params.sizeMode.includes(mode)
                 ? params.sizeMode.filter((m) => m !== mode)
@@ -66,7 +74,7 @@ export function ProductionFilters({ staff }: ProductionFiltersProps) {
               void setParams({ sizeMode: next });
             }}
           >
-            {mode === "STANDARD" ? "M" : "Custom"}
+            {mode === "STANDARD" ? "Ready to wear" : "Made to measure"}
           </button>
         ))}
       </div>

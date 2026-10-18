@@ -272,6 +272,7 @@ export async function listOrders(
       promisedShipDate: orders.promisedShipDate,
       placedAt: orders.placedAt,
       source: orders.source,
+      paymentPlan: orders.paymentPlan,
       shippingAddressSnapshot: orders.shippingAddressSnapshot,
       customerName: users.name,
       customerEmail: users.email,
@@ -293,6 +294,7 @@ export async function listOrders(
       balanceAmountMinor: row.balanceAmountMinor,
       paidMinor,
       totalMinor: row.totalMinor,
+      paymentPlan: row.paymentPlan,
     });
 
     if (
@@ -373,6 +375,7 @@ export async function getOrdersListOverview(): Promise<OrdersListOverview> {
       status: orders.status,
       balanceAmountMinor: orders.balanceAmountMinor,
       totalMinor: orders.totalMinor,
+      paymentPlan: orders.paymentPlan,
       promisedShipDate: orders.promisedShipDate,
       updatedAt: orders.updatedAt,
     })
@@ -399,6 +402,7 @@ export async function getOrdersListOverview(): Promise<OrdersListOverview> {
       balanceAmountMinor: row.balanceAmountMinor,
       paidMinor,
       totalMinor: row.totalMinor,
+      paymentPlan: row.paymentPlan,
     });
 
     if (!isTerminalOrderStatus(status)) {
@@ -421,7 +425,7 @@ export async function getOrdersListOverview(): Promise<OrdersListOverview> {
       completedThisMonth += 1;
     }
 
-    if (payment === "BALANCE_DUE") balanceDue += 1;
+    if (payment === "BALANCE_DUE" || payment === "COD_UNPAID") balanceDue += 1;
 
     if (FUNNEL_PRODUCTION_STAGES.includes(production as (typeof FUNNEL_PRODUCTION_STAGES)[number])) {
       funnelCounts[production] += 1;
@@ -735,6 +739,7 @@ export async function getOrderDetail(
       balanceAmountMinor: balanceDueMinor,
       paidMinor,
       totalMinor: order.totalMinor,
+      paymentPlan: order.paymentPlan,
     }),
     source: order.source,
     placedAt: order.placedAt,

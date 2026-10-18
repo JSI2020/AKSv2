@@ -2,6 +2,7 @@ import { and, asc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 
 import {
   colourways,
+  customerProfiles,
   customizationOptionValues,
   customizationOptions,
   db,
@@ -33,8 +34,10 @@ export async function searchCustomers(
       name: users.name,
       email: users.email,
       phone: users.phone,
+      whatsappNumber: customerProfiles.whatsappNumber,
     })
     .from(users)
+    .leftJoin(customerProfiles, eq(customerProfiles.userId, users.id))
     .where(
       and(
         eq(users.role, "CUSTOMER"),
@@ -180,8 +183,10 @@ export async function getCustomerById(
       name: users.name,
       email: users.email,
       phone: users.phone,
+      whatsappNumber: customerProfiles.whatsappNumber,
     })
     .from(users)
+    .leftJoin(customerProfiles, eq(customerProfiles.userId, users.id))
     .where(
       and(
         eq(users.id, userId),

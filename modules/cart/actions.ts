@@ -3,6 +3,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { cartLineFingerprint } from "./types";
+import { isPersistedCartLineId } from "./line-id";
 import { revalidatePath } from "next/cache";
 
 import { cartLines, carts, db } from "@aks/db";
@@ -158,15 +159,26 @@ export async function updateCartLineQuantity(input: {
   lineId: string;
   quantity: number;
 }): Promise<CartMutationResult> {
+  if (!isPersistedCartLineId(input.lineId)) {
+    return { ok: false, error: "Line not found." };
+  }
+
   const quantity = Math.max(1, Math.min(99, input.quantity));
   const ctx = await getCartContext();
   const cartId = await getOrCreateActiveCart(ctx);
 
-  const [line] = await db
-    .select()
-    .from(cartLines)
-    .where(and(eq(cartLines.id, input.lineId), eq(cartLines.cartId, cartId)))
-    .limit(1);
+  let line: typeof cartLines.$inferSelect | undefined;
+  try {
+    const rows = await db
+      .select()
+      .from(cartLines)
+      .where(and(eq(cartLines.id, input.lineId), eq(cartLines.cartId, cartId)))
+      .limit(1);
+    line = rows[0];
+  } catch (error) {
+    console.error("[updateCartLineQuantity]", error);
+    return { ok: false, error: "Could not update that piece. Try again." };
+  }
 
   if (!line) {
     return { ok: false, error: "Line not found." };
@@ -199,16 +211,59 @@ export async function updateCartLineQuantity(input: {
 export async function removeCartLine(input: {
   lineId: string;
 }): Promise<CartMutationResult> {
+  if (!isPersistedCartLineId(input.lineId)) {
+    return { ok: false, error: "Line not found." };
+  }
+
   const ctx = await getCartContext();
   const cartId = await getOrCreateActiveCart(ctx);
 
-  await db
-    .delete(cartLines)
-    .where(and(eq(cartLines.id, input.lineId), eq(cartLines.cartId, cartId)));
+  try {
+    await db
+      .delete(cartLines)
+      .where(and(eq(cartLines.id, input.lineId), eq(cartLines.cartId, cartId)));
+  } catch (error) {
+    console.error("[removeCartLine]", error);
+    return { ok: false, error: "Could not remove that piece. Try again." };
+  }
 
   const cart = await hydrateCart(cartId);
   if (!cart) return { ok: false, error: "Could not load cart." };
 
   revalidateShopCart();
+  return { ok: true, cart };
+}
+
+/** Replay a bag saved in the browser after a reload that missed the server write. */
+export async function restoreBag(
+  lines: Array<{
+    designId: string;
+    colourwayId: string;
+    sizeMode: "STANDARD" | "MADE_TO_MEASURE";
+    sizeLabel: string | null;
+    quantity: number;
+  }>,
+): Promise<CartMutationResult> {
+  const ctx = await getCartContext();
+  const existing = await loadActiveCart(ctx);
+  if (existing.lines.length > 0) {
+    return { ok: true, cart: existing };
+  }
+
+  let cart = existing;
+  for (const line of lines) {
+    const result = await addToCart({
+      designId: line.designId,
+      colourwayId: line.colourwayId,
+      sizeMode: line.sizeMode,
+      sizeLabel: line.sizeLabel,
+      measurementProfileId: null,
+      customizationSelections: {},
+      quantity: line.quantity,
+    });
+    if (!result.ok) return result;
+    cart = result.cart;
+  }
+
   return { ok: true, cart };
 }

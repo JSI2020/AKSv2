@@ -16,5 +16,5 @@ export {
 export type { EvaluateDiscountsInput, EvaluateDiscountsResult } from "./evaluate";
 export { listDiscounts, getDiscountById } from "./queries";
 export type { DiscountListRow } from "./queries";
-export { saveDiscount, deleteDiscount } from "./actions";
+export { saveDiscount, deleteDiscount, archiveDiscount } from "./actions";
 export { DiscountsDashboard } from "./admin/discounts-dashboard";

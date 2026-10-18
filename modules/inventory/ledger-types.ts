@@ -8,7 +8,9 @@ export type ManualMovementType =
 
 export type InventoryMovementReason =
   | ManualMovementType
-  | "ORDER_DISPATCH";
+  | "ORDER_DISPATCH"
+  | "RESERVED"
+  | "RELEASED";
 
 export type LedgerMovementRow = {
   id: string;
@@ -39,6 +41,11 @@ export type StockLedgerDetail = {
   /** Opaque stock key for the record-movement form. */
   stockKind: "rtw" | "fabric" | "packing" | "trim";
   stockId: string;
+  /**
+   * Cloth used per finished piece, integer hundredths of a metre.
+   * Set on ready-to-wear ledgers so a receive can say what it will deduct.
+   */
+  fabricMetresPerPiece?: number;
 };
 
 /** Positive quantity + type → signed integer delta (hundredths for fabric metres). */
@@ -78,6 +85,10 @@ export function movementLabel(reason: string): string {
       return "Count correction";
     case "ORDER_DISPATCH":
       return "Order dispatch";
+    case "RESERVED":
+      return "Reserved";
+    case "RELEASED":
+      return "Released";
     case "SAMPLING":
       return "Sampling";
     case "CUTTING_WASTE":

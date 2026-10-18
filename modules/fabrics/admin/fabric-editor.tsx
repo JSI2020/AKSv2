@@ -10,6 +10,7 @@ import { MetresTriadBar } from "@/modules/admin/viz";
 import type { FabricRow } from "@/modules/sizing/fabric-archetype-actions";
 import {
   archiveFabric,
+  attachFabricSwatch,
   createFabricSwatchAsset,
   deleteFabric,
   recordFabricLot,
@@ -336,6 +337,7 @@ export function FabricEditor(props: Props) {
   const [swatchUrl, setSwatchUrl] = useState(
     props.mode === "edit" ? props.stock.swatchUrl : null,
   );
+  const [swatchUnsaved, setSwatchUnsaved] = useState(false);
 
   function submit(form: HTMLFormElement) {
     setError(null);
@@ -399,8 +401,14 @@ export function FabricEditor(props: Props) {
               onAsset={(id, url) => {
                 setSwatchAssetId(id);
                 setSwatchUrl(url);
+                setSwatchUnsaved(true);
               }}
             />
+            {swatchUnsaved ? (
+              <p className="mt-3 text-[12px] text-madder" role="status">
+                Unsaved — this photo is kept when you save the fabric.
+              </p>
+            ) : null}
             <p className="mt-3 text-[11.5px] leading-relaxed text-ink/55">
               A clean, flat, well-lit photo of the actual cloth. This appears
               everywhere the fabric is shown.
@@ -560,8 +568,28 @@ export function FabricEditor(props: Props) {
             onAsset={(id, url) => {
               setSwatchAssetId(id);
               setSwatchUrl(url);
+              setSwatchUnsaved(true);
+              setError(null);
+              startTransition(async () => {
+                const result = await attachFabricSwatch({
+                  fabricId: props.fabric.id,
+                  assetId: id,
+                });
+                if (!result.ok) {
+                  setError(result.error);
+                  return;
+                }
+                setSwatchUnsaved(false);
+                setMessage("Swatch saved.");
+                router.refresh();
+              });
             }}
           />
+          {swatchUnsaved ? (
+            <p className="mt-3 text-[12px] text-madder" role="status">
+              Unsaved — the swatch is not on this fabric yet.
+            </p>
+          ) : null}
         </aside>
         <div>
           <form

@@ -230,11 +230,13 @@ export async function listFinanceOrdersPayment(
       paidMinor: paid,
       balanceAmountMinor: o.balanceAmountMinor,
       totalMinor: o.totalMinor,
+      paymentPlan: o.paymentPlan,
     });
     if (
       paymentStatus === "AWAITING_DEPOSIT" ||
       paymentStatus === "BALANCE_DUE" ||
-      paymentStatus === "DEPOSIT_PAID"
+      paymentStatus === "DEPOSIT_PAID" ||
+      paymentStatus === "COD_UNPAID"
     ) {
       outstandingMinor += Math.max(0, o.totalMinor - paid);
     }
@@ -313,36 +315,59 @@ export async function getFinanceOverview(range: ResolvedTimeRange) {
     0,
   );
 
-  const dispatched = await db
+  const codPayments = await db
     .select({
-      n: sql<number>`count(*)::int`,
-      bal: sql<number>`coalesce(sum(${orders.balanceAmountMinor}), 0)::int`,
+      orderId: payments.orderId,
+      amountMinor: payments.amountMinor,
     })
-    .from(orders)
+    .from(payments)
     .where(
       and(
-        eq(orders.status, "DISPATCHED"),
-        sql`${orders.balanceAmountMinor} > 0`,
+        eq(payments.provider, "COD"),
+        eq(payments.kind, "BALANCE"),
+        eq(payments.status, "SUCCEEDED"),
       ),
     );
+  const codCollectedByOrder = new Map<string, number>();
+  for (const payment of codPayments) {
+    codCollectedByOrder.set(
+      payment.orderId,
+      (codCollectedByOrder.get(payment.orderId) ?? 0) + payment.amountMinor,
+    );
+  }
 
-  const deliveredCod = await db
+  const dispatchedRows = await db
     .select({
       id: orders.id,
       balanceAmountMinor: orders.balanceAmountMinor,
     })
     .from(orders)
-    .where(
-      and(
-        inArray(orders.status, ["DELIVERED", "COMPLETED"]),
-        sql`${orders.balanceAmountMinor} > 0`,
-      ),
-    );
-  const inTransit = deliveredCod.filter((o) => !remitted.has(o.id));
-  const inTransitMinor = inTransit.reduce(
-    (s, o) => s + o.balanceAmountMinor,
-    0,
-  );
+    .where(eq(orders.status, "DISPATCHED"));
+  const outForDelivery = dispatchedRows.flatMap((order) => {
+    if (remitted.has(order.id)) return [];
+    const minor =
+      order.balanceAmountMinor > 0
+        ? order.balanceAmountMinor
+        : (codCollectedByOrder.get(order.id) ?? 0);
+    return minor > 0 ? [minor] : [];
+  });
+
+  const deliveredRows = await db
+    .select({
+      id: orders.id,
+      balanceAmountMinor: orders.balanceAmountMinor,
+    })
+    .from(orders)
+    .where(inArray(orders.status, ["DELIVERED", "COMPLETED"]));
+  const collectedNotRemitted = deliveredRows.flatMap((order) => {
+    if (remitted.has(order.id)) return [];
+    const minor =
+      order.balanceAmountMinor > 0
+        ? order.balanceAmountMinor
+        : (codCollectedByOrder.get(order.id) ?? 0);
+    return minor > 0 ? [minor] : [];
+  });
+  const inTransitMinor = collectedNotRemitted.reduce((sum, minor) => sum + minor, 0);
 
   const [refused, placed] = await Promise.all([
     db
@@ -409,7 +434,8 @@ export async function getFinanceOverview(range: ResolvedTimeRange) {
         (payStatusCounts.AWAITING_DEPOSIT ?? 0) + 1;
     } else if (
       r.paymentStatus === "BALANCE_DUE" ||
-      r.paymentStatus === "DEPOSIT_PAID"
+      r.paymentStatus === "DEPOSIT_PAID" ||
+      r.paymentStatus === "COD_UNPAID"
     ) {
       payStatusCounts.BALANCE_DUE = (payStatusCounts.BALANCE_DUE ?? 0) + 1;
     } else if (r.paymentStatus === "PAID") {
@@ -446,11 +472,11 @@ export async function getFinanceOverview(range: ResolvedTimeRange) {
     trend,
     codFunnel: {
       outForDelivery: {
-        count: Number(dispatched[0]?.n ?? 0),
-        minor: Number(dispatched[0]?.bal ?? 0),
+        count: outForDelivery.length,
+        minor: outForDelivery.reduce((sum, minor) => sum + minor, 0),
       },
       collectedNotRemitted: {
-        count: inTransit.length,
+        count: collectedNotRemitted.length,
         minor: inTransitMinor,
       },
       remitted: {

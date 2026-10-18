@@ -26,7 +26,11 @@ import {
   PricingTab,
   PreviewPublishTab,
 } from "./design-price-preview-tabs";
-import { resolveEffectiveBasePriceMinor } from "./publish-checklist";
+import {
+  publishMarginWarning,
+  resolveEffectiveBasePriceMinor,
+  resolveEffectiveCostMinor,
+} from "./publish-checklist";
 import { tabReadiness } from "./tab-readiness";
 import {
   resolveShadeCompareAtMinor,
@@ -400,6 +404,7 @@ export function DesignEditor({
   canViewMargin = false,
   canEditCosts = false,
   initialTab,
+  designCostMinor = null,
 }: {
   detail: DesignDetail;
   options: FormOptions;
@@ -407,6 +412,8 @@ export function DesignEditor({
   canViewMargin?: boolean;
   canEditCosts?: boolean;
   initialTab?: Tab;
+  /** Stored design cost, so the publish gate works without the money panel. */
+  designCostMinor?: number | null;
 }) {
   const savedComponents = savedComponentKeys(detail);
   const hasArticleTypes = savedComponents.length > 0;
@@ -427,6 +434,11 @@ export function DesignEditor({
   const doorTags = new Set(options.houseDoors.map((d) => d.tag.toUpperCase()));
   const houseDoor = houseDoorFromTags(detail.tags, doorTags);
   const displayPriceMinor = resolveEffectiveBasePriceMinor(d, detail.colourways);
+  const costMinor = resolveEffectiveCostMinor(
+    detail.colourways,
+    designCostMinor ?? costing?.breakdown?.totalCostMinor,
+  );
+  const marginWarning = publishMarginWarning(costMinor, displayPriceMinor);
   const readiness = tabReadiness({
     design: {
       name: d.name,
@@ -442,10 +454,12 @@ export function DesignEditor({
       basePriceMinor: c.basePriceMinor,
       costingSnapshot: c.costingSnapshot,
     })),
+    designCostMinor: designCostMinor ?? costing?.breakdown?.totalCostMinor ?? null,
     renders: detail.renders.map((r) => ({
       colourwayId: r.colourwayId,
       angle: r.angle,
       altText: r.altText ?? "",
+      isAiGenerated: r.isAiGenerated,
     })),
     tags: detail.tags,
   });
@@ -534,18 +548,25 @@ export function DesignEditor({
               Unpublish
             </button>
           ) : canPublish ? (
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => {
-                const fd = new FormData();
-                fd.set("id", d.id);
-                run(publishDesign, fd);
-              }}
-              className="border border-zari bg-zari px-4 py-2 text-[12px] uppercase tracking-[0.06em] text-indigo disabled:opacity-50"
-            >
-              Publish
-            </button>
+            <div className="flex max-w-xl flex-col gap-1.5">
+              <button
+                type="button"
+                disabled={pending || !readiness.ready}
+                onClick={() => {
+                  const fd = new FormData();
+                  fd.set("id", d.id);
+                  run(publishDesign, fd);
+                }}
+                className="self-start border border-zari bg-zari px-4 py-2 text-[12px] uppercase tracking-[0.06em] text-indigo disabled:opacity-50"
+              >
+                Publish
+              </button>
+              {!readiness.ready ? (
+                <p className="text-[12px] text-madder">
+                  Publish needs: {readiness.missing.join("; ")}.
+                </p>
+              ) : null}
+            </div>
           ) : null}
           {!isArchived ? (
             <ComingSoonControl
@@ -658,6 +679,11 @@ export function DesignEditor({
           Before publish: {readiness.missing.join(" · ")}
         </p>
       ) : null}
+      {marginWarning ? (
+        <p className="border border-zari/50 bg-milk px-3 py-2 text-[12px] text-ink">
+          {marginWarning}
+        </p>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-[1fr_18rem] lg:items-start">
         <div className="min-w-0 flex flex-col gap-1">
@@ -745,6 +771,7 @@ export function DesignEditor({
               costing={costing}
               pending={pending}
               canPublish={canPublish}
+              publishMissing={readiness.missing}
               onPublish={() => {
                 const fd = new FormData();
                 fd.set("id", d.id);

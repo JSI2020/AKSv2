@@ -18,6 +18,7 @@ import {
   OPEN_PRODUCTION_STATUSES,
 } from "@/modules/orders";
 import { OrdersOverview } from "@/modules/orders/admin/orders-overview";
+import { STOREFRONT_RTW_SIZE_LABELS } from "@/modules/catalog/types";
 
 export default async function AdminOrdersPage({
   searchParams,
@@ -92,7 +93,7 @@ export default async function AdminOrdersPage({
               Orders
             </h1>
             <p className="mt-2 max-w-xl text-[13.5px] text-ink/55">
-              Standard sizes XS–XXL · production and payment tracked separately.
+              {`Standard sizes ${STOREFRONT_RTW_SIZE_LABELS[0]}–${STOREFRONT_RTW_SIZE_LABELS[STOREFRONT_RTW_SIZE_LABELS.length - 1]} · production and payment tracked separately.`}
             </p>
           </div>
           {canCreate ? (

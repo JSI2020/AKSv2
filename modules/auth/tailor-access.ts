@@ -2,7 +2,6 @@
 export const TAILOR_ALLOWED_PREFIXES = [
   "/admin/login",
   "/admin/2fa",
-  "/admin/set-password",
   "/admin/production",
 ] as const;
 

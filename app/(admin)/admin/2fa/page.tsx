@@ -11,10 +11,6 @@ export default async function AdminTwoFactorPage() {
     redirect("/admin/login");
   }
 
-  if (session.user.mustChangePassword) {
-    redirect("/admin/set-password");
-  }
-
   if (session.user.twoFactorEnabled) {
     redirect("/admin");
   }

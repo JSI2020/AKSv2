@@ -77,8 +77,10 @@ export default async function StorefrontSettingsPage({
       {tab === "ticker" ? (
         <div className="mt-6">
           <p className="mb-4 max-w-xl text-[13px] text-ink/55">
-            Multiple active messages rotate in a modern ticker at the top of the
-            shop. Schedule windows optional.
+            The line at the top of the shop. Match it to the lead-time promise
+            — if pieces ship in a set number of days, say that here. Don&apos;t
+            leave a “being prepared” line up while the product page says they
+            ship.
           </p>
           <AnnouncementsAdmin
             initial={announcements.map((r) => ({

@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
+import { legalRedirects } from "./modules/legal/routes";
+
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 // Baseline security headers. CSP is intentionally omitted here — it needs a
@@ -30,6 +32,35 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
+  },
+  async redirects() {
+    return [
+      ...legalRedirects().map((entry) => ({
+        source: entry.source,
+        destination: entry.destination,
+        permanent: true,
+      })),
+      {
+        source: "/returns",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+      {
+        source: "/shipping",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+      {
+        source: "/en/returns",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+      {
+        source: "/en/shipping",
+        destination: "/pages/shipping-returns",
+        permanent: true,
+      },
+    ];
   },
   // localePrefix "never": map public paths → /en/* without middleware rewrites.
   // Config rewrites stay internal; middleware absolute https rewrites did not

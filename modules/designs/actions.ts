@@ -8,6 +8,7 @@ import {
   colourways,
   db,
   designRenders,
+  designCosts,
   designs,
   designTags,
   customizationOptions,
@@ -1258,11 +1259,18 @@ export async function publishDesign(
       sizeBlockRowCount = sizeRows.length;
     }
 
+    const [costRow] = await db
+      .select({ totalCostMinor: designCosts.totalCostMinor })
+      .from(designCosts)
+      .where(eq(designCosts.designId, id))
+      .limit(1);
+
     const missing = evaluatePublishChecklist({
       design: detail.design,
       colourways: detail.colourways,
       renders: detail.renders,
       tags: detail.tags,
+      designCostMinor: costRow?.totalCostMinor ?? null,
       sizeBlockRowCount,
     });
     if (missing.length) {

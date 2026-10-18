@@ -17,6 +17,8 @@ export default defineConfig({
       ["modules/ai/**/*.test.ts", "node"],
       ["modules/customers/**/*.test.ts", "node"],
       ["modules/content/**/*.test.ts", "node"],
+      ["modules/legal/**/*.test.ts", "node"],
+      ["modules/account/**/*.test.ts", "node"],
       ["modules/discounts/**/*.test.ts", "node"],
       ["modules/finance/**/*.test.ts", "node"],
       ["modules/admin/**/*.test.ts", "node"],
@@ -42,6 +44,10 @@ export default defineConfig({
       "@": path.resolve(__dirname, "."),
       "@aks/db": path.resolve(__dirname, "packages/db/index.ts"),
       "@aks/shared": path.resolve(__dirname, "packages/shared/index.ts"),
+      "server-only": path.resolve(
+        __dirname,
+        "node_modules/server-only/empty.js",
+      ),
     },
   },
 });

@@ -35,6 +35,10 @@ import {
   normalizePhoneDigits,
   phoneHammingDistance,
 } from "./phone";
+import {
+  linkOrderCustomer,
+  linkUnassignedOrders,
+} from "./link-order-customer";
 import { type CrmSourceFilter, parseCrmSource } from "./source";
 import type {
   CustomerDetail,
@@ -45,7 +49,8 @@ import type {
   PhoneMatchCandidate,
 } from "./types";
 
-const PLACED = sql`${orders.status} not in ('DRAFT', 'CANCELLED')`;
+/** Drafts are unfinished. Cancelled sales still belong on the customer. */
+const HISTORY = sql`${orders.status} <> 'DRAFT'`;
 
 /** Drizzle/sql aggregates may return Date or ISO string depending on driver. */
 function asDate(value: Date | string | null | undefined): Date | null {
@@ -80,7 +85,11 @@ export async function listCustomerDirectory(input?: {
   query?: string;
   source?: CrmSourceFilter;
 }): Promise<ListCustomerDirectoryResult> {
-  await requirePermission("customers.view");
+  const session = await requirePermission("customers.view");
+  await linkUnassignedOrders({
+    id: session.user.id,
+    role: session.user.role,
+  });
 
   const sourceFilter = input?.source ?? "ALL";
   const q = input?.query?.trim() ?? "";
@@ -194,7 +203,7 @@ export async function listCustomerDirectory(input?: {
         ltv: sql<number>`coalesce(sum(${orders.totalMinor}), 0)::int`,
       })
       .from(orders)
-      .where(and(inArray(orders.userId, accountIds), PLACED))
+      .where(and(inArray(orders.userId, accountIds), HISTORY))
       .groupBy(orders.userId);
 
     const byUser = new Map(
@@ -231,7 +240,7 @@ export async function listCustomerDirectory(input?: {
       createdAt: orders.createdAt,
     })
     .from(orders)
-    .where(PLACED)
+    .where(HISTORY)
     .orderBy(asc(orders.placedAt))
     .limit(5000);
 
@@ -389,7 +398,53 @@ function addressFromSnapshot(
     recipientName: snap.recipientName,
     phone: snap.phone,
     lines,
+    label: null,
+    isDefault: false,
   };
+}
+
+function savedAddressToDetail(saved: {
+  recipientName: string;
+  phone: string;
+  label: string | null;
+  isDefaultShipping: boolean;
+  addressLine1: string;
+  addressLine2: string | null;
+  city: string;
+  province: string;
+  landmark: string | null;
+}): CustomerDetailAddress {
+  return {
+    recipientName: saved.recipientName,
+    phone: saved.phone,
+    label: saved.label,
+    isDefault: saved.isDefaultShipping,
+    lines: [
+      [saved.addressLine1, saved.addressLine2].filter(Boolean).join(", "),
+      [saved.city, saved.province.replaceAll("_", " ")].join(", "),
+      saved.landmark ? `Near ${saved.landmark}` : null,
+    ].filter(Boolean) as string[],
+  };
+}
+
+function collectAdditionalPhones(
+  primary: Array<string | null | undefined>,
+  candidates: Array<string | null | undefined>,
+): string[] {
+  const seen = new Set<string>();
+  for (const raw of primary) {
+    const digits = normalizePhoneDigits(raw ?? "");
+    if (digits.length >= 10) seen.add(digits);
+  }
+  const extra: string[] = [];
+  for (const raw of candidates) {
+    const trimmed = raw?.trim() ?? "";
+    const digits = normalizePhoneDigits(trimmed);
+    if (digits.length < 10 || seen.has(digits)) continue;
+    seen.add(digits);
+    extra.push(trimmed);
+  }
+  return extra;
 }
 
 export async function getCustomerDetail(
@@ -433,7 +488,7 @@ export async function getCustomerDetail(
       shippingAddressSnapshot: orders.shippingAddressSnapshot,
     })
     .from(orders)
-    .where(and(eq(orders.userId, userId), PLACED))
+    .where(and(eq(orders.userId, userId), HISTORY))
     .orderBy(desc(orders.placedAt));
 
   const profileRows = await db
@@ -458,28 +513,55 @@ export async function getCustomerDetail(
     .where(
       and(eq(addresses.userId, userId), isNull(addresses.deletedAt)),
     )
-    .orderBy(desc(addresses.isDefaultShipping), desc(addresses.updatedAt))
-    .limit(1);
+    .orderBy(desc(addresses.isDefaultShipping), desc(addresses.updatedAt));
 
   const digits =
     normalizePhoneDigits(profile?.whatsappNumber ?? "") ||
     normalizePhoneDigits(user.phone ?? "");
 
-  let contactAddress = addressFromSnapshot(
-    orderRows[0]?.shippingAddressSnapshot,
-  );
-  const saved = savedAddresses[0];
-  if (saved) {
-    contactAddress = {
-      recipientName: saved.recipientName,
-      phone: saved.phone,
-      lines: [
-        [saved.addressLine1, saved.addressLine2].filter(Boolean).join(", "),
-        [saved.city, saved.province.replaceAll("_", " ")].join(", "),
-        saved.landmark ? `Near ${saved.landmark}` : null,
-      ].filter(Boolean) as string[],
-    };
+  let detailAddresses = savedAddresses.map(savedAddressToDetail);
+  if (detailAddresses.length === 0) {
+    const snap = addressFromSnapshot(orderRows[0]?.shippingAddressSnapshot);
+    if (snap) detailAddresses = [snap];
   }
+
+  const latestOrder = orderRows[0];
+  if (
+    latestOrder &&
+    (!profile || (savedAddresses.length === 0 && latestOrder.shippingAddressSnapshot))
+  ) {
+    try {
+      await db.transaction(async (tx) => {
+        await linkOrderCustomer(tx, {
+          existingUserId: userId,
+          email: user.email,
+          name: user.name,
+          phone: user.phone ?? latestOrder.shippingAddressSnapshot.phone,
+          whatsappNumber:
+            profile?.whatsappNumber ??
+            latestOrder.shippingAddressSnapshot.whatsappNumber ??
+            latestOrder.shippingAddressSnapshot.phone,
+          source: latestOrder.source,
+          address: latestOrder.shippingAddressSnapshot,
+        });
+      });
+    } catch {
+      // The snapshot below still shows the address if the row cannot be saved.
+    }
+    if (detailAddresses.length === 0) {
+      const snap = addressFromSnapshot(latestOrder.shippingAddressSnapshot);
+      if (snap) detailAddresses = [snap];
+    }
+  }
+
+  const contactAddress =
+    detailAddresses.find((row) => row.isDefault) ?? detailAddresses[0] ?? null;
+  const additionalPhones = collectAdditionalPhones(
+    [user.phone, profile?.whatsappNumber],
+    detailAddresses.map((row) => row.phone),
+  );
+
+  const orderLtv = orderRows.reduce((sum, row) => sum + row.totalMinor, 0);
 
   const firstSource =
     profile?.source ??
@@ -492,13 +574,16 @@ export async function getCustomerDetail(
     name: user.name,
     email: user.email?.endsWith("@customers.aks.local") ? null : user.email,
     phone: user.phone,
-    whatsappNumber: profile?.whatsappNumber ?? user.phone,
+    whatsappNumber:
+      profile?.whatsappNumber ??
+      user.phone ??
+      latestOrder?.shippingAddressSnapshot.whatsappNumber ??
+      null,
     phoneDigits: digits,
     firstContactSource: firstSource,
-    lifetimeValueMinor:
-      profile?.lifetimeValueMinor ??
-      orderRows.reduce((s, o) => s + o.totalMinor, 0),
-    totalOrdersCount: profile?.totalOrdersCount ?? orderRows.length,
+    lifetimeValueMinor: orderRows.length > 0 ? orderLtv : (profile?.lifetimeValueMinor ?? 0),
+    totalOrdersCount:
+      orderRows.length > 0 ? orderRows.length : (profile?.totalOrdersCount ?? 0),
     codRefusalCount: profile?.codRefusalCount ?? 0,
     lastOrderAt: asDate(orderRows[0]?.placedAt ?? null),
     orders: orderRows.map((row) => ({
@@ -512,6 +597,8 @@ export async function getCustomerDetail(
     })),
     measurementProfiles: profileRows,
     contactAddress,
+    addresses: detailAddresses,
+    additionalPhones,
     mergeHref: `/admin/customers/merge?a=${encodeURIComponent(`user:${user.id}`)}`,
   };
 }
@@ -543,7 +630,7 @@ export async function getGuestCustomerDetail(
           eq(orders.whatsappNumber, whatsappRaw),
           sql`regexp_replace(${orders.whatsappNumber}, '\\D', '', 'g') = ${digits}`,
         ),
-        PLACED,
+        HISTORY,
       ),
     )
     .orderBy(desc(orders.placedAt));
@@ -552,6 +639,7 @@ export async function getGuestCustomerDetail(
 
   const latest = orderRows[0]!;
   const earliest = orderRows[orderRows.length - 1]!;
+  const contactAddress = addressFromSnapshot(latest.shippingAddressSnapshot);
 
   return {
     kind: "guest",
@@ -576,7 +664,15 @@ export async function getGuestCustomerDetail(
       productionLabel: productionLabel(row.status),
     })),
     measurementProfiles: [],
-    contactAddress: addressFromSnapshot(latest.shippingAddressSnapshot),
+    contactAddress,
+    addresses: contactAddress ? [contactAddress] : [],
+    additionalPhones: collectAdditionalPhones(
+      [latest.shippingAddressSnapshot.phone, latest.whatsappNumber],
+      orderRows.flatMap((row) => [
+        row.shippingAddressSnapshot.phone,
+        row.whatsappNumber,
+      ]),
+    ),
     mergeHref: `/admin/customers/merge?a=${encodeURIComponent(`guest:${digits}`)}`,
   };
 }

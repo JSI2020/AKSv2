@@ -14,11 +14,12 @@ import { listStudioCatalogGrouped } from "@/modules/designs/studio-catalog";
 export default async function DesignsAdminPage({
   searchParams,
 }: {
-  searchParams: Promise<{ awaitingReview?: string }>;
+  searchParams: Promise<{ awaitingReview?: string; status?: string }>;
 }) {
   const sp = await searchParams;
   const awaitingReview =
     sp.awaitingReview === "true" || sp.awaitingReview === "1";
+  const statusParam = (sp.status ?? "").trim();
 
   let groups;
   try {
@@ -58,8 +59,9 @@ export default async function DesignsAdminPage({
           <p className="mt-2 max-w-xl text-[13px] text-ink/55">
             {awaitingReview
               ? "Pipeline designs waiting on review or ready to publish."
-              : "Every look, by category — photos, colours, sizes."}
-            {total > 0 ? ` ${total} designs shown.` : ""}
+              : statusParam
+                ? `Filtered by status ${statusParam}.`
+                : "Every look, by category — photos, colours, sizes."}
           </p>
           {awaitingReview ? (
             <p className="mt-2">
@@ -72,12 +74,20 @@ export default async function DesignsAdminPage({
             </p>
           ) : null}
         </div>
-        <Link
-          href="/admin/designs/new"
-          className="bg-ink px-5 py-2.5 text-[12px] uppercase tracking-[0.08em] text-milk transition-colors hover:bg-madder"
-        >
-          + New design
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          <Link
+            href="/admin/designs/publish-gaps"
+            className="border border-ink/15 px-4 py-2.5 text-[12px] uppercase tracking-[0.08em] text-ink/70 hover:border-ink hover:text-ink"
+          >
+            Published gaps
+          </Link>
+          <Link
+            href="/admin/designs/new"
+            className="bg-ink px-5 py-2.5 text-[12px] uppercase tracking-[0.08em] text-milk transition-colors hover:bg-madder"
+          >
+            + New design
+          </Link>
+        </div>
       </div>
 
       {total === 0 ? (
@@ -110,7 +120,16 @@ export default async function DesignsAdminPage({
       ) : (
         <DesignsCatalog
           groups={groups}
-          initialFilter={awaitingReview ? "review" : "all"}
+          initialFilter={
+            awaitingReview || statusParam.toUpperCase() === "REVIEW"
+              ? "review"
+              : statusParam.toUpperCase() === "PUBLISHED"
+                ? "published"
+                : statusParam.toUpperCase() === "DRAFT"
+                  ? "draft"
+                  : "all"
+          }
+          initialStatus={statusParam}
         />
       )}
     </div>

@@ -17,6 +17,8 @@ import type { DbTx } from "@/modules/platform/types";
 import {
   applicableSubtotalMinor,
   computeDiscountAmountParts,
+  discountCodeBlockedReason,
+  formatDiscountPkr,
   isDiscountScheduled,
   mergeDiscountParts,
   normalizeDiscountCode,
@@ -172,6 +174,32 @@ function discountPassesUsageLimit(
   return discount.usageCount < discount.usageLimit;
 }
 
+async function explainIneligibleCode(input: {
+  discount: typeof discounts.$inferSelect | null;
+  subtotalMinor: number;
+  hasPriorOrder: boolean;
+  userId?: string | null;
+  guestEmail?: string | null;
+}): Promise<string> {
+  const discount = input.discount;
+  if (!discount) return "That discount code is not valid.";
+  if (discount.firstOrderOnly && input.hasPriorOrder) {
+    return "That discount code is only for a first order.";
+  }
+  if (discount.oncePerCustomer) {
+    const redeemed = await customerHasRedeemedDiscount({
+      discountId: discount.id,
+      userId: input.userId,
+      guestEmail: input.guestEmail,
+    });
+    if (redeemed) return "That discount code has already been used.";
+  }
+  if (input.subtotalMinor < discount.minSpendMinor) {
+    return `That discount code needs a minimum spend of ${formatDiscountPkr(discount.minSpendMinor)}.`;
+  }
+  return "That discount code cannot be applied to this order.";
+}
+
 async function loadActiveDiscountCandidates(
   code: string | null | undefined,
 ): Promise<{
@@ -229,6 +257,21 @@ export async function evaluateCheckoutDiscounts(
   const normalizedCode = input.code?.trim()
     ? normalizeDiscountCode(input.code)
     : null;
+
+  let typedCode: (typeof discounts.$inferSelect) | null = null;
+  if (normalizedCode) {
+    const [found] = await db
+      .select()
+      .from(discounts)
+      .where(sql`upper(trim(${discounts.code})) = ${normalizedCode}`)
+      .limit(1);
+    typedCode = found ?? null;
+    if (!typedCode) {
+      return { ok: false, error: "That discount code is not valid." };
+    }
+    const blocked = discountCodeBlockedReason(typedCode, now);
+    if (blocked) return { ok: false, error: blocked };
+  }
 
   const { automatic, codeDiscount } =
     await loadActiveDiscountCandidates(normalizedCode);
@@ -290,15 +333,21 @@ export async function evaluateCheckoutDiscounts(
   }
 
   if (normalizedCode) {
-    const codeDiscount = eligible.find(
+    const appliedCode = eligible.find(
       (item) =>
         item.discount.code &&
         normalizeDiscountCode(item.discount.code) === normalizedCode,
     );
-    if (!codeDiscount) {
+    if (!appliedCode) {
       return {
         ok: false,
-        error: "That discount code cannot be applied to this order.",
+        error: await explainIneligibleCode({
+          discount: typedCode ?? codeDiscount,
+          subtotalMinor: input.subtotalMinor,
+          hasPriorOrder,
+          userId: input.userId,
+          guestEmail: input.guestEmail,
+        }),
       };
     }
   }

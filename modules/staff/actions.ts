@@ -24,11 +24,8 @@ import { enqueue } from "@/modules/platform/outbox";
 import {
   clearUserPermissionEffect,
   clientIpFromHeaders,
-  generateTempPassword,
-  hashPassword,
   listUserSessions,
   normalizeEmail,
-  TEMP_PASSWORD_TTL_MS,
   requirePermission,
   revokeSession,
   setUserPermissionEffect,
@@ -65,10 +62,7 @@ function assertCanAssignRole(actorRole: string, targetRole: StaffRole) {
 
 export async function inviteStaffAction(
   formData: FormData,
-): Promise<
-  | { ok: true; userId: string; email: string; tempPassword: string; loginUrl: string }
-  | { ok: false; error: string }
-> {
+): Promise<{ ok: true; userId: string } | { ok: false; error: string }> {
   try {
     const session = await requirePermission("staff.create");
     const email = normalizeEmail(String(formData.get("email") ?? ""));
@@ -108,11 +102,6 @@ export async function inviteStaffAction(
       process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
       "http://localhost:3000";
     const loginUrl = `${appUrl}/admin/login?email=${encodeURIComponent(email)}`;
-    // One-time password: shown once to the inviter and emailed to the new
-    // member; they must replace it on first sign-in.
-    const tempPassword = generateTempPassword();
-    const passwordHash = await hashPassword(tempPassword);
-    const tempExpiresAt = new Date(Date.now() + TEMP_PASSWORD_TTL_MS);
 
     await db.transaction(async (tx) => {
       await tx.insert(users).values({
@@ -121,9 +110,6 @@ export async function inviteStaffAction(
         name: nameRaw || null,
         role: roleRaw,
         status: "INVITED",
-        passwordHash,
-        mustChangePassword: true,
-        tempPasswordExpiresAt: tempExpiresAt,
       });
 
       await tx.insert(staffInvites).values({
@@ -141,8 +127,8 @@ export async function inviteStaffAction(
         {
           to: email,
           subject: "You're invited to AKS admin",
-          text: `You've been invited to the AKS admin portal as ${roleRaw}.\n\nSign in at ${loginUrl}\nEmail: ${email}\nOne-time password: ${tempPassword}\n\nYou'll choose your own password straight after. The one-time password works once and expires in 7 days.`,
-          html: `<p>You've been invited to the AKS admin portal as <strong>${roleRaw}</strong>.</p><p><a href="${loginUrl}">Sign in</a> with<br>Email: <strong>${email}</strong><br>One-time password: <strong style="font-family:monospace;letter-spacing:0.05em">${tempPassword}</strong></p><p>You'll choose your own password straight after. The one-time password works once and expires in 7 days.</p>`,
+          text: `You've been invited to the AKS admin portal as ${roleRaw}. Sign in at ${loginUrl} with a one-time code sent to this email.`,
+          html: `<p>You've been invited to the AKS admin portal as <strong>${roleRaw}</strong>.</p><p><a href="${loginUrl}">Sign in</a> with a one-time code sent to this email.</p>`,
         },
         tx,
       );
@@ -161,7 +147,7 @@ export async function inviteStaffAction(
       });
     });
 
-    return { ok: true, userId, email, tempPassword, loginUrl };
+    return { ok: true, userId };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Invite failed";
     return { ok: false, error: message };

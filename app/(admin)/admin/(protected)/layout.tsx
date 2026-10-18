@@ -28,10 +28,6 @@ export default async function ProtectedAdminLayout({
     redirect("/account/login");
   }
 
-  if (session.user.mustChangePassword) {
-    redirect("/admin/set-password");
-  }
-
   if (
     rolesRequiring2fa(session.user.role) &&
     !session.user.twoFactorEnabled &&

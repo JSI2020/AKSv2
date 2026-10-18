@@ -38,14 +38,6 @@ export const users = pgTable(
     status: userStatusEnum("status").notNull().default("ACTIVE"),
     /** Auth.js adapter expects the TS field name `emailVerified`. */
     emailVerified: timestamp("email_verified_at", { withTimezone: true }),
-    /** Staff password (scrypt, see modules/auth/password). Null = none set. */
-    passwordHash: text("password_hash"),
-    /** Signed in with a one-time password — must choose their own first. */
-    mustChangePassword: boolean("must_change_password").notNull().default(false),
-    tempPasswordExpiresAt: timestamp("temp_password_expires_at", {
-      withTimezone: true,
-    }),
-    passwordSetAt: timestamp("password_set_at", { withTimezone: true }),
     twoFactorSecret: text("two_factor_secret"),
     twoFactorEnabledAt: timestamp("two_factor_enabled_at", {
       withTimezone: true,

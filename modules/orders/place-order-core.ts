@@ -1,10 +1,12 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import {
   cartLines,
   carts,
+  designs,
   orderItems,
   orders,
+  siteSettings,
   type OrderDiscountBreakdownSnapshot,
   type OrderPriceBreakdownSnapshot,
   type OrderMeasurementSnapshot,
@@ -20,6 +22,10 @@ import type { DbTx } from "@/modules/platform/types";
 
 import { computeCutSpecSnapshot } from "./compute-cut-spec-snapshot";
 import { generateOrderNumber } from "./order-number";
+import {
+  leadDaysFromSources,
+  promisedShipDateFromDays,
+} from "./promised-lead";
 import { ORDER_TRANSITION_ALLOW } from "./transitions";
 
 import "./transitions";
@@ -86,6 +92,28 @@ export async function placeOrderCore(
   });
 
   const orderNumber = await generateOrderNumber(tx);
+  const designIds = [...new Set(input.lines.map((line) => line.designId))];
+  const designLeads =
+    designIds.length === 0
+      ? []
+      : await tx
+          .select({ lead: designs.leadTimeDaysOverride })
+          .from(designs)
+          .where(inArray(designs.id, designIds));
+  const [storefront] = await tx
+    .select({ value: siteSettings.value })
+    .from(siteSettings)
+    .where(eq(siteSettings.key, "storefront"))
+    .limit(1);
+  const storefrontValue =
+    storefront?.value && typeof storefront.value === "object"
+      ? (storefront.value as { leadTimeDaysMin?: number; leadTimeDaysMax?: number })
+      : null;
+  const leadDays = leadDaysFromSources({
+    designLeadDays: designLeads.map((row) => row.lead),
+    siteMin: storefrontValue?.leadTimeDaysMin ?? 0,
+    siteMax: storefrontValue?.leadTimeDaysMax ?? 0,
+  });
 
   await tx.insert(orders).values({
     id: orderId,
@@ -110,6 +138,7 @@ export async function placeOrderCore(
     internalNotes: input.internalNotes?.trim() || null,
     source: input.source,
     cartId: input.cartId ?? null,
+    promisedShipDate: promisedShipDateFromDays(now, leadDays),
     createdAt: now,
     updatedAt: now,
   });

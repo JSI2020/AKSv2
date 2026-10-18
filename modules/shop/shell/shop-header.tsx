@@ -149,9 +149,7 @@ export function ShopHeaderClient({
 
   // SSR + first client paint: always use route Links (stable).
   // After mount on home: switch hash anchors for in-page jumps.
-  const fallbackLeft = (
-    <FallbackNavLinks homeNav={homeNav} t={t} />
-  );
+  const fallbackLeft = <FallbackNavLinks homeNav={homeNav} t={t} />;
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -190,7 +188,7 @@ export function ShopHeaderClient({
             </svg>
           </button>
           <Link
-            href="/account/orders"
+            href={"/account" as "/account/orders"}
             className="icobtn"
             aria-label={t("account")}
           >
@@ -204,18 +202,18 @@ export function ShopHeaderClient({
       </nav>
 
       <div className={`nav-mobile${menuOpen ? " open" : ""}`}>
-        {headerNav.length > 0
-          ? headerNav.map((item) => (
-              <NavHref
-                key={item.id}
-                item={item}
-                onHome={homeNav}
-                onClick={closeMenu}
-              />
-            ))
-          : (
-              <FallbackNavLinks homeNav={homeNav} onClick={closeMenu} t={t} />
-            )}
+        {headerNav.length > 0 ? (
+          headerNav.map((item) => (
+            <NavHref
+              key={item.id}
+              item={item}
+              onHome={homeNav}
+              onClick={closeMenu}
+            />
+          ))
+        ) : (
+          <FallbackNavLinks homeNav={homeNav} onClick={closeMenu} t={t} />
+        )}
         <button
           type="button"
           onClick={() => {
@@ -225,7 +223,7 @@ export function ShopHeaderClient({
         >
           {t("search")}
         </button>
-        <Link href="/account/orders" onClick={closeMenu}>
+        <Link href={"/account" as "/account/orders"} onClick={closeMenu}>
           {t("account")}
         </Link>
       </div>

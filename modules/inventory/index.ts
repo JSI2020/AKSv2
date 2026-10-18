@@ -23,6 +23,7 @@ export {
 } from "./rtw-stock-messages";
 export { lotAvailableMeters } from "./lot-status";
 export {
+  countFabricStockAlert,
   countFabricsBelowReorderPoint,
   listFabricsBelowReorderPoint,
 } from "./stock-queries";

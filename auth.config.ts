@@ -19,17 +19,6 @@ function adminTwoFactorEnforced(): boolean {
 export const authConfig = {
   providers: [
     Credentials({
-      id: "password",
-      name: "Email and password",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        totp: { label: "Authenticator code", type: "text" },
-        recoveryCode: { label: "Recovery code", type: "text" },
-      },
-      authorize: async () => null,
-    }),
-    Credentials({
       id: "otp",
       name: "Email OTP",
       credentials: {
@@ -85,8 +74,6 @@ export const authConfig = {
           typeof token.role === "string" ? token.role : undefined;
         (session.user as { twoFactorEnabled?: boolean }).twoFactorEnabled =
           Boolean(token.twoFactorEnabled);
-        (session.user as { mustChangePassword?: boolean }).mustChangePassword =
-          Boolean(token.mustChangePassword);
       }
       return session;
     },
@@ -100,7 +87,7 @@ export const authConfig = {
         return true;
       }
 
-      if (path.startsWith("/admin/2fa") || path.startsWith("/admin/set-password")) {
+      if (path.startsWith("/admin/2fa")) {
         return isLoggedIn;
       }
 
@@ -114,12 +101,6 @@ export const authConfig = {
         // role as a customer looped every staff member back to login.)
         if (role === "CUSTOMER") {
           return Response.redirect(new URL("/account/login", request.nextUrl));
-        }
-        // Signed in with a one-time password: choose a real one before anything else.
-        if ((auth.user as { mustChangePassword?: boolean }).mustChangePassword) {
-          return Response.redirect(
-            new URL("/admin/set-password", request.nextUrl),
-          );
         }
         const twoFactorEnabled = (auth.user as { twoFactorEnabled?: boolean })
           .twoFactorEnabled;

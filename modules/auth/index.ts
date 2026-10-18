@@ -19,14 +19,6 @@ export {
 } from "./rate-limit";
 export { logSignInAttempt } from "./attempts";
 export {
-  hashPassword,
-  verifyPassword,
-  generateTempPassword,
-  passwordProblem,
-  PASSWORD_MIN_LENGTH,
-  TEMP_PASSWORD_TTL_MS,
-} from "./password";
-export {
   createAuthSession,
   getActiveSession,
   touchSession,

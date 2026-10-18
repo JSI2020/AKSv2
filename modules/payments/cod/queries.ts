@@ -26,6 +26,10 @@ export async function recordCodBalanceOnDelivery(
 
   if (!order) return;
 
+  // Cash is collected when the courier delivers, not when we dispatch.
+  // A DISPATCHED order must stay unpaid until that handoff.
+  if (order.status !== "DELIVERED" && order.status !== "COMPLETED") return;
+
   // Outstanding balance from ledger — never trust a stale planned column alone.
   const [manualPaid, providerPaid] = await Promise.all([
     tx
@@ -107,10 +111,8 @@ export async function recordCodBalanceOnDelivery(
     rawPayload: { collectedOnDelivery: true, paidMinor, outstandingMinor },
   });
 
-  await tx
-    .update(orders)
-    .set({ balanceAmountMinor: 0, updatedAt: new Date() })
-    .where(eq(orders.id, orderId));
+  // Leave balanceAmountMinor outstanding until the courier remits.
+  // Finance treats delivered-but-unremitted cash as collected, not in the bank.
 
   await enqueue(
     "payment.cod_collected",
@@ -158,6 +160,14 @@ export async function listOutstandingCodOrders(): Promise<OutstandingCodOrder[]>
       ),
     );
 
+  const collectedByOrder = new Map<string, number>();
+  for (const payment of codPayments) {
+    collectedByOrder.set(
+      payment.orderId,
+      (collectedByOrder.get(payment.orderId) ?? 0) + payment.amountMinor,
+    );
+  }
+
   const outstandingOrderIds = codPayments
     .map((p) => p.orderId)
     .filter((id) => !remittedIds.has(id));
@@ -192,7 +202,10 @@ export async function listOutstandingCodOrders(): Promise<OutstandingCodOrder[]>
       orderNumber: row.orderNumber,
       customerName: snapshot.recipientName ?? "Guest",
       deliveredAt: row.placedAt,
-      balanceMinor: row.balanceAmountMinor,
+      balanceMinor:
+        row.balanceAmountMinor > 0
+          ? row.balanceAmountMinor
+          : (collectedByOrder.get(row.id) ?? 0),
       courierHint: snapshot.city ?? null,
     };
   });
@@ -280,10 +293,40 @@ export async function createCodRemittance(
     }
   }
 
+  const collectedRows = await tx
+    .select({
+      orderId: payments.orderId,
+      amountMinor: payments.amountMinor,
+    })
+    .from(payments)
+    .where(
+      and(
+        inArray(payments.orderId, input.orderIds),
+        eq(payments.provider, "COD"),
+        eq(payments.kind, "BALANCE"),
+        eq(payments.status, "SUCCEEDED"),
+      ),
+    );
+  const collectedByOrder = new Map<string, number>();
+  for (const payment of collectedRows) {
+    collectedByOrder.set(
+      payment.orderId,
+      (collectedByOrder.get(payment.orderId) ?? 0) + payment.amountMinor,
+    );
+  }
+
   const perOrderExpected: Record<string, number> =
     input.perOrderExpected ??
     Object.fromEntries(
-      delivered.map((o) => [o.id, o.balanceAmountMinor] as const),
+      delivered.map(
+        (o) =>
+          [
+            o.id,
+            o.balanceAmountMinor > 0
+              ? o.balanceAmountMinor
+              : (collectedByOrder.get(o.id) ?? 0),
+          ] as const,
+      ),
     );
 
   const computedExpected = Object.values(perOrderExpected).reduce(
@@ -314,6 +357,11 @@ export async function createCodRemittance(
     recordedById: input.recordedById,
   });
 
+  await tx
+    .update(orders)
+    .set({ balanceAmountMinor: 0, updatedAt: new Date() })
+    .where(inArray(orders.id, input.orderIds));
+
   await enqueue(
     "cod.remittance_recorded",
     {
@@ -341,10 +389,7 @@ export async function listRemittableCodOrders() {
     .from(codRemittances);
   const remittedIds = remittanceRows.flatMap((r) => r.orderIds);
 
-  const conditions = [
-    inArray(orders.status, ["DELIVERED", "COMPLETED"]),
-    sql`${orders.balanceAmountMinor} > 0`,
-  ];
+  const conditions = [inArray(orders.status, ["DELIVERED", "COMPLETED"])];
 
   if (remittedIds.length > 0) {
     conditions.push(notInArray(orders.id, remittedIds));
@@ -361,13 +406,46 @@ export async function listRemittableCodOrders() {
     .where(and(...conditions))
     .orderBy(orders.orderNumber);
 
-  return rows.map((row) => {
+  const orderIds = rows.map((row) => row.id);
+  const collected =
+    orderIds.length === 0
+      ? []
+      : await db
+          .select({
+            orderId: payments.orderId,
+            amountMinor: payments.amountMinor,
+          })
+          .from(payments)
+          .where(
+            and(
+              inArray(payments.orderId, orderIds),
+              eq(payments.provider, "COD"),
+              eq(payments.kind, "BALANCE"),
+              eq(payments.status, "SUCCEEDED"),
+            ),
+          );
+  const collectedByOrder = new Map<string, number>();
+  for (const payment of collected) {
+    collectedByOrder.set(
+      payment.orderId,
+      (collectedByOrder.get(payment.orderId) ?? 0) + payment.amountMinor,
+    );
+  }
+
+  return rows.flatMap((row) => {
+    const balanceMinor =
+      row.balanceAmountMinor > 0
+        ? row.balanceAmountMinor
+        : (collectedByOrder.get(row.id) ?? 0);
+    if (balanceMinor <= 0) return [];
     const snapshot = row.shippingAddressSnapshot as { recipientName?: string };
-    return {
-      orderId: row.id,
-      orderNumber: row.orderNumber,
-      balanceMinor: row.balanceAmountMinor,
-      customerName: snapshot.recipientName ?? "Guest",
-    };
+    return [
+      {
+        orderId: row.id,
+        orderNumber: row.orderNumber,
+        balanceMinor,
+        customerName: snapshot.recipientName ?? "Guest",
+      },
+    ];
   });
 }

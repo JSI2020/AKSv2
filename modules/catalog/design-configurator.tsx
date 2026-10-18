@@ -231,9 +231,12 @@ export function DesignConfigurator({
   const selectedAvailable =
     state.sizeLabel != null ? (availabilityBySize[state.sizeLabel] ?? 0) : 0;
 
-  const images =
-    imagesByColourway[state.colourwayId] ??
-    imagesByColourway[design.defaultColourwayId]!;
+  const images = imagesByColourway[state.colourwayId] ?? {
+    FRONT: null,
+    THREE_QUARTER: null,
+    BACK: null,
+    fabricPhotos: [],
+  };
 
   const houseTag = design.tags.find((t) => t.kind === "FREE");
   const silLine =

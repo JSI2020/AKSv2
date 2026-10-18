@@ -65,6 +65,8 @@ services:
       R2_SERVE_VIA_APP: "1"
     volumes:
       - aks_assets_data:/app/public/catalogue
+      # Presigned local uploads use keys uploads/… — keep them across deploys.
+      - aks_uploads_data:/app/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,6 +106,7 @@ services:
       R2_SERVE_VIA_APP: "1"
     volumes:
       - aks_assets_data:/app/public/catalogue
+      - aks_uploads_data:/app/public/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -130,5 +133,6 @@ services:
 volumes:
   aks_pg_data:
   aks_assets_data:
+  aks_uploads_data:
   caddy_data:
   caddy_config:

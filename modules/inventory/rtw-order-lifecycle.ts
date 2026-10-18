@@ -64,6 +64,16 @@ export async function reserveRtwForOrder(
         updatedAt: new Date(),
       })
       .where(eq(rtwStock.id, locked.id));
+
+    await tx.insert(rtwMovements).values({
+      id: uuidv7(),
+      rtwStockId: locked.id,
+      delta: item.quantity,
+      reason: "RESERVED",
+      orderId,
+      note: `Reserved · size ${sizeLabel}`,
+      actorId: null,
+    });
   }
 }
 
@@ -103,6 +113,16 @@ export async function releaseRtwForOrder(
         updatedAt: new Date(),
       })
       .where(eq(rtwStock.id, locked.id));
+
+    await tx.insert(rtwMovements).values({
+      id: uuidv7(),
+      rtwStockId: locked.id,
+      delta: -releaseQty,
+      reason: "RELEASED",
+      orderId,
+      note: `Released · size ${sizeLabel}`,
+      actorId: null,
+    });
   }
 }
 

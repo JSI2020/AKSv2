@@ -86,6 +86,30 @@ export async function upsertSiteSettings(
   }
 }
 
+const STALE_PREPARED_BANNER =
+  /white collection and house doors are being prepared|coming soon\s*[—–-]\s*the white collection/i;
+
+/**
+ * The ticker must not say the house is still being prepared while the
+ * lead-time promise says pieces ship. Any other banner the owner writes
+ * is left as they saved it.
+ */
+export function alignBannerWithLeadTime(
+  message: string,
+  settings: SiteSettingsPublic,
+): string {
+  const trimmed = message.trim();
+  if (!trimmed || !STALE_PREPARED_BANNER.test(trimmed)) return trimmed;
+  const lead = formatLeadTimeLine(settings, null);
+  if (/ship/i.test(lead)) return lead;
+  const min = settings.leadTimeDaysMin;
+  const max = settings.leadTimeDaysMax;
+  if (min > 0 && max >= min) {
+    return `Ready to wear · ships in ${min}–${max} days`;
+  }
+  return "Ready to wear · ships in 14–18 days";
+}
+
 /** Lead-time line for PDP / cart — prefers override days, else global promise. */
 export function formatLeadTimeLine(
   settings: SiteSettingsPublic,

@@ -1,23 +1,25 @@
+import { cookies } from "next/headers";
 import NextAuth, { CredentialsSignin } from "next-auth";
 import type { Adapter } from "next-auth/adapters";
-import type { Provider } from "next-auth/providers";
 import { DrizzleAdapter } from "@auth/drizzle-adapter";
 import Credentials from "next-auth/providers/credentials";
-import Google from "next-auth/providers/google";
-import Facebook from "next-auth/providers/facebook";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
-import {
-  accounts,
-  db,
-  sessions,
-  users,
-  verificationTokens,
-} from "@aks/db";
+import { accounts, db, sessions, users, verificationTokens } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 
 import { authConfig } from "./auth.config";
+import {
+  OAUTH_LINK_COOKIE,
+  oauthLinkDecision,
+  readOAuthLinkCookie,
+} from "@/modules/account/oauth-link";
 import { findOrCreateCustomer } from "@/modules/auth/customer-account";
+import { configuredOAuthProviders } from "@/modules/auth/providers/oauth-providers";
+import {
+  ensureOAuthProfileEmail,
+  isSocialOAuthProvider,
+} from "@/modules/auth/social/identity";
 import {
   checkOtpVerifyRateLimit,
   clientIpFromHeaders,
@@ -33,7 +35,6 @@ import {
   touchSession,
   verifyEmailOtp,
   verifyTotpForUser,
-  verifyPassword,
 } from "@/modules/auth";
 
 class TwoFactorRequired extends CredentialsSignin {
@@ -50,163 +51,6 @@ class AccountDisabled extends CredentialsSignin {
 
 class TwoFactorInvalid extends CredentialsSignin {
   code = "2FA_INVALID";
-}
-
-class TempPasswordExpired extends CredentialsSignin {
-  code = "TEMP_EXPIRED";
-}
-
-class OtpLoginDisabled extends CredentialsSignin {
-  code = "OTP_DISABLED";
-}
-
-type StaffUser = typeof users.$inferSelect;
-
-/**
- * Shared tail of every staff sign-in once the first factor passed: second
- * factor for OWNER/ADMIN, session row, invite acceptance, cart merge.
- */
-async function completeStaffSignIn(params: {
-  user: StaffUser;
-  email: string;
-  totp: string;
-  recoveryCode: string;
-  ip: string | null;
-  userAgent: string | null;
-  successReason: string;
-}) {
-  const { user, email, totp, recoveryCode, ip, userAgent } = params;
-  const twoFactorEnabled = !!user.twoFactorEnabledAt && !!user.twoFactorSecret;
-
-  // 2FA is enforced in production; skipped in local/dev (see
-  // adminTwoFactorEnforced) so the portal is reachable without an app.
-  if (twoFactorEnabled && adminTwoFactorEnforced()) {
-    if (!totp && !recoveryCode) {
-      throw new TwoFactorRequired();
-    }
-
-    let secondFactorOk = false;
-    if (totp && user.twoFactorSecret) {
-      secondFactorOk = await verifyTotpForUser({
-        userId: user.id,
-        encryptedSecret: user.twoFactorSecret,
-        code: totp,
-      });
-    }
-    if (!secondFactorOk && recoveryCode) {
-      secondFactorOk = await consumeRecoveryCode({
-        userId: user.id,
-        code: recoveryCode,
-      });
-    }
-
-    if (!secondFactorOk) {
-      await logSignInAttempt({
-        email,
-        ip,
-        userAgent,
-        success: false,
-        reason: "2fa_invalid",
-      });
-      throw new TwoFactorInvalid();
-    }
-  }
-
-  const session = await createAuthSession({
-    userId: user.id,
-    ip,
-    userAgent,
-  });
-
-  const now = new Date();
-  await db
-    .update(users)
-    .set({
-      emailVerified: user.emailVerified ?? now,
-      lastLoginAt: now,
-      updatedAt: now,
-      ...(user.status === "INVITED" ? { status: "ACTIVE" as const } : {}),
-    })
-    .where(eq(users.id, user.id));
-
-  if (user.status === "INVITED") {
-    const { staffInvites } = await import("@aks/db");
-    const { and: andOp, eq: eqOp } = await import("drizzle-orm");
-    await db
-      .update(staffInvites)
-      .set({
-        status: "ACCEPTED",
-        acceptedAt: now,
-        updatedAt: now,
-      })
-      .where(
-        andOp(
-          eqOp(staffInvites.email, email),
-          eqOp(staffInvites.status, "PENDING"),
-        ),
-      );
-  }
-
-  await logSignInAttempt({
-    email,
-    ip,
-    userAgent,
-    success: true,
-    reason: params.successReason,
-  });
-
-  // Direct paths — avoid measure/cart barrels (they pull client modules / next/headers).
-  const { readAnonToken } = await import("@/modules/measure/anon-cookie");
-  const { mergeGuestCartIntoUser } = await import("@/modules/cart/merge");
-  const anonId = await readAnonToken();
-  if (anonId) {
-    await mergeGuestCartIntoUser({ userId: user.id, anonId });
-  }
-
-  return {
-    id: user.id,
-    email: user.email,
-    name: user.name,
-    role: user.role,
-    twoFactorEnabled,
-    requires2faEnrolment:
-      rolesRequiring2fa(user.role) &&
-      !twoFactorEnabled &&
-      adminTwoFactorEnforced(),
-    mustChangePassword: user.mustChangePassword,
-    sessionId: session.id,
-  };
-}
-
-/**
- * OAuth providers are added only when their credentials exist, so an unset
- * environment simply has no Google/Facebook button rather than a broken one.
- *
- * Email linking is enabled so a returning shopper who first ordered/signed in
- * by email can continue with Facebook/Google on the same address. Staff emails
- * are refused in the signIn callback before linking — they must use /admin/login.
- */
-function oauthProviders(): Provider[] {
-  const list: Provider[] = [];
-  if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) {
-    list.push(
-      Google({
-        clientId: process.env.AUTH_GOOGLE_ID,
-        clientSecret: process.env.AUTH_GOOGLE_SECRET,
-        allowDangerousEmailAccountLinking: true,
-      }),
-    );
-  }
-  if (process.env.AUTH_FACEBOOK_ID && process.env.AUTH_FACEBOOK_SECRET) {
-    list.push(
-      Facebook({
-        clientId: process.env.AUTH_FACEBOOK_ID,
-        clientSecret: process.env.AUTH_FACEBOOK_SECRET,
-        allowDangerousEmailAccountLinking: true,
-      }),
-    );
-  }
-  return list;
 }
 
 /**
@@ -234,118 +78,84 @@ function aksAuthAdapter(): Adapter {
   };
 }
 
+/**
+ * A signed-in customer who starts Facebook, Instagram, TikTok, or Google from
+ * the account page gets that provider attached to the open account.
+ */
+async function attachOAuthToSignedInCustomer(account: {
+  provider: string;
+  providerAccountId: string;
+}): Promise<
+  | { decision: "attach"; id: string; email: string; name: string | null }
+  | { decision: "refuse" | "continue" }
+> {
+  let linkUserId: string | null = null;
+  try {
+    const jar = await cookies();
+    linkUserId = readOAuthLinkCookie(
+      jar.get(OAUTH_LINK_COOKIE)?.value,
+      process.env.AUTH_SECRET?.trim() ?? "",
+      Date.now(),
+    );
+  } catch {
+    return { decision: "continue" };
+  }
+  if (!linkUserId) return { decision: "continue" };
+
+  const [owner] = await db
+    .select({
+      id: users.id,
+      role: users.role,
+      status: users.status,
+      deletedAt: users.deletedAt,
+      email: users.email,
+      name: users.name,
+    })
+    .from(users)
+    .where(eq(users.id, linkUserId))
+    .limit(1);
+  const [existing] = await db
+    .select({ userId: accounts.userId })
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.provider, account.provider),
+        eq(accounts.providerAccountId, account.providerAccountId),
+      ),
+    )
+    .limit(1);
+  const decision = oauthLinkDecision({
+    linkUserId,
+    owner: owner ?? null,
+    existingAccountUserId: existing?.userId ?? null,
+  });
+  if (decision !== "attach" || !owner) {
+    return { decision: decision === "attach" ? "refuse" : decision };
+  }
+  return {
+    decision: "attach",
+    id: owner.id,
+    email: owner.email,
+    name: owner.name,
+  };
+}
+
 export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
   ...authConfig,
+  logger: {
+    error(error) {
+      const name = error instanceof Error ? error.name : "Error";
+      const message = error instanceof Error ? error.message : String(error);
+      const safe = message
+        .replace(/[A-Za-z0-9_\-~.]{24,}/g, "[redacted]")
+        .slice(0, 240);
+      console.error("[auth]", name, safe);
+    },
+  },
   // Credentials + JWT: adapter is available for account/user lookups; sessions are
   // written by createAuthSession (revocable rows with device/IP/lastSeenAt).
   adapter: aksAuthAdapter(),
   providers: [
-    // Staff sign-in: email + password (+ authenticator for OWNER/ADMIN).
-    // New staff get a one-time password and must choose their own on first
-    // sign-in; forgotten passwords are reset with an emailed code.
-    Credentials({
-      id: "password",
-      name: "Email and password",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        totp: { label: "Authenticator code", type: "text" },
-        recoveryCode: { label: "Recovery code", type: "text" },
-      },
-      authorize: async (credentials, request) => {
-        const email = normalizeEmail(
-          typeof credentials?.email === "string" ? credentials.email : "",
-        );
-        const password =
-          typeof credentials?.password === "string" ? credentials.password : "";
-        const totp =
-          typeof credentials?.totp === "string" ? credentials.totp.trim() : "";
-        const recoveryCode =
-          typeof credentials?.recoveryCode === "string"
-            ? credentials.recoveryCode.trim()
-            : "";
-        const ip = request ? clientIpFromHeaders(request.headers) : null;
-        const userAgent = request?.headers.get("user-agent") ?? null;
-
-        if (!email || !password) throw new OtpInvalid();
-
-        const verifyLimit = await checkOtpVerifyRateLimit({
-          email,
-          reasons: ["password_invalid", "2fa_invalid"],
-        });
-        if (!verifyLimit.ok) {
-          await logSignInAttempt({
-            email,
-            ip,
-            userAgent,
-            success: false,
-            reason: "password_locked",
-          });
-          throw new OtpInvalid();
-        }
-
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, email))
-          .limit(1);
-
-        // Always run the hash so unknown emails take the same time.
-        const passwordOk = await verifyPassword(password, user?.passwordHash);
-
-        if (
-          !user ||
-          user.deletedAt ||
-          user.role === "CUSTOMER" ||
-          !passwordOk
-        ) {
-          await logSignInAttempt({
-            email,
-            ip,
-            userAgent,
-            success: false,
-            reason: "password_invalid",
-          });
-          throw new OtpInvalid();
-        }
-
-        if (user.status === "DISABLED") {
-          await logSignInAttempt({
-            email,
-            ip,
-            userAgent,
-            success: false,
-            reason: "account_disabled",
-          });
-          throw new AccountDisabled();
-        }
-
-        if (
-          user.mustChangePassword &&
-          user.tempPasswordExpiresAt &&
-          user.tempPasswordExpiresAt.getTime() < Date.now()
-        ) {
-          await logSignInAttempt({
-            email,
-            ip,
-            userAgent,
-            success: false,
-            reason: "temp_password_expired",
-          });
-          throw new TempPasswordExpired();
-        }
-
-        return completeStaffSignIn({
-          user,
-          email,
-          totp,
-          recoveryCode,
-          ip,
-          userAgent,
-          successReason: "password_success",
-        });
-      },
-    }),
     Credentials({
       id: "otp",
       name: "Email OTP",
@@ -366,12 +176,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           typeof credentials?.recoveryCode === "string"
             ? credentials.recoveryCode.trim()
             : "";
-
-        // Staff sign in with a password now. Code-only sign-in stays for
-        // local tooling and is refused on the live site.
-        if (process.env.NODE_ENV === "production") {
-          throw new OtpLoginDisabled();
-        }
 
         const email = normalizeEmail(emailRaw);
         const ip = request ? clientIpFromHeaders(request.headers) : null;
@@ -454,7 +258,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           throw new OtpInvalid();
         }
 
-        const twoFactorEnabled = !!user.twoFactorEnabledAt && !!user.twoFactorSecret;
+        const twoFactorEnabled =
+          !!user.twoFactorEnabledAt && !!user.twoFactorSecret;
 
         // 2FA is enforced in production; skipped in local/dev (see
         // adminTwoFactorEnforced) so the portal is reachable with just the code.
@@ -581,7 +386,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const name =
           typeof credentials?.name === "string" ? credentials.name.trim() : "";
         const phone =
-          typeof credentials?.phone === "string" ? credentials.phone.trim() : "";
+          typeof credentials?.phone === "string"
+            ? credentials.phone.trim()
+            : "";
         const acceptsMarketing = credentials?.acceptsMarketing === "true";
         const ip = request ? clientIpFromHeaders(request.headers) : null;
         const userAgent = request?.headers.get("user-agent") ?? null;
@@ -629,7 +436,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             userAgent,
             success: false,
             reason:
-              resolved.reason === "staff" ? "customer_is_staff" : "account_disabled",
+              resolved.reason === "staff"
+                ? "customer_is_staff"
+                : "account_disabled",
           });
           // Staff must use /admin/login (2FA); surface as disabled to the shop.
           throw new AccountDisabled();
@@ -706,9 +515,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           throw new OtpInvalid();
         }
 
-        const { verifyPhoneOtp, consumePhoneOtp } = await import(
-          "@/modules/auth/phone-otp"
-        );
+        const { verifyPhoneOtp, consumePhoneOtp } =
+          await import("@/modules/auth/phone-otp");
 
         const otpOk = await verifyPhoneOtp({ phone, code: otp });
         if (!otpOk) {
@@ -722,7 +530,10 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           throw new OtpInvalid();
         }
 
-        const resolved = await findOrCreateCustomer({ phone, provider: "whatsapp" });
+        const resolved = await findOrCreateCustomer({
+          phone,
+          provider: "whatsapp",
+        });
         if (!resolved.ok) {
           await logSignInAttempt({
             email: label,
@@ -730,7 +541,9 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             userAgent,
             success: false,
             reason:
-              resolved.reason === "staff" ? "customer_is_staff" : "account_disabled",
+              resolved.reason === "staff"
+                ? "customer_is_staff"
+                : "account_disabled",
           });
           throw new AccountDisabled();
         }
@@ -769,7 +582,7 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         };
       },
     }),
-    ...oauthProviders(),
+    ...configuredOAuthProviders(),
   ],
   callbacks: {
     ...authConfig.callbacks,
@@ -778,11 +591,19 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       // staff emails before allowDangerousEmailAccountLinking attaches a provider.
       if (
         account &&
-        account.provider !== "password" &&
         account.provider !== "otp" &&
         account.provider !== "customer-otp" &&
         account.provider !== "customer-whatsapp"
       ) {
+        if (isSocialOAuthProvider(account.provider)) {
+          const linkedEmail = ensureOAuthProfileEmail({
+            provider: account.provider,
+            email: user.email,
+            providerAccountId: account.providerAccountId,
+          });
+          if (!linkedEmail) return false;
+          user.email = linkedEmail;
+        }
         const email = user.email ? normalizeEmail(user.email) : null;
         if (email) {
           const [existing] = await db
@@ -807,6 +628,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         const role = (user as { role?: string }).role;
         if (role && role !== "CUSTOMER") return false;
 
+        const linked = await attachOAuthToSignedInCustomer(account);
+        if (linked.decision === "refuse") return false;
+        if (linked.decision === "attach") {
+          user.id = linked.id;
+          user.email = linked.email;
+          user.name = linked.name ?? user.name;
+          return true;
+        }
+
         const resolved = await findOrCreateCustomer({
           email: user.email,
           name: user.name ?? (profile as { name?: string } | undefined)?.name,
@@ -830,9 +660,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
           user as { requires2faEnrolment?: boolean }
         ).requires2faEnrolment;
         token.sessionId = (user as { sessionId?: string }).sessionId;
-        token.mustChangePassword = Boolean(
-          (user as { mustChangePassword?: boolean }).mustChangePassword,
-        );
       }
 
       // OAuth first sign-in: the adapter created or matched a CUSTOMER user, but
@@ -842,7 +669,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       if (
         user &&
         account &&
-        account.provider !== "password" &&
         account.provider !== "otp" &&
         account.provider !== "customer-otp" &&
         !token.sessionId
@@ -863,20 +689,15 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
             twoFactorEnabledAt: users.twoFactorEnabledAt,
             twoFactorSecret: users.twoFactorSecret,
             role: users.role,
-            mustChangePassword: users.mustChangePassword,
           })
           .from(users)
           .where(eq(users.id, token.sub))
           .limit(1);
         if (row) {
-          const enabled =
-            !!row.twoFactorEnabledAt && !!row.twoFactorSecret;
+          const enabled = !!row.twoFactorEnabledAt && !!row.twoFactorSecret;
           token.twoFactorEnabled = enabled;
-          token.mustChangePassword = row.mustChangePassword;
           token.requires2faEnrolment =
-            rolesRequiring2fa(row.role) &&
-            !enabled &&
-            adminTwoFactorEnforced();
+            rolesRequiring2fa(row.role) && !enabled && adminTwoFactorEnforced();
         }
       }
 
@@ -896,7 +717,6 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
         session.user.role = (token.role as string) ?? "CUSTOMER";
         session.user.twoFactorEnabled = Boolean(token.twoFactorEnabled);
         session.user.requires2faEnrolment = Boolean(token.requires2faEnrolment);
-        session.user.mustChangePassword = Boolean(token.mustChangePassword);
       }
       session.sessionId =
         typeof token.sessionId === "string" ? token.sessionId : "";
@@ -912,9 +732,8 @@ export const { handlers, auth, signIn, signOut, unstable_update } = NextAuth({
       };
       if (!user?.id) return;
       try {
-        const { attachGuestOrdersForCustomer } = await import(
-          "@/modules/orders/attach-guest-orders"
-        );
+        const { attachGuestOrdersForCustomer } =
+          await import("@/modules/orders/attach-guest-orders");
         await attachGuestOrdersForCustomer({
           userId: user.id,
           email: user.email,

@@ -105,6 +105,38 @@ export function isDiscountScheduled(
   return true;
 }
 
+/** Why a typed code cannot be considered, before cart rules. Null means it can. */
+export function discountCodeBlockedReason(
+  discount: Pick<
+    DiscountRow,
+    "status" | "startsAt" | "endsAt" | "usageLimit" | "usageCount"
+  >,
+  now: Date,
+): string | null {
+  if (discount.status === "PAUSED") return "That discount code is paused.";
+  if (discount.status === "DRAFT") return "That discount code is not active.";
+  if (discount.status === "EXPIRED") return "That discount code has expired.";
+  if (discount.endsAt && now > discount.endsAt) {
+    return "That discount code has expired.";
+  }
+  if (discount.startsAt && now < discount.startsAt) {
+    return "That discount code is not active yet.";
+  }
+  if (
+    discount.usageLimit != null &&
+    discount.usageCount >= discount.usageLimit
+  ) {
+    return "That discount code has reached its usage limit.";
+  }
+  if (discount.status !== "ACTIVE") return "That discount code is not active.";
+  return null;
+}
+
+export function formatDiscountPkr(minor: number): string {
+  const rupees = minor / 100;
+  return `PKR ${rupees.toLocaleString("en-PK", { maximumFractionDigits: 0 })}`;
+}
+
 export function previewDiscountOnSampleOrder(
   discount: Pick<
     DiscountRow,

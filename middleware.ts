@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import NextAuth from "next-auth";
 
 import { authConfig } from "./auth.config";
+import { isPublicLegalPath } from "./modules/legal/routes";
 
 const { auth } = NextAuth(authConfig);
 
@@ -21,6 +22,7 @@ function ensureAnonId(req: NextRequest): string {
 function withAnonRequest(req: NextRequest, anonId: string): NextRequest {
   const headers = new Headers(req.headers);
   headers.set(ANON_HEADER, anonId);
+  headers.set("x-aks-pathname", req.nextUrl.pathname);
   return new NextRequest(req, { headers });
 }
 
@@ -58,6 +60,7 @@ export default auth((req) => {
 
   if (
     launchGated() &&
+    !isPublicLegalPath(pathname) &&
     !pathname.startsWith("/api") &&
     !pathname.startsWith("/admin") &&
     !pathname.startsWith("/auth") &&

@@ -1,3 +1,7 @@
+import { sql } from "drizzle-orm";
+
+import { db, garmentCategories } from "@aks/db";
+
 import {
   COLLECTION_INTRO,
   isOccasionValue,
@@ -32,6 +36,53 @@ export async function resolveCollection(
       title: "All pieces",
       description: COLLECTION_INTRO,
       baseFilters: {},
+      defaultSort: "newest",
+    };
+  }
+
+  const system =
+    SYSTEM_COLLECTION_SLUGS[
+      normalized as keyof typeof SYSTEM_COLLECTION_SLUGS
+    ];
+
+  if (system === "new_arrivals") {
+    return {
+      kind: "system",
+      slug: normalized,
+      title: "New",
+      description:
+        "Pieces published in the last 30 days. Older looks stay in their house door.",
+      system: "new_arrivals",
+      baseFilters: { publishedWithinDays: NEW_ARRIVAL_DAYS },
+      defaultSort: "newest",
+    };
+  }
+
+  if (system === "best_sellers") {
+    const ranking = await getPaidSalesRanking(90);
+    return {
+      kind: "system",
+      slug: normalized,
+      title: "Best sellers",
+      description: COLLECTION_INTRO,
+      system: "best_sellers",
+      baseFilters: {
+        designIds: ranking.map((r) => r.designId),
+      },
+      defaultSort: "best_selling",
+    };
+  }
+
+  if (system === "coming_soon") {
+    return {
+      kind: "system",
+      slug: normalized,
+      title: "Coming soon",
+      tagline: "On the cutting table",
+      description:
+        "Pieces we are finishing now. Have a look, and message us to hear the moment one is ready.",
+      system: "coming_soon",
+      baseFilters: { comingSoon: true },
       defaultSort: "newest",
     };
   }
@@ -72,52 +123,6 @@ export async function resolveCollection(
     };
   }
 
-  const system =
-    SYSTEM_COLLECTION_SLUGS[
-      normalized as keyof typeof SYSTEM_COLLECTION_SLUGS
-    ];
-
-  if (system === "new_arrivals") {
-    return {
-      kind: "system",
-      slug: normalized,
-      title: "New",
-      description: COLLECTION_INTRO,
-      system: "new_arrivals",
-      baseFilters: { publishedWithinDays: NEW_ARRIVAL_DAYS },
-      defaultSort: "newest",
-    };
-  }
-
-  if (system === "best_sellers") {
-    const ranking = await getPaidSalesRanking(90);
-    return {
-      kind: "system",
-      slug: normalized,
-      title: "Best sellers",
-      description: COLLECTION_INTRO,
-      system: "best_sellers",
-      baseFilters: {
-        designIds: ranking.map((r) => r.designId),
-      },
-      defaultSort: "best_selling",
-    };
-  }
-
-  if (system === "coming_soon") {
-    return {
-      kind: "system",
-      slug: normalized,
-      title: "Coming soon",
-      tagline: "On the cutting table",
-      description:
-        "Pieces we are finishing now. Have a look, and message us to hear the moment one is ready.",
-      system: "coming_soon",
-      baseFilters: { comingSoon: true },
-      defaultSort: "newest",
-    };
-  }
-
   const tagValue = slugToCatalogueValue(normalized);
 
   if (isOccasionValue(tagValue)) {
@@ -153,13 +158,23 @@ export async function resolveCollection(
     };
   }
 
-  // Treat remaining slugs as garment category keys (e.g. /collections/kameez).
+  // Garment categories, including ones marked inactive. A nav link must
+  // still open a page — hiding a category does not 404 it.
+  const [category] = await db
+    .select({
+      key: garmentCategories.key,
+      name: garmentCategories.name,
+    })
+    .from(garmentCategories)
+    .where(sql`lower(${garmentCategories.key}) = ${normalized}`)
+    .limit(1);
+
   return {
     kind: "attribute",
     slug: normalized,
-    title: titleFromTagValue(tagValue),
+    title: category?.name ?? titleFromTagValue(tagValue),
     description: COLLECTION_INTRO,
-    baseFilters: { garmentTypeKeys: [tagValue] },
+    baseFilters: { garmentTypeKeys: [category?.key ?? tagValue] },
     defaultSort: "newest",
   };
 }

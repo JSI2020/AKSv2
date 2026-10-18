@@ -39,6 +39,7 @@ import {
   type ValidatedCartLine,
 } from "./validate";
 import { getSiteSettings } from "@/modules/content/site-settings";
+import { linkOrderCustomer } from "@/modules/customers/link-order-customer";
 
 async function getCartContext(): Promise<CartContext> {
   const session = await auth();
@@ -118,7 +119,10 @@ export async function applyCheckoutDiscount(input: {
 export async function placeOrder(
   input: PlaceOrderInput,
 ): Promise<PlaceOrderResult> {
-  const addressResult = validateCheckoutAddress(input.address);
+  const ctx = await getCartContext();
+  const addressResult = validateCheckoutAddress(input.address, {
+    requireEmail: !ctx.userId,
+  });
   if (!addressResult.ok) {
     return { ok: false, error: addressResult.error };
   }
@@ -128,15 +132,16 @@ export async function placeOrder(
     return { ok: false, error: planResult.error };
   }
 
-  const ctx = await getCartContext();
-  if (!ctx.userId) {
-    const email = addressResult.data.guestEmail?.trim();
-    if (!email || !email.includes("@")) {
-      return {
-        ok: false,
-        error: "Enter an email so you can track this order.",
-      };
-    }
+  let guestEmail = addressResult.data.guestEmail?.trim() || null;
+  if (!guestEmail) {
+    const session = await auth();
+    guestEmail = session?.user?.email?.trim() || null;
+  }
+  if (!guestEmail || !guestEmail.includes("@")) {
+    return {
+      ok: false,
+      error: "Enter an email so we can send updates and you can track this order.",
+    };
   }
   const cartId = await getActiveCartId(ctx);
   if (!cartId) {
@@ -181,7 +186,7 @@ export async function placeOrder(
     taxMinor,
     code: input.discountCode,
     userId: ctx.userId,
-    guestEmail: addressResult.data.guestEmail,
+    guestEmail,
   });
 
   if (!evaluation.ok) {
@@ -240,10 +245,23 @@ export async function placeOrder(
         });
       }
 
+      let orderUserId = ctx.userId;
+      if (!orderUserId) {
+        orderUserId = await linkOrderCustomer(tx, {
+          email: guestEmail,
+          name: addressResult.data.recipientName,
+          phone: addressResult.data.phone,
+          whatsappNumber:
+            addressResult.data.whatsappNumber || addressResult.data.phone,
+          source: "WEB",
+          address: shippingSnapshot,
+        });
+      }
+
       const result = await placeOrderCore(
         {
-          userId: ctx.userId,
-          guestEmail: addressResult.data.guestEmail ?? null,
+          userId: orderUserId,
+          guestEmail,
           guestPhone: addressResult.data.phone,
           whatsappNumber: addressResult.data.whatsappNumber,
           shippingAddressSnapshot: shippingSnapshot,
@@ -259,7 +277,9 @@ export async function placeOrder(
           totalMinor,
           lines: resolvedLines,
           actor: { id: actorId },
-          transitionNote: "Guest checkout placed",
+          transitionNote: ctx.userId
+            ? "Checkout placed"
+            : "Guest checkout placed",
         },
         tx,
       );

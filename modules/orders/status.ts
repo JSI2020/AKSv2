@@ -25,6 +25,7 @@ export type PaymentStatus =
   | "DRAFT"
   | "AWAITING_DEPOSIT"
   | "DEPOSIT_PAID"
+  | "COD_UNPAID"
   | "BALANCE_DUE"
   | "PAID"
   | "REFUND_PENDING"
@@ -55,6 +56,7 @@ export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
   DRAFT: "Draft",
   AWAITING_DEPOSIT: "Awaiting deposit",
   DEPOSIT_PAID: "Deposit paid",
+  COD_UNPAID: "Cash on delivery – unpaid",
   BALANCE_DUE: "Balance due",
   PAID: "Paid in full",
   REFUND_PENDING: "Refund pending",
@@ -93,16 +95,26 @@ export function derivePaymentStatus(input: {
   balanceAmountMinor: number;
   paidMinor: number;
   totalMinor: number;
+  /** FULL_COD with nothing collected is not a deposit. */
+  paymentPlan?: string | null;
 }): PaymentStatus {
-  const { status, balanceAmountMinor, paidMinor, totalMinor } = input;
+  const { status, balanceAmountMinor, paidMinor, totalMinor, paymentPlan } =
+    input;
 
   if (status === "DRAFT") return "DRAFT";
-  if (status === "AWAITING_DEPOSIT") return "AWAITING_DEPOSIT";
   if (status === "REFUND_PENDING") return "REFUND_PENDING";
   if (status === "REFUNDED") return "REFUNDED";
   if (status === "CANCELLED") return "CANCELLED";
 
   if (paidMinor >= totalMinor && totalMinor > 0) return "PAID";
+
+  // 0% deposit COD stays unpaid until cash is actually recorded.
+  // Do not call that "Deposit paid" at placement or "Awaiting deposit" later.
+  if (paymentPlan === "FULL_COD" && status !== "AWAITING_DEPOSIT") {
+    return "COD_UNPAID";
+  }
+
+  if (status === "AWAITING_DEPOSIT") return "AWAITING_DEPOSIT";
   if (paidMinor > 0 && balanceAmountMinor > 0) return "BALANCE_DUE";
   if (status === "DEPOSIT_PAID" || paidMinor > 0) return "DEPOSIT_PAID";
 
@@ -253,6 +265,7 @@ export const PAYMENT_STATUS_FILTER_VALUES = [
   "DRAFT",
   "AWAITING_DEPOSIT",
   "DEPOSIT_PAID",
+  "COD_UNPAID",
   "BALANCE_DUE",
   "PAID",
   "REFUND_PENDING",
@@ -435,6 +448,7 @@ export function paymentStatusLabel(input: {
   balanceAmountMinor: number;
   paidMinor: number;
   totalMinor: number;
+  paymentPlan?: string | null;
 }): string {
   return PAYMENT_STATUS_LABELS[derivePaymentStatus(input)];
 }

@@ -131,9 +131,7 @@ async function seed() {
           status: "ACTIVE",
           emailVerified: new Date(),
         });
-        console.log(
-          `seeded OWNER ${ownerEmail} (${id}) — no password yet: use "Forgot password" at /admin/login, or npm run owner:set`,
-        );
+        console.log(`seeded OWNER ${ownerEmail} (${id})`);
       }
     }
   } else {

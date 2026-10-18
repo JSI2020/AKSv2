@@ -3,6 +3,7 @@
 import { and, count, eq, inArray, or, sql } from "drizzle-orm";
 
 import {
+  assets,
   colourways,
   db,
   designCosts,
@@ -50,6 +51,62 @@ export async function createFabricSwatchAsset(input: {
     return {
       ok: false,
       error: e instanceof Error ? e.message : "Could not attach swatch",
+    };
+  }
+}
+
+/** Writes the uploaded swatch onto the fabric immediately. */
+export async function attachFabricSwatch(input: {
+  fabricId: string;
+  assetId: string;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const session = await requirePermission("fabric.edit");
+    const fabricId = input.fabricId.trim();
+    const assetId = input.assetId.trim();
+    if (!fabricId || !assetId) {
+      return { ok: false, error: "Swatch upload was incomplete." };
+    }
+
+    const [asset] = await db
+      .select({ id: assets.id })
+      .from(assets)
+      .where(eq(assets.id, assetId))
+      .limit(1);
+    if (!asset) {
+      return { ok: false, error: "That photo is not in storage yet." };
+    }
+
+    const [before] = await db
+      .select({ swatchAssetId: fabrics.swatchAssetId })
+      .from(fabrics)
+      .where(eq(fabrics.id, fabricId))
+      .limit(1);
+    if (!before) return { ok: false, error: "Fabric not found." };
+
+    await db
+      .update(fabrics)
+      .set({ swatchAssetId: assetId, updatedAt: new Date() })
+      .where(eq(fabrics.id, fabricId));
+
+    await insertAuditLog(db, {
+      id: uuidv7(),
+      actorId: session.user.id,
+      actorRole: session.user.role,
+      action: "fabric.swatch",
+      entityType: "fabric",
+      entityId: fabricId,
+      before: { swatchAssetId: before.swatchAssetId },
+      after: { swatchAssetId: assetId },
+    });
+
+    revalidateFabricStockPaths(fabricId);
+    revalidatePath(`/admin/fabrics/${fabricId}`);
+    return { ok: true };
+  } catch (e) {
+    return {
+      ok: false,
+      error: e instanceof Error ? e.message : "Could not save the swatch.",
     };
   }
 }

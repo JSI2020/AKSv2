@@ -45,7 +45,6 @@
     "reconcile:safepay": "tsx scripts/reconcile-safepay-payments.ts",
     "db:studio": "drizzle-kit studio --config drizzle.config.ts",
     "db:seed": "tsx packages/db/seed.ts",
-    "owner:set": "tsx scripts/set-owner.ts",
     "db:seed:demo": "tsx packages/db/seed-demo.ts",
     "db:seed:launch": "tsx scripts/launch-seed-soft-launch.ts",
     "db:seed:message-templates": "tsx scripts/seed-message-templates.ts",

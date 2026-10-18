@@ -1,6 +1,6 @@
 "use server";
 
-import { and, desc, eq, gt, gte, isNotNull, lte, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, gt, gte, inArray, isNotNull, lte, sql, type SQL } from "drizzle-orm";
 
 import {
   customerProfiles,
@@ -15,6 +15,11 @@ import {
 } from "@aks/db";
 
 import { requirePermission } from "@/modules/auth";
+import { getSiteSettings } from "@/modules/content/site-settings";
+import {
+  leadDaysFromSources,
+  promisedDayCount,
+} from "@/modules/orders/promised-lead";
 
 const PLACED = sql`${orders.status} not in ('DRAFT', 'CANCELLED')`;
 
@@ -448,6 +453,27 @@ async function loadLeadTimes(
     .orderBy(desc(orders.placedAt))
     .limit(100);
 
+  const missingPromise = rows
+    .filter((row) => !row.promisedShipDate)
+    .map((row) => row.orderId);
+  const leadsByOrder = new Map<string, Array<number | null>>();
+  if (missingPromise.length > 0) {
+    const itemLeads = await db
+      .select({
+        orderId: orderItems.orderId,
+        lead: designs.leadTimeDaysOverride,
+      })
+      .from(orderItems)
+      .innerJoin(designs, eq(orderItems.designId, designs.id))
+      .where(inArray(orderItems.orderId, missingPromise));
+    for (const item of itemLeads) {
+      const list = leadsByOrder.get(item.orderId) ?? [];
+      list.push(item.lead);
+      leadsByOrder.set(item.orderId, list);
+    }
+  }
+  const settings = missingPromise.length > 0 ? await getSiteSettings() : null;
+
   const result: LeadTimeRow[] = [];
 
   for (const row of rows) {
@@ -464,12 +490,17 @@ async function loadLeadTimes(
       .limit(1);
 
     const placedAt = row.placedAt!;
-    const promisedDays = row.promisedShipDate
-      ? Math.round(
-          (row.promisedShipDate.getTime() - placedAt.getTime()) /
-            (1000 * 60 * 60 * 24),
-        )
-      : null;
+    const promisedDays = promisedDayCount(
+      placedAt,
+      row.promisedShipDate,
+      row.promisedShipDate
+        ? null
+        : leadDaysFromSources({
+            designLeadDays: leadsByOrder.get(row.orderId) ?? [],
+            siteMin: settings?.leadTimeDaysMin ?? 0,
+            siteMax: settings?.leadTimeDaysMax ?? 0,
+          }),
+    );
 
     const actualDays = dispatchEvent
       ? Math.round(

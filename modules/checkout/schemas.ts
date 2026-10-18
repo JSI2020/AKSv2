@@ -15,6 +15,7 @@ function digitsOnly(value: string): string {
 
 export function validateCheckoutAddress(
   input: CheckoutAddressInput,
+  options?: { requireEmail?: boolean },
 ): { ok: true; data: CheckoutAddressInput } | { ok: false; error: string } {
   const recipientName = trim(input.recipientName);
   if (recipientName.length < 2) {
@@ -61,6 +62,12 @@ export function validateCheckoutAddress(
   }
 
   const guestEmail = trim(input.guestEmail);
+  if (options?.requireEmail && !guestEmail) {
+    return {
+      ok: false,
+      error: "Enter an email so we can send updates and you can track this order.",
+    };
+  }
   if (guestEmail && !guestEmail.includes("@")) {
     return { ok: false, error: "Enter a valid email." };
   }
@@ -70,7 +77,7 @@ export function validateCheckoutAddress(
     data: {
       recipientName,
       phone,
-      whatsappNumber,
+      whatsappNumber: contactOnWhatsapp ? whatsappNumber : "",
       contactOnWhatsapp,
       addressLine1,
       addressLine2: trim(input.addressLine2) || undefined,

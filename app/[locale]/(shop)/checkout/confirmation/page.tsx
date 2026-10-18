@@ -2,8 +2,13 @@ import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 import { isOnlinePrepaidEnabled } from "@/modules/payments/methods-config";
-import { db, orders } from "@aks/db";
-import { eq } from "drizzle-orm";
+import {
+  paymentStatusLabel,
+  productionStageLabel,
+} from "@/modules/orders/status";
+import type { OrderStatus } from "@/modules/orders/constants";
+import { db, orders, payments } from "@aks/db";
+import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 type Props = {
   searchParams: Promise<{ order?: string }>;
@@ -17,6 +22,7 @@ export default async function CheckoutConfirmationPage({ searchParams }: Props) 
   const [order] = orderNumber
     ? await db
         .select({
+          id: orders.id,
           orderNumber: orders.orderNumber,
           status: orders.status,
           totalMinor: orders.totalMinor,
@@ -29,6 +35,31 @@ export default async function CheckoutConfirmationPage({ searchParams }: Props) 
         .where(eq(orders.orderNumber, orderNumber))
         .limit(1)
     : [];
+
+  const [paidRow] = order
+    ? await db
+        .select({
+          total: sql<number>`coalesce(sum(${payments.amountMinor}), 0)`,
+        })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.orderId, order.id),
+            inArray(payments.status, ["SUCCEEDED", "REFUNDED"]),
+            notInArray(payments.kind, ["REFUND"]),
+          ),
+        )
+    : [];
+  const paidMinor = Number(paidRow?.total ?? 0);
+  const paymentLabel = order
+    ? paymentStatusLabel({
+        status: order.status as OrderStatus,
+        balanceAmountMinor: order.balanceAmountMinor,
+        paidMinor,
+        totalMinor: order.totalMinor,
+        paymentPlan: order.paymentPlan,
+      })
+    : null;
 
   const awaitingOnlinePay =
     order?.status === "AWAITING_DEPOSIT" && onlineEnabled;
@@ -82,7 +113,13 @@ export default async function CheckoutConfirmationPage({ searchParams }: Props) 
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-ink/55">Status</dt>
-                <dd className="text-ink">{order.status.replaceAll("_", " ")}</dd>
+                <dd className="text-ink">
+                  {productionStageLabel(order.status as OrderStatus)}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className="text-ink/55">Payment</dt>
+                <dd className="text-ink">{paymentLabel}</dd>
               </div>
               <div className="flex justify-between gap-4">
                 <dt className="text-ink/55">Total</dt>

@@ -5,9 +5,13 @@ import { eq } from "drizzle-orm";
 import { customerProfiles, db, users } from "@aks/db";
 import { uuidv7 } from "@aks/shared";
 
-import { crmPlaceholderEmail, toWhatsappMsisdn } from "@/modules/customers/phone";
+import {
+  crmPlaceholderEmail,
+  toWhatsappMsisdn,
+} from "@/modules/customers/phone";
 
 import { normalizeEmail } from "./otp";
+import { customerDisplayName, emailVerifiedStamp } from "./social/identity";
 
 export type CustomerSignInResult =
   | { ok: true; user: CustomerUser; created: boolean }
@@ -26,7 +30,7 @@ type Identity = {
   phone?: string | null;
   /** Opt-in captured at signup; only applied when the account is created. */
   acceptsMarketing?: boolean;
-  /** Where this sign-in came from — "email" | "google" | "facebook" | "whatsapp". */
+  /** Where this sign-in came from — "email" | "google" | "facebook" | "instagram" | "tiktok" | "whatsapp". */
   provider: string;
 };
 
@@ -106,8 +110,8 @@ export async function findOrCreateCustomer(
       .set({
         lastLoginAt: now,
         updatedAt: now,
-        // First verified sign-in also confirms the address.
-        emailVerified: found.emailVerified ?? (email ? now : found.emailVerified),
+        // A real provider email confirms the address. Placeholders stay unverified.
+        emailVerified: emailVerifiedStamp(email, now, found.emailVerified),
         // Backfill a phone captured by a later provider.
         phone: found.phone ?? phone,
       })
@@ -136,10 +140,11 @@ export async function findOrCreateCustomer(
 
   const userId = uuidv7();
   const now = new Date();
-  const name =
-    identity.name?.trim() ||
-    (email ? email.split("@")[0] : null) ||
-    (phone ? `Customer ${phone.slice(-4)}` : "Customer");
+  const name = customerDisplayName({
+    name: identity.name,
+    email,
+    phone,
+  });
 
   await db.transaction(async (tx) => {
     await tx.insert(users).values({
@@ -149,7 +154,7 @@ export async function findOrCreateCustomer(
       phone,
       role: "CUSTOMER",
       status: "ACTIVE",
-      emailVerified: email ? now : null,
+      emailVerified: emailVerifiedStamp(email, now, null),
       createdAt: now,
       updatedAt: now,
     });

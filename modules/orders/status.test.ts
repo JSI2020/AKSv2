@@ -58,6 +58,36 @@ describe("order status derivation", () => {
     );
   });
 
+  it("labels a 0% COD order as unpaid until cash is recorded", () => {
+    expect(
+      derivePaymentStatus({
+        status: "DEPOSIT_PAID",
+        balanceAmountMinor: 150_000,
+        paidMinor: 0,
+        totalMinor: 150_000,
+        paymentPlan: "FULL_COD",
+      }),
+    ).toBe("COD_UNPAID");
+    expect(
+      derivePaymentStatus({
+        status: "CUTTING",
+        balanceAmountMinor: 150_000,
+        paidMinor: 0,
+        totalMinor: 150_000,
+        paymentPlan: "FULL_COD",
+      }),
+    ).toBe("COD_UNPAID");
+    expect(
+      derivePaymentStatus({
+        status: "DELIVERED",
+        balanceAmountMinor: 0,
+        paidMinor: 150_000,
+        totalMinor: 150_000,
+        paymentPlan: "FULL_COD",
+      }),
+    ).toBe("PAID");
+  });
+
   it("derives paid in full when recorded payments cover total", () => {
     expect(
       derivePaymentStatus({

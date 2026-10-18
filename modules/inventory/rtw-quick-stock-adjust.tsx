@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 
+import { rtwReceiveDeductionCopy } from "./rtw-receive-confirm";
 import { recordStockMovement } from "./record-movement-action";
 
 type SizeRow = {
@@ -14,10 +15,13 @@ type SizeRow = {
 export function RtwQuickStockAdjust({
   designName,
   colourwayName,
+  fabricMetresPerPiece,
   sizes,
 }: {
   designName: string;
   colourwayName: string;
+  /** Integer hundredths of a metre of cloth per finished piece. */
+  fabricMetresPerPiece: number;
   sizes: SizeRow[];
 }) {
   const router = useRouter();
@@ -40,6 +44,11 @@ export function RtwQuickStockAdjust({
     if (!Number.isInteger(n) || n <= 0) {
       setError("Enter a positive whole number");
       return;
+    }
+
+    if (mode === "receive") {
+      const copy = rtwReceiveDeductionCopy(n, fabricMetresPerPiece);
+      if (!window.confirm(`${copy} Continue?`)) return;
     }
 
     startTransition(async () => {
@@ -144,6 +153,14 @@ export function RtwQuickStockAdjust({
           {pending ? "Saving…" : mode === "receive" ? "Receive" : "Update count"}
         </button>
       </div>
+      {mode === "receive" && Number.parseInt(qty, 10) > 0 ? (
+        <p className="mt-3 text-[12px] text-ink/70">
+          {rtwReceiveDeductionCopy(
+            Number.parseInt(qty, 10),
+            fabricMetresPerPiece,
+          )}
+        </p>
+      ) : null}
       {error ? (
         <p className="mt-3 text-[12px] text-madder">{error}</p>
       ) : (
