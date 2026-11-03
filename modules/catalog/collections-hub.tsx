@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import { Link } from "@/i18n/routing";
 
@@ -77,9 +77,9 @@ export function CollectionsHubPage({
                     style={{ background: EMPTY_WASH[i % EMPTY_WASH.length] }}
                   >
                     {cover?.imageUrl ? (
-                      <Image
+                      <ShopImage
                         src={cover.imageUrl}
-                        alt=""
+                        alt={collection.title}
                         fill
                         sizes={
                           large
@@ -88,7 +88,6 @@ export function CollectionsHubPage({
                         }
                         className="object-cover"
                         priority={i < 2}
-                        unoptimized
                       />
                     ) : null}
                   </div>

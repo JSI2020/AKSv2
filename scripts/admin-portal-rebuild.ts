@@ -504,7 +504,7 @@ async function main() {
     await createPublishedCatalogueDesign({
       slug,
       name: look.name,
-      description: `${look.name} — standard sizes XS–XL. Cut and finish are the ornament.`,
+      description: `${look.name} — standard sizes XS–XXL. Cut and finish are the ornament.`,
       storyCopy: look.story,
       garmentTypeId: categoryId,
       components: [look.category],

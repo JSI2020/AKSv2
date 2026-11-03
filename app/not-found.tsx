@@ -25,7 +25,7 @@ function ShopMiss() {
             fontSize: 11,
           }}
         >
-          AKS
+          AKS-Atelier
         </p>
         <h1
           style={{
@@ -78,7 +78,7 @@ function AdminMiss() {
             color: "#8FA6B2",
           }}
         >
-          AKS · Admin
+          AKS-Atelier · Admin
         </p>
         <h1
           style={{

@@ -130,7 +130,7 @@ Price band (positioning, not a hard rule): **PKR 18,000 – 65,000** quiet-luxur
 |---|---|---|
 | **0 Foundation** | Identity, blocks, fabric partners, atelier QC, White Collection samples | UI tokens + brand voice docs; sizing/blocks in admin; fabric module; studio pipeline |
 | **1 Prototype & proof** | Physical fit, motion photography, freeze construction standard | Size engine + RTW shop; imagery still thin without studio/R2 assets |
-| **2 Soft launch** | Tight RTW catalogue; IG + shop; White Collection | **Full shop + admin** — RTW XS–XL only ([ADR-0015](./decisions/ADR-0015-rtw-launch.md)) |
+| **2 Soft launch** | Tight RTW catalogue; IG + shop; White Collection | **Full shop + admin** — RTW XS–XXL only ([ADR-0015](./decisions/ADR-0015-rtw-launch.md) recorded XS–XL) |
 | **3 Establish** | Lahore Edit; content engine; optional MTM tier; size chart public | Size guide live; MTM remains **off** storefront until a new ADR |
 | **4 Expand** | Diaspora/Gulf; proven SKUs; trunk shows | Locale `en`/`ur` ready; shipping still Pakistan-first by product rules |
 
@@ -138,7 +138,7 @@ Price band (positioning, not a hard rule): **PKR 18,000 – 65,000** quiet-luxur
 
 1. Prefer a **tight White Collection** over a noisy demo catalogue.
 2. Sell **ensembles / looks**, not random SKU sprawl.
-3. Default path: **ready to wear (XS–XL)**; made-to-measure is **not** on the customer path (ADR-0015).
+3. Default path: **ready to wear (XS–XXL)**; made-to-measure is **not** on the customer path (ADR-0015).
 4. Photography and PDP: **motion and drape first**.
 5. Do not add embellishment options to close a sale.
 6. Occasion vs everyday: decide deliberately — don’t straddle by accident.

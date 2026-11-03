@@ -1,5 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 
+import { pageMetadata } from "@/modules/seo/metadata";
+
 import {
   collectionSearchParamsCache,
   getCollectionFacetOptions,
@@ -18,6 +20,13 @@ type Props = {
   params: Promise<{ locale: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export const metadata = pageMetadata({
+  title: "Search",
+  description:
+    "Search AKS-Atelier ready-to-wear. Quiet luxury Pakistani womenswear, East meets West.",
+  path: "/search",
+});
 
 export default async function SearchPage({ params, searchParams }: Props) {
   const { locale } = await params;

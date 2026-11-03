@@ -1,6 +1,6 @@
 {
   "Brand": {
-    "name": "AKS",
+    "name": "AKS-Atelier",
     "tagline": "a reflection",
     "footerBlurb": "Eastern hands, a quieter line – cut with Western restraint, in natural cloth."
   },
@@ -63,7 +63,7 @@
     "shipping": "Shipping",
     "returns": "Returns",
     "whatsappDemo": "WhatsApp Demo",
-    "copyright": "© 2026 AKS Demo"
+    "copyright": "© 2026 AKS-Atelier"
   },
   "ShopShell": {
     "navShop": "Shop",
@@ -93,8 +93,8 @@
     "instagram": "Instagram",
     "facebook": "Facebook",
     "tiktok": "TikTok",
-    "footerTagline": "AKS – عکس. Made to fit you.",
-    "footerCopyright": "© AKS Atelier · Operated by Qamar Un Nisa",
+    "footerTagline": "AKS-Atelier – عکس. Made to fit you.",
+    "footerCopyright": "© AKS-Atelier · Operated by Qamar Un Nisa",
     "footerLegal": "Legal",
     "footerTrack": "Track order",
     "footerPrivacy": "Privacy",

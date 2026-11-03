@@ -248,6 +248,9 @@ export async function getDesignBySlug(
     })),
     modelDisclosure: modelDisclosure || row.design.modelInfo || null,
     archetypeId: archetypeId ?? null,
+    itemNumber: row.design.itemNumber,
+    seoTitle: row.design.seoTitle,
+    seoDescription: row.design.seoDescription,
     collectionBreadcrumb,
   };
 }

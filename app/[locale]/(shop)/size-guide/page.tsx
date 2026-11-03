@@ -1,6 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
 
+import { pageMetadata } from "@/modules/seo/metadata";
 import { SizeGuidePageView } from "@/modules/shop/size-guide/size-guide-page";
 import { listSizeGuideCharts } from "@/modules/shop/size-guide/queries";
 import { ensureDefaultSizeBlocksForAllCategories } from "@/modules/sizing/ensure-default-blocks";
@@ -8,6 +9,13 @@ import { ensureDefaultSizeBlocksForAllCategories } from "@/modules/sizing/ensure
 type Props = {
   params: Promise<{ locale: string }>;
 };
+
+export const metadata = pageMetadata({
+  title: "Size guide",
+  description:
+    "House size charts for AKS-Atelier ready-to-wear, XS–XXL. Measurements are garment measures.",
+  path: "/size-guide",
+});
 
 export default async function SizeGuidePage({ params }: Props) {
   const { locale } = await params;

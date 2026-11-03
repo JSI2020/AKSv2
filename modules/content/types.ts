@@ -36,7 +36,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsPublic = {
   facebookUrl: "https://www.facebook.com/profile.php?id=61594255361658",
   tiktokUrl: "https://www.tiktok.com/@aksatelier.official",
   newsletterEnabled: true,
-  brandName: "AKS",
+  brandName: "AKS-Atelier",
   brandNameUr: "عکس",
   currencyCode: "PKR",
   modelDisclosureDefault: "",

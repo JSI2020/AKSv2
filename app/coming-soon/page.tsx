@@ -1,7 +1,9 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
-import type { Metadata } from "next";
+import Image from "next/image";
+
+import { pageMetadata } from "@/modules/seo/metadata";
 
 import styles from "./coming-soon.module.css";
 
@@ -38,11 +40,13 @@ function resolvePhoto(stem: string): string | null {
   return match ?? null;
 }
 
-export const metadata: Metadata = {
-  title: "AKS — Arriving soon",
-  description: "AKS Atelier. Ready-to-wear, arriving soon.",
-  robots: { index: false, follow: false },
-};
+export const metadata = pageMetadata({
+  title: "Arriving soon",
+  description:
+    "AKS-Atelier ready-to-wear is arriving soon. Quiet luxury, East meets West.",
+  path: "/coming-soon",
+  noindex: true,
+});
 
 export default function ComingSoonPage() {
   const photos = LOOKS.map((look) => ({
@@ -58,11 +62,17 @@ export default function ComingSoonPage() {
         <div className={styles.canvas} aria-hidden={photos.length > 1}>
           {photos.map((p) => (
             <div className={styles.pane} key={p.stem}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 className={styles.photo}
                 src={`/holding/${p.file}`}
                 alt={photos.length > 1 ? "" : p.alt}
+                fill
+                sizes={
+                  photos.length <= 1
+                    ? "100vw"
+                    : `${Math.round(100 / photos.length)}vw`
+                }
+                priority={p.stem === "g1"}
               />
             </div>
           ))}
@@ -72,7 +82,7 @@ export default function ComingSoonPage() {
       <div className={styles.scrim} aria-hidden="true" />
 
       <section className={styles.veil}>
-        <p className={styles.eyebrow}>AKS · Atelier</p>
+        <p className={styles.eyebrow}>AKS-Atelier</p>
         <h1 className={styles.headline}>
           Arriving <em>soon</em>.
         </h1>
@@ -82,7 +92,7 @@ export default function ComingSoonPage() {
           shortly.
         </p>
         <hr className={styles.rule} />
-        <p className={styles.foot}>AKS Atelier · Pakistan</p>
+        <p className={styles.foot}>AKS-Atelier · Pakistan</p>
       </section>
     </main>
   );

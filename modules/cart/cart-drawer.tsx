@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
@@ -76,20 +76,19 @@ export function CartDrawer() {
                     style={{ background: "var(--bone)" }}
                   >
                     {line.thumbnailUrl ? (
-                      <Image
+                      <ShopImage
                         src={line.thumbnailUrl}
                         alt={line.designName}
                         fill
                         sizes="72px"
                         className="object-cover"
-                        unoptimized
                       />
                     ) : (
                       <div
                         className="flex size-full items-center justify-center text-[10px] uppercase tracking-[0.08em]"
                         style={{ color: "var(--taupe)" }}
                       >
-                        AKS
+                        AKS-Atelier
                       </div>
                     )}
                   </div>

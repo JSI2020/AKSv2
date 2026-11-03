@@ -225,6 +225,10 @@ export type DesignDetailPublic = {
   }[];
   modelDisclosure: string | null;
   archetypeId: string | null;
+  /** Catalogue item number, when one has been assigned. */
+  itemNumber: string | null;
+  seoTitle: string | null;
+  seoDescription: string | null;
   collectionBreadcrumb: {
     slug: string;
     label: string;
@@ -251,18 +255,47 @@ export const STANDARD_SIZE_LABELS = [
   "XXL",
 ] as const;
 
-/** Soft-launch RTW range (ADR-0015) — storefront never offers outside this. */
+/** House RTW range — storefront offers XS through XXL, not above. */
 export const STOREFRONT_RTW_SIZE_LABELS = [
   "XS",
   "S",
   "M",
   "L",
   "XL",
+  "XXL",
 ] as const;
+
+const LEGACY_XS_XL = ["XS", "S", "M", "L", "XL"] as const;
 
 const STOREFRONT_RTW_SIZE_SET = new Set<string>(STOREFRONT_RTW_SIZE_LABELS);
 
-/** Keep chart / picker labels inside the soft-launch XS–XL window. */
+/**
+ * Saved size lists that stopped at XL were the old house window.
+ * Treat that exact set as XS–XXL. Any other subset is left as chosen.
+ */
+export function withHouseSizeRange(labels: readonly string[]): string[] {
+  const unique: string[] = [];
+  const seen = new Set<string>();
+  for (const label of labels) {
+    if (seen.has(label)) continue;
+    seen.add(label);
+    unique.push(label);
+  }
+  const isLegacy =
+    unique.length === LEGACY_XS_XL.length &&
+    LEGACY_XS_XL.every((size) => seen.has(size));
+  if (isLegacy) unique.push("XXL");
+  return unique;
+}
+
+/** Rewrite the retired XS–XL house line. Leaves XXS–XL and other ranges alone. */
+export function houseSizeRangeCopy(text: string): string {
+  return text
+    .replace(/(?<![A-Z])XS\s*[–—-]\s*XL\b/g, "XS–XXL")
+    .replace(/\bXS to XL\b/gi, "XS to XXL");
+}
+
+/** Keep chart / picker labels inside the house XS–XXL window. Does not invent a size the list did not already contain. */
 export function filterStorefrontRtwSizeLabels(
   labels: readonly string[],
 ): string[] {

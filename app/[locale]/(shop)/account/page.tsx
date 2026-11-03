@@ -1,4 +1,3 @@
-import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/auth";
@@ -11,10 +10,14 @@ import {
 } from "@/modules/account/methods";
 import { loadAccountSnapshot } from "@/modules/account/profile-store";
 import { storefrontAuthChannels } from "@/modules/auth/social-providers";
+import { pageMetadata } from "@/modules/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Your account — AKS",
-};
+export const metadata = pageMetadata({
+  title: "Your account",
+  description: "Your AKS-Atelier account, saved details, and orders.",
+  path: "/account",
+  noindex: true,
+});
 
 export default async function AccountPage() {
   const session = await auth();

@@ -10,4 +10,4 @@ export const LEGAL_PLACEHOLDERS = {
 } as const;
 
 export const LEGAL_OPERATOR_LINE =
-  "AKS Atelier is operated by Qamar Un Nisa (sole proprietor), Karachi, Pakistan.";
+  "AKS-Atelier is operated by Qamar Un Nisa (sole proprietor), Karachi, Pakistan.";

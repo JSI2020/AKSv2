@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
@@ -36,13 +36,12 @@ export function Lookbook({
     <Reveal as="section" className="lookbook" id="lookbook">
       <div className="lookbook-stage">
         <div className="lookbook-media">
-          <Image
+          <ShopImage
             src={imageUrl}
-            alt=""
+            alt={design.name}
             fill
             sizes="100vw"
             className="object-cover object-[center_30%]"
-            unoptimized
           />
         </div>
         <div className="lookbook-shade" aria-hidden />

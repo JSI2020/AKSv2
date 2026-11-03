@@ -1,6 +1,7 @@
 import { setRequestLocale } from "next-intl/server";
 
 import { getPublishedDesigns, resolveCollection } from "@/modules/catalog";
+import { pageMetadata } from "@/modules/seo/metadata";
 import { CollectionsHubPage } from "@/modules/catalog/collections-hub";
 import { listHouseCollections } from "@/modules/catalog/house-collections-queries";
 import { loadStorefrontHomepage } from "@/modules/content/homepage";
@@ -8,6 +9,13 @@ import { loadStorefrontHomepage } from "@/modules/content/homepage";
 type Props = {
   params: Promise<{ locale: string }>;
 };
+
+export const metadata = pageMetadata({
+  title: "Collections",
+  description:
+    "Essentials, Tailored, Occasion, and Signature at AKS-Atelier. Quiet luxury ready-to-wear — East meets West in the cut and the cloth.",
+  path: "/collections",
+});
 
 export default async function CollectionsIndexPage({ params }: Props) {
   const { locale } = await params;

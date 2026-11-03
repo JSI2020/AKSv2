@@ -61,7 +61,7 @@ export const privacyDocument: LegalDocument = {
     {
       heading: "Facebook",
       paragraphs: [
-        "If you continue with Facebook, Meta sends us your Facebook id, name, email address when the account has one, and profile picture URL. We use that to open your AKS account and to recognise you the next time. We store the Facebook id and the access token Meta issues for that sign-in. We do not post to Facebook for you. If Facebook shares no email, we store a non-deliverable placeholder address so the account still has a unique key.",
+        "If you continue with Facebook, Meta sends us your Facebook id, name, email address when the account has one, and profile picture URL. We use that to open your AKS-Atelier account and to recognise you the next time. We store the Facebook id and the access token Meta issues for that sign-in. We do not post to Facebook for you. If Facebook shares no email, we store a non-deliverable placeholder address so the account still has a unique key.",
         "We keep this while the account is open. When you ask us to delete it, or Meta sends a deletion request, we remove the Facebook link, the token, and the profile fields, and we disable the account as described under Deletion.",
       ],
     },
@@ -128,7 +128,7 @@ export const termsDocument: LegalDocument = {
     {
       heading: "The pieces",
       paragraphs: [
-        "AKS sells ready-to-wear womenswear in the house sizes shown on each piece (XS–XL). The price on the page is in Pakistani rupees (PKR). The total at checkout, including any shipping amount shown there, is the amount you agree to pay.",
+        "AKS-Atelier sells ready-to-wear womenswear in the house sizes shown on each piece (XS–XXL). The price on the page is in Pakistani rupees (PKR). The total at checkout, including any shipping amount shown there, is the amount you agree to pay.",
       ],
     },
     {
@@ -184,14 +184,14 @@ export const dataDeletionDocument: LegalDocument = {
       paragraphs: [
         `${LEGAL_OPERATOR_LINE} Email ${LEGAL_PLACEHOLDERS.contactEmail}.`,
         `Signed in? Open your account and choose Delete my account. That uses the same removal as a Meta request: the profile, saved addresses, and linked sign-ins are cleared, and you are signed out. Order copies stay.`,
-        `You can also email ${LEGAL_PLACEHOLDERS.contactEmail} from the address on the account, or include the phone number you used. Say that you want your AKS account deleted.`,
+        `You can also email ${LEGAL_PLACEHOLDERS.contactEmail} from the address on the account, or include the phone number you used. Say that you want your AKS-Atelier account deleted.`,
         `You can also write to ${LEGAL_PLACEHOLDERS.individualName} at ${LEGAL_PLACEHOLDERS.postalAddress}, or call ${LEGAL_PLACEHOLDERS.contactPhone}.`,
       ],
     },
     {
       heading: "Facebook and Instagram",
       paragraphs: [
-        `If you signed in with Facebook or Instagram, you can remove AKS in your Facebook or Instagram settings and ask Meta to send a deletion request. We accept that request at ${PUBLIC_SITE_ORIGIN}${META_DATA_DELETION_PATH}. Meta shows you a confirmation code. Open ${PUBLIC_SITE_ORIGIN}${DATA_DELETION_STATUS_PATH} and add ?code= plus that code to see the result.`,
+        `If you signed in with Facebook or Instagram, you can remove AKS-Atelier in your Facebook or Instagram settings and ask Meta to send a deletion request. We accept that request at ${PUBLIC_SITE_ORIGIN}${META_DATA_DELETION_PATH}. Meta shows you a confirmation code. Open ${PUBLIC_SITE_ORIGIN}${DATA_DELETION_STATUS_PATH} and add ?code= plus that code to see the result.`,
         "The request is signed with the app secret. A request we cannot verify is refused. A request that matches a staff login does not delete that login.",
       ],
     },

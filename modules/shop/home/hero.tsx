@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import { Link } from "@/i18n/routing";
 import { normalizeDashes, renderAccentText } from "@/modules/content/accent-text";
@@ -92,13 +92,13 @@ export function HomeHero({
     >
       {imageUrl ? (
         <div className="imgslot" style={{ position: "absolute", inset: 0 }}>
-          <Image
+          <ShopImage
             src={imageUrl}
-            alt=""
+            alt={slide?.headline?.replace(/\s+/g, " ").trim() || "AKS-Atelier ready-to-wear"}
             fill
             priority
+            sizes="100vw"
             className="object-cover object-[center_35%]"
-            unoptimized
           />
         </div>
       ) : (

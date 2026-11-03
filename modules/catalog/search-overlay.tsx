@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRouter } from "@/i18n/routing";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 import { formatMoney } from "@/modules/ui/money/money";
 
 import { POPULAR_SEARCH_TERMS, SEARCH_HINT } from "./search-suggestions";
@@ -360,10 +361,15 @@ export function SearchOverlay({
                         onMouseEnter={() => setActiveIdx(i)}
                         onClick={() => goToProduct(p)}
                       >
-                        <span className="search-thumb">
+                        <span className="search-thumb relative">
                           {p.thumbnailUrl ? (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img src={p.thumbnailUrl} alt="" loading="lazy" />
+                            <ShopImage
+                              src={p.thumbnailUrl}
+                              alt={p.name}
+                              fill
+                              sizes="46px"
+                              className="object-cover"
+                            />
                           ) : (
                             <span className="search-thumb-ph" />
                           )}

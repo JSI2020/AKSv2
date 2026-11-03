@@ -30,6 +30,7 @@ import type { DesignSizeChartPublic } from "./resolve-design-size-chart";
 import {
   colourwayUrlValue,
   formatLeadTime,
+  houseSizeRangeCopy,
   resolveColourwayId,
 } from "./types";
 
@@ -326,7 +327,9 @@ export function DesignConfigurator({
         </div>
 
         {design.description ? (
-          <p className="pdp-desc">{normalizeDashes(design.description)}</p>
+          <p className="pdp-desc">
+            {normalizeDashes(houseSizeRangeCopy(design.description))}
+          </p>
         ) : null}
 
         <DesignColourwayPicker
@@ -442,7 +445,7 @@ export function DesignConfigurator({
 
         {design.storyCopy ? (
           <p className="pdp-desc" style={{ marginTop: "1.5rem" }}>
-            {design.storyCopy}
+            {houseSizeRangeCopy(design.storyCopy)}
           </p>
         ) : null}
       </div>

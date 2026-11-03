@@ -1304,7 +1304,7 @@ export async function publishDesign(
       const sizeLabels =
         detail.design.availableSizeLabels?.length > 0
           ? detail.design.availableSizeLabels
-          : STANDARD_SIZE_LABELS.filter((l) => l !== "XXL");
+          : [...STANDARD_SIZE_LABELS];
       await seedRtwStockForDesign(tx as never, id, sizeLabels);
     });
 

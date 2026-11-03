@@ -4,7 +4,9 @@ import { Link } from "@/i18n/routing";
 export default function ShopNotFound() {
   return (
     <main className="mx-auto max-w-[720px] px-6 pb-24 pt-28">
-      <p className="text-[11px] uppercase tracking-[0.18em] text-stone">AKS</p>
+        <p className="text-[11px] uppercase tracking-[0.18em] text-stone">
+          AKS-Atelier
+        </p>
       <h1 className="serif mt-3 text-[2.4rem] font-light leading-none">
         This page isn’t here
       </h1>

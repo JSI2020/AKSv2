@@ -168,7 +168,7 @@ async function main() {
     const row = await createPublishedCatalogueDesign({
       slug,
       name: look.name,
-      description: `${look.name} — standard sizes XS–XL. Cut and finish are the ornament.`,
+      description: `${look.name} — standard sizes XS–XXL. Cut and finish are the ornament.`,
       storyCopy: look.story,
       garmentTypeId: categoryId,
       components: [look.category],
@@ -218,7 +218,7 @@ async function main() {
       .update(designs)
       .set({
         publishedAt: daysAgo(i % 18),
-        availableSizeLabels: STANDARD_SIZE_LABELS.filter((l) => l !== "XXL"),
+        availableSizeLabels: [...STANDARD_SIZE_LABELS],
       })
       .where(eq(designs.id, row.id));
 

@@ -394,7 +394,7 @@ async function main() {
 
   const placeholderAssetId = await ensureCataloguePlaceholderAsset(owner.id);
   const actor = { id: owner.id, role: "OWNER" };
-  const sizeLabels = STANDARD_SIZE_LABELS.filter((l) => l !== "XXL");
+  const sizeLabels = [...STANDARD_SIZE_LABELS];
 
   let published = 0;
   let failed = 0;
@@ -453,7 +453,7 @@ async function main() {
     const row = await createPublishedCatalogueDesign({
       slug,
       name: look.name,
-      description: `${look.name} — standard sizes XS–XL. Cut and finish are the ornament.`,
+      description: `${look.name} — standard sizes XS–XXL. Cut and finish are the ornament.`,
       storyCopy: look.story,
       garmentTypeId: categoryId,
       components: [look.category],

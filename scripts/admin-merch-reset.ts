@@ -148,7 +148,7 @@ async function seedPromoAndTicker() {
   await db.insert(announcements).values([
     {
       id: uuidv7(),
-      message: "Pakistan shipping · standard house sizes XS–XL · cut to fit, not to fad",
+      message: "Pakistan shipping · standard house sizes XS–XXL · cut to fit, not to fad",
       link: { type: "collection", value: "essentials" },
       active: true,
       sortOrder: 0,

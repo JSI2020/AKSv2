@@ -344,7 +344,7 @@ export function PreviewPublishTab({
     if (!selectedCw) {
       return d.availableSizeLabels?.length > 0
         ? [...d.availableSizeLabels]
-        : [...STANDARD_SIZE_LABELS.filter((l) => l !== "XXL")];
+        : [...STANDARD_SIZE_LABELS];
     }
     return resolveShadeSizeLabels(selectedCw, d);
   }, [selectedCw, d]);

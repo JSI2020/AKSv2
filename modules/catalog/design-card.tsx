@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import { Link } from "@/i18n/routing";
 import { Money } from "@/modules/ui";
@@ -101,13 +101,12 @@ export function DesignCard({
         />
         {design.thumbnail?.url ? (
           <div className="imgslot figA" style={{ background: "var(--ivory)" }}>
-            <Image
+            <ShopImage
               src={design.thumbnail.url}
               alt={design.thumbnail.altText || design.name}
               fill
               sizes="(max-width:900px) 50vw, 25vw"
               className="object-cover"
-              unoptimized
             />
           </div>
         ) : (
@@ -121,24 +120,22 @@ export function DesignCard({
 
         {hasHover && design.hoverThumbnail?.url ? (
           <div className="imgslot figB" style={{ background: "var(--bone)" }}>
-            <Image
+            <ShopImage
               src={design.hoverThumbnail.url}
               alt={design.hoverThumbnail.altText || design.name}
               fill
               sizes="(max-width:900px) 50vw, 25vw"
               className="object-cover"
-              unoptimized
             />
           </div>
         ) : design.thumbnail?.url ? (
           <div className="imgslot figB" style={{ background: "var(--bone)" }}>
-            <Image
+            <ShopImage
               src={design.thumbnail.url}
               alt=""
               fill
               sizes="(max-width:900px) 50vw, 25vw"
               className="object-cover"
-              unoptimized
             />
           </div>
         ) : (

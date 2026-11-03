@@ -1,5 +1,5 @@
 /**
- * Branded transactional email templates for AKS Atelier.
+ * Branded transactional email templates for AKS-Atelier.
  *
  * Email clients strip <style>, ignore web fonts, and only reliably render
  * table layouts with inline styles — so these are hand-built that way, with a
@@ -49,10 +49,10 @@ function headerBlock(): string {
   return `
           <tr>
             <td style="padding:38px 44px 6px;text-align:center;">
-              <img src="${logo}" width="150" alt="AKS Atelier"
+              <img src="${logo}" width="150" alt="AKS-Atelier"
                    style="display:block;margin:0 auto 6px;width:150px;max-width:60%;height:auto;border:0;outline:none;text-decoration:none;">
-              <div style="font-family:${SERIF};font-size:20px;font-weight:500;letter-spacing:.28em;color:${INK};">
-                AKS<span style="color:${GOLD};">&#183;</span>ATELIER
+              <div style="font-family:${SERIF};font-size:20px;font-weight:500;letter-spacing:.08em;color:${INK};">
+                AKS-Atelier
               </div>
               <div style="font-family:${SANS};font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:${TAUPE};margin-top:6px;">
                 Ready to wear &#183; cut by hand
@@ -68,7 +68,7 @@ function footerBlock(): string {
           <tr>
             <td style="padding:20px 44px;text-align:center;">
               <div style="font-family:${SANS};font-size:11px;letter-spacing:.04em;color:${TAUPE};line-height:1.7;">
-                AKS Atelier &#183; Ready to wear, cut to standard sizes<br>
+                AKS-Atelier &#183; Ready to wear, cut to standard sizes<br>
                 Questions? Reply on WhatsApp and we&rsquo;ll help.<br>
                 This is an automated message from a send-only address.
               </div>
@@ -234,7 +234,7 @@ export function renderBrandedEmail(opts: BrandedEmailOpts): string {
 export function verificationCodeEmail(code: string): RenderedEmail {
   const html = renderBrandedEmail({
     eyebrow: "Verification code",
-    heading: "Use this code to continue to your AKS Atelier account.",
+    heading: "Use this code to continue to your AKS-Atelier account.",
     highlight: { value: code, spaced: true },
     note: "This code expires in 10 minutes. Enter it on the page where you asked to sign in. Didn’t request it? You can safely ignore this email — no one can sign in without the code.",
   });
@@ -246,16 +246,16 @@ export function verificationCodeEmail(code: string): RenderedEmail {
     "",
     `    ${code}`,
     "",
-    "Use this code to continue to your AKS Atelier account.",
+    "Use this code to continue to your AKS-Atelier account.",
     "It expires in 10 minutes.",
     "",
     "Didn't request this? You can safely ignore this email — no one can sign in without the code.",
     "",
-    "AKS Atelier · Ready to wear, cut to standard sizes",
+    "AKS-Atelier · Ready to wear, cut to standard sizes",
   ].join("\n");
 
   return {
-    subject: `Your AKS Atelier verification code: ${code}`,
+    subject: `Your AKS-Atelier verification code: ${code}`,
     html,
     text,
   };
@@ -408,7 +408,7 @@ export function orderNotificationEmail(input: {
 
   if (!p) {
     return renderBrandedEmail({
-      eyebrow: "AKS Atelier",
+      eyebrow: "AKS-Atelier",
       heading: input.subject || "An update on your order.",
       bodyLines,
     });

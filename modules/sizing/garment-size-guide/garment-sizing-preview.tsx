@@ -178,7 +178,11 @@ export function GarmentSizingPreview({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={imageUrl}
-          alt=""
+          alt="Garment size guide"
+          width={w}
+          height={h}
+          loading="lazy"
+          decoding="async"
           className="absolute inset-0 size-full object-contain"
           onLoad={(e) => {
             const img = e.currentTarget;

@@ -77,7 +77,7 @@ export async function seedRtwStockForDesign(
       ? [...fallbackSizeLabels]
       : design?.availableSizeLabels?.length
         ? [...design.availableSizeLabels]
-        : [...STANDARD_SIZE_LABELS.filter((l) => l !== "XXL")];
+        : [...STANDARD_SIZE_LABELS];
 
   const cws = await tx
     .select({

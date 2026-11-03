@@ -159,7 +159,8 @@ export async function resolveCollection(
   }
 
   // Garment categories, including ones marked inactive. A nav link must
-  // still open a page — hiding a category does not 404 it.
+  // still open a page — hiding a category does not 404 it. A slug that
+  // matches nothing is a real 404, not an empty collection.
   const [category] = await db
     .select({
       key: garmentCategories.key,
@@ -169,12 +170,14 @@ export async function resolveCollection(
     .where(sql`lower(${garmentCategories.key}) = ${normalized}`)
     .limit(1);
 
+  if (!category) return null;
+
   return {
     kind: "attribute",
     slug: normalized,
-    title: category?.name ?? titleFromTagValue(tagValue),
+    title: category.name,
     description: COLLECTION_INTRO,
-    baseFilters: { garmentTypeKeys: [category?.key ?? tagValue] },
+    baseFilters: { garmentTypeKeys: [category.key] },
     defaultSort: "newest",
   };
 }

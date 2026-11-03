@@ -2,7 +2,7 @@
 
 The soul of the site. Everything else — the AI, the 3D, the checkout — is machinery. This is the reason any of it exists. Read this before writing a single line of copy for AKS. Hand it to Claude Code and to any copywriter as the authority on what AKS *means* and how it *speaks*.
 
-**Launch product (ADR-0015):** soft launch is **ready-to-wear** — standard sizes XS–XL. Made-to-measure is a later phase, not the storefront default.
+**Launch product (ADR-0015):** soft launch is **ready-to-wear** — standard sizes XS–XXL. Made-to-measure is a later phase, not the storefront default.
 
 ---
 
@@ -97,7 +97,7 @@ Starting points in the AKS voice. Soft launch = **ready to wear**. Adjust, don't
 > Looks, not a noisy catalogue. Pick what's yours and we'll send it.
 
 **Product page — size**
-> Choose your size — XS to XL. Between two? Size up for a relaxed line, or message us and we'll help you choose.
+> Choose your size — XS to XXL. Between two? Size up for a relaxed line, or message us and we'll help you choose.
 
 **Size guide**
 > Here's how each house size measures up. Use the chart, then trust how you like clothes to sit.
