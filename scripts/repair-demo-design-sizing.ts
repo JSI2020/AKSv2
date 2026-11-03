@@ -1,6 +1,6 @@
 /**
  * Repair demo designs whose availableSizeLabels don't match their size block
- * (e.g. Dupatta "One size" vs forced XS–XL) and re-seed RTW rows for those labels.
+ * (e.g. Dupatta "One size" vs forced XS–XXL) and re-seed RTW rows for those labels.
  *
  * Run: npx tsx scripts/repair-demo-design-sizing.ts
  */
@@ -17,7 +17,7 @@ async function main() {
     "@/modules/inventory/rtw-stock"
   );
 
-  const fallback = STANDARD_SIZE_LABELS.filter((l) => l !== "XXL");
+  const fallback = [...STANDARD_SIZE_LABELS];
   const [owner] = await db
     .select({ id: users.id })
     .from(users)

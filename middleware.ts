@@ -3,6 +3,7 @@ import NextAuth from "next-auth";
 
 import { authConfig } from "./auth.config";
 import { isPublicLegalPath } from "./modules/legal/routes";
+import { canonicalHttpsRedirectTarget } from "./modules/seo/https-redirect";
 
 const { auth } = NextAuth(authConfig);
 
@@ -57,6 +58,22 @@ export default auth((req) => {
   const { pathname } = req.nextUrl;
   const anonId = ensureAnonId(req);
   const reqWithAnon = withAnonRequest(req, anonId);
+
+  const httpsTarget = canonicalHttpsRedirectTarget({
+    nodeEnv: process.env.NODE_ENV,
+    forwardedProto: req.headers.get("x-forwarded-proto"),
+    forwardedHost: req.headers.get("x-forwarded-host"),
+    host: req.headers.get("host"),
+    pathname,
+    search: req.nextUrl.search,
+  });
+  if (httpsTarget) {
+    return stampAnonCookie(
+      NextResponse.redirect(httpsTarget, 301),
+      req,
+      anonId,
+    );
+  }
 
   if (
     launchGated() &&

@@ -1,14 +1,9 @@
-import type { Metadata } from "next";
-import type { ReactNode } from "react";
-
 import { fontData, fontDisplay, fontSans, fontUrdu } from "@/lib/fonts";
 import { PostHogAnalyticsProvider } from "@/modules/analytics";
+import { rootMetadata } from "@/modules/seo/metadata";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "AKS",
-  description: "AKS Demo — quiet-luxury pret",
-};
+export const metadata = rootMetadata();
 
 export default function RootLayout({
   children,

@@ -52,8 +52,16 @@ export function DesignSizeGuideContent({
     if (ghostUrl) {
       return (
         <figure className="size-guide-ghost-only">
-          {/* eslint-disable-next-line @next/next/no-img-element -- external sizing asset */}
-          <img src={ghostUrl} alt="" className="size-guide-ghost-img" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- host varies; next/image would need that host allowlisted */}
+          <img
+            src={ghostUrl}
+            alt="Garment size guide"
+            width={480}
+            height={640}
+            loading="lazy"
+            decoding="async"
+            className="size-guide-ghost-img"
+          />
         </figure>
       );
     }
@@ -77,8 +85,16 @@ export function DesignSizeGuideContent({
         </div>
       ) : ghostUrl ? (
         <figure className="size-guide-ghost-only">
-          {/* eslint-disable-next-line @next/next/no-img-element -- external sizing asset */}
-          <img src={ghostUrl} alt="" className="size-guide-ghost-img" />
+          {/* eslint-disable-next-line @next/next/no-img-element -- host varies; next/image would need that host allowlisted */}
+          <img
+            src={ghostUrl}
+            alt="Garment size guide"
+            width={480}
+            height={640}
+            loading="lazy"
+            decoding="async"
+            className="size-guide-ghost-img"
+          />
         </figure>
       ) : null}
 

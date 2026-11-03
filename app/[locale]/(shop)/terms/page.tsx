@@ -1,12 +1,15 @@
-import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 
 import { termsDocument } from "@/modules/legal/documents";
 import { LegalDocumentView } from "@/modules/legal/legal-document";
+import { pageMetadata } from "@/modules/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Terms of service — AKS",
-};
+export const metadata = pageMetadata({
+  title: "Terms of service",
+  description:
+    "Terms for buying ready-to-wear from AKS-Atelier. Prices are in Pakistani rupees. Delivery is within Pakistan.",
+  path: "/terms",
+});
 
 type Props = { params: Promise<{ locale: string }> };
 

@@ -1,5 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
+import { ShopImage } from "@/modules/shop/media/shop-image";
+
 import { normalizeDashes } from "@/modules/content/accent-text";
 import { listFeaturedFabrics } from "@/modules/shop/fabrics/queries";
 
@@ -32,12 +34,15 @@ export async function FabricLibrary() {
           {fabrics.map((f, i) => (
             <div key={f.id} className="fab">
               {f.swatchUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={f.swatchUrl}
-                  alt=""
-                  className="sw object-cover"
-                />
+                <div className="sw">
+                  <ShopImage
+                    src={f.swatchUrl}
+                    alt={f.name}
+                    fill
+                    sizes="(max-width: 900px) 50vw, 25vw"
+                    className="object-cover"
+                  />
+                </div>
               ) : (
                 <div
                   className={`sw ${WEAVE_CLASSES[i % WEAVE_CLASSES.length]}`}

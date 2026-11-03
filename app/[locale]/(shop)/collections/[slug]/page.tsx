@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { setRequestLocale } from "next-intl/server";
 
 import { CollectionPageView } from "@/modules/catalog/collection-page";
+import { pageMetadata } from "@/modules/seo/metadata";
+import { metaDescription } from "@/modules/seo/site";
 import {
   getCollectionFacetOptions,
   getPublishedDesigns,
@@ -19,6 +22,28 @@ type Props = {
   params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const collection = await resolveCollection(slug);
+  if (!collection) {
+    return pageMetadata({
+      title: "Collection not found",
+      description: "That collection is not in the AKS-Atelier shop.",
+      path: `/collections/${slug}`,
+      noindex: true,
+    });
+  }
+  const description = metaDescription(
+    collection.description?.trim() ||
+      `${collection.title} — ready-to-wear from AKS-Atelier. Quiet luxury, East meets West.`,
+  );
+  return pageMetadata({
+    title: collection.title,
+    description,
+    path: `/collections/${collection.slug}`,
+  });
+}
 
 export default async function CollectionPage({ params, searchParams }: Props) {
   const { locale, slug } = await params;

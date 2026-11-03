@@ -1,4 +1,4 @@
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import { Link } from "@/i18n/routing";
 
@@ -9,7 +9,7 @@ export const AKS_LOGO = {
   src: "/brand/aks-logo.png",
   width: 1024,
   height: 559,
-  alt: "AKS — Minimalist Luxury",
+  alt: "AKS-Atelier",
 } as const;
 
 const SIZE_HEIGHT_PX = {
@@ -35,13 +35,12 @@ export function AksLogoImage({
   priority = false,
 }: AksLogoImageProps) {
   return (
-    <Image
+    <ShopImage
       src={AKS_LOGO.src}
       alt={AKS_LOGO.alt}
       width={AKS_LOGO.width}
       height={AKS_LOGO.height}
       priority={priority}
-      unoptimized
       className={["aks-logo", `aks-logo--${size}`, className]
         .filter(Boolean)
         .join(" ")}
@@ -64,7 +63,7 @@ export function AksLogoLink({
     <Link
       href={href as "/"}
       className={["brand aks-logo-link", className].filter(Boolean).join(" ")}
-      aria-label="AKS home"
+      aria-label="AKS-Atelier home"
     >
       <AksLogoImage size={size} priority={priority} />
     </Link>
@@ -82,7 +81,7 @@ export function AksStoreBrandLink({
     <Link
       href={href as "/"}
       className={["brand", className].filter(Boolean).join(" ")}
-      aria-label="AKS home"
+      aria-label="AKS-Atelier home"
     >
       <AksBrandLogo className="brand-logo" variant="header" />
     </Link>

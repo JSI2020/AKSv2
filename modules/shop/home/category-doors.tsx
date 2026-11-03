@@ -9,7 +9,7 @@ import {
   ImageSlotPlaceholder,
   type SilhouetteId,
 } from "./silhouette-svg";
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 /** Distinct tones so empty doors never collapse to the same pale wash. */
 const DOOR_META: Record<
@@ -97,12 +97,12 @@ export function CategoryDoors({
               />
               {door.imageUrl ? (
                 <div className="imgslot cat-photo" style={{ position: "absolute", inset: 0 }}>
-                  <Image
+                  <ShopImage
                     src={door.imageUrl}
-                    alt=""
+                    alt={door.displayName}
                     fill
+                    sizes="(max-width: 900px) 50vw, 25vw"
                     className="object-cover"
-                    unoptimized
                   />
                 </div>
               ) : null}

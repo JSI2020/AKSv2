@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 
 import type { DesignColourwayPublic } from "./types";
 
@@ -46,13 +46,12 @@ export function DesignColourwayPicker({
               }
             >
               {cw.swatch?.url ? (
-                <Image
+                <ShopImage
                   src={cw.swatch.url}
                   alt=""
                   fill
                   sizes="34px"
                   className="object-cover"
-                  unoptimized
                 />
               ) : !cw.hexApproximation ? (
                 <span

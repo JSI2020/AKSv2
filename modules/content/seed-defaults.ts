@@ -335,12 +335,12 @@ export async function seedContentDefaults(): Promise<void> {
     {
       slug: "size-guide",
       title: "Size & fit guide – intro copy",
-      body: "How we fit – standard house sizes XS–XL. Edit this intro in Content → Pages.",
+      body: "How we fit – standard house sizes XS–XXL. Edit this intro in Content → Pages.",
     },
     {
       slug: "faq",
       title: "FAQ",
-      body: "Soft launch is ready-to-wear in house sizes XS–XL.\n\nCash on delivery: pay the full amount when your order arrives.\n\nWe ship within Pakistan; shipping is free on soft-launch orders. Lead time is set per design (and in storefront settings).\n\nTrack your order with the email you gave at checkout.",
+      body: "Soft launch is ready-to-wear in house sizes XS–XXL.\n\nCash on delivery: pay the full amount when your order arrives.\n\nWe ship within Pakistan; shipping is free on soft-launch orders. Lead time is set per design (and in storefront settings).\n\nTrack your order with the email you gave at checkout.",
     },
     {
       slug: "shipping-returns",

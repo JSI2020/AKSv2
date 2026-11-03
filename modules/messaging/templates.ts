@@ -166,7 +166,7 @@ If anything isn't right, just reply on WhatsApp — we're here to help.`,
     key: "order.completed",
     locale: "en",
     subject: "Thank you — {{orderNumber}}",
-    body: `Order {{orderNumber}} is complete. Thank you for choosing AKS Atelier, {{customerName}}.
+    body: `Order {{orderNumber}} is complete. Thank you for choosing AKS-Atelier, {{customerName}}.
 
 We'd love to see how you style it — tag us when you wear it.`,
   },
@@ -207,7 +207,7 @@ Track your order here: {{trackUrl}}`,
   {
     key: "track.otp",
     locale: "en",
-    subject: "Your AKS Atelier tracking code",
+    subject: "Your AKS-Atelier tracking code",
     body: `Your tracking code for order {{orderNumber}} is {{code}}.
 
 It expires in 10 minutes.`,

@@ -1,4 +1,12 @@
 import { auth } from "@/auth";
+import { pageMetadata } from "@/modules/seo/metadata";
+
+export const metadata = pageMetadata({
+  title: "Checkout",
+  description: "Checkout at AKS-Atelier.",
+  path: "/checkout",
+  noindex: true,
+});
 import { getOrSetAnonToken } from "@/modules/measure/anon-cookie";
 import { loadActiveCart } from "@/modules/cart/queries";
 import { CheckoutFlow, getCheckoutCodStatus, getCheckoutShippingQuote } from "@/modules/checkout";

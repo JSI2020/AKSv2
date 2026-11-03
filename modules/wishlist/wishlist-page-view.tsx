@@ -1,6 +1,7 @@
 "use client";
 
 import { Link } from "@/i18n/routing";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 import { formatMoney } from "@/modules/ui/money/money";
 
 import { removeWish, useWishlist } from "./store";
@@ -48,11 +49,12 @@ export function WishlistPageView() {
               <Link href={`/designs/${it.slug}` as "/"} className="block">
                 <div className="relative aspect-[3/4] overflow-hidden bg-greige">
                   {it.thumbnailUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <ShopImage
                       src={it.thumbnailUrl}
                       alt={it.name}
-                      className="h-full w-full object-cover"
+                      fill
+                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                      className="object-cover"
                     />
                   ) : null}
                 </div>

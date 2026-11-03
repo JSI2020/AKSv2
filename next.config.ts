@@ -20,6 +20,33 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  images: {
+    formats: ["image/avif", "image/webp"],
+    // Fallback if a same-origin asset URL is still absolute. Storefront
+    // images are rewritten to root-relative paths before the optimizer.
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "www.aks-atelier.com",
+        pathname: "/api/assets/**",
+      },
+      {
+        protocol: "https",
+        hostname: "aks-atelier.com",
+        pathname: "/api/assets/**",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+        pathname: "/api/assets/**",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+        pathname: "/api/assets/**",
+      },
+    ],
+  },
   // Don't advertise the framework.
   poweredByHeader: false,
   // Required for the multi-stage Dockerfile (`.next/standalone`).

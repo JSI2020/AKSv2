@@ -1,3 +1,4 @@
+import { ShopImage } from "@/modules/shop/media/shop-image";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 
 import type { FabricLibraryRow } from "./queries";
@@ -38,11 +39,12 @@ export function FabricsPageView({ fabrics, copy }: Props) {
                 <article className="flex h-full flex-col p-6 md:p-8">
                   <div className="relative mb-5 aspect-square overflow-hidden bg-greige-deep/30">
                     {fabric.swatchUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <ShopImage
                         src={fabric.swatchUrl}
-                        alt=""
-                        className="size-full object-cover"
+                        alt={fabric.name}
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                        className="object-cover"
                       />
                     ) : (
                       <div className="flex size-full items-center justify-center text-[12px] uppercase tracking-[0.08em] text-ink/35">

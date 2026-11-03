@@ -156,7 +156,7 @@ export async function createPublishedCatalogueDesign(
     leadTimeDaysOverride: input.leadTimeDaysOverride ?? null,
     featured: Boolean(input.featured),
     publishedAt: null,
-    seoTitle: input.seoTitle ?? `${input.name} | AKS`,
+    seoTitle: input.seoTitle ?? `${input.name} | AKS-Atelier`,
     seoDescription: input.seoDescription ?? input.storyCopy.slice(0, 140),
   });
 

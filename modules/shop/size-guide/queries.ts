@@ -130,7 +130,7 @@ export async function listSizeGuideCharts(): Promise<SizeGuideChartPublic[]> {
     });
   }
 
-  // Prefer house wearable charts (XS–XL). Drop one-size fabric/accessory
+  // Prefer house wearable charts (XS–XXL). Drop one-size fabric/accessory
   // placeholders when real size charts are present.
   const wearable = charts.filter(
     (c) =>

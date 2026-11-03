@@ -89,7 +89,7 @@ async function main() {
     "@/modules/inventory/rtw-stock"
   );
 
-  const fallbackSizeLabels = STANDARD_SIZE_LABELS.filter((l) => l !== "XXL");
+  const fallbackSizeLabels = [...STANDARD_SIZE_LABELS];
 
   console.log("\n=== Demo design pipeline (50 looks, admin-equivalent) ===\n");
 
@@ -264,7 +264,7 @@ async function main() {
     const row = await createPublishedCatalogueDesign({
       slug,
       name,
-      description: `${name} — standard sizes XS–XL. ${look.story}`,
+      description: `${name} — standard sizes XS–XXL. ${look.story}`,
       storyCopy: look.story,
       garmentTypeId: categoryId,
       components: [look.category],

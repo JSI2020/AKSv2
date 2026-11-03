@@ -1,12 +1,20 @@
 import { setRequestLocale } from "next-intl/server";
 import { getTranslations } from "next-intl/server";
 
+import { pageMetadata } from "@/modules/seo/metadata";
 import { FabricsPageView } from "@/modules/shop/fabrics/fabrics-page";
 import { listStorefrontFabrics } from "@/modules/shop/fabrics/queries";
 
 type Props = {
   params: Promise<{ locale: string }>;
 };
+
+export const metadata = pageMetadata({
+  title: "Fabrics",
+  description:
+    "Natural cloth at AKS-Atelier — matte fibres chosen for drape and how they age. Quiet luxury, East meets West.",
+  path: "/fabrics",
+});
 
 export default async function FabricsPage({ params }: Props) {
   const { locale } = await params;

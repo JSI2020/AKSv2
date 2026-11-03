@@ -1,5 +1,13 @@
+import { pageMetadata } from "@/modules/seo/metadata";
 import { ShopPageContainer } from "@/modules/shop/shell/page-container";
 import { TrackLookupForm } from "@/modules/orders/tracking/track-lookup-form";
+
+export const metadata = pageMetadata({
+  title: "Track your order",
+  description:
+    "Track an AKS-Atelier order with the order number and the email or phone from checkout.",
+  path: "/track",
+});
 
 export default function TrackLookupPage() {
   return (

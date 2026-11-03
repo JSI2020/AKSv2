@@ -67,7 +67,7 @@ export function StudioManualForm({ options }: { options: StudioFormOptions }) {
     options.occasionTags[0] ?? "",
   );
   const [selectedSizes, setSelectedSizes] = useState<string[]>([
-    ...options.sizeLabels.filter((l) => l !== "XXL"),
+    ...options.sizeLabels,
   ]);
   const [madeToMeasureOffered, setMadeToMeasureOffered] = useState(true);
   const [houseModelIds, setHouseModelIds] = useState<string[]>([]);

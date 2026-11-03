@@ -1,13 +1,16 @@
-import type { Metadata } from "next";
 import { setRequestLocale } from "next-intl/server";
 
 import { Link } from "@/i18n/routing";
 import { readDeletionReceipt } from "@/modules/legal/meta-deletion";
 import type { DeletionOutcome } from "@/modules/legal/meta-deletion";
+import { pageMetadata } from "@/modules/seo/metadata";
 
-export const metadata: Metadata = {
-  title: "Deletion status — AKS",
-};
+export const metadata = pageMetadata({
+  title: "Deletion status",
+  description: "Status of a data-deletion request sent to AKS-Atelier.",
+  path: "/data-deletion/status",
+  noindex: true,
+});
 
 type Props = {
   params: Promise<{ locale: string }>;
@@ -17,7 +20,7 @@ type Props = {
 const MESSAGES: Record<DeletionOutcome, string> = {
   erased:
     "We have removed the account data for this request. The order copy described in the privacy policy is still kept.",
-  none: "This request did not match an AKS account. No profile was held under that sign-in id.",
+  none: "This request did not match an AKS-Atelier account. No profile was held under that sign-in id.",
   kept: "This request matched a staff login. This callback does not remove staff logins.",
 };
 

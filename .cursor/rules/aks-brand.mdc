@@ -23,7 +23,7 @@ Source of truth:
 
 ## Product & merchandising
 - Prefer tight on-brand editions over noisy catalogues.
-- Design as complete looks. Soft launch is **ready-to-wear only** (XS–XL) — see `docs/decisions/ADR-0015-rtw-launch.md`. No made-to-measure / custom-measurement path in customer flows until a future ADR.
+- Design as complete looks. Soft launch is **ready-to-wear only** (XS–XXL). No made-to-measure / custom-measurement path in customer flows until a future ADR. ADR-0015 recorded the earlier XS–XL window.
 - Do not add embellishment options to close a sale.
 - Motion/drape imagery over flat-lay-first selling.
 - Pakistan-first shipping until Phase 4 explicitly expands.

@@ -31,7 +31,7 @@ async function main() {
     const labels =
       row.availableSizeLabels?.length > 0
         ? row.availableSizeLabels
-        : STANDARD_SIZE_LABELS.filter((l) => l !== "XXL");
+        : [...STANDARD_SIZE_LABELS];
 
     const created = await db.transaction(async (tx) =>
       seedRtwStockForDesign(tx, row.id, labels),

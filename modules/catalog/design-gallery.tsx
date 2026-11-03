@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import { ShopImage } from "@/modules/shop/media/shop-image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { GalleryAngle, ResolvedGalleryImages } from "./types";
@@ -114,20 +114,19 @@ export function DesignGallery({
       >
         {activeFabric?.url ? (
           <div className="layer" style={{ opacity: 1 }}>
-            <Image
+            <ShopImage
               key={activeFabric.url}
               src={activeFabric.url}
               alt={activeFabric.altText || `${designName} — fabric`}
               fill
               sizes="(max-width: 768px) 100vw, 55vw"
               className="object-cover"
-              unoptimized
             />
           </div>
         ) : (
           <div className="layer" style={{ opacity: 1 }}>
             {images[shownAngle]?.url ? (
-              <Image
+              <ShopImage
                 key={`${shownAngle}-${images[shownAngle]!.url}`}
                 src={images[shownAngle]!.url!}
                 alt={
@@ -138,7 +137,6 @@ export function DesignGallery({
                 sizes="(max-width: 768px) 100vw, 55vw"
                 className="object-cover"
                 priority={shownAngle === "FRONT"}
-                unoptimized
               />
             ) : (
               <ImageSlotPlaceholder silhouette={sil} />
@@ -179,13 +177,12 @@ export function DesignGallery({
                 }}
               >
                 {img?.url ? (
-                  <Image
+                  <ShopImage
                     src={img.url}
                     alt=""
                     fill
                     sizes="120px"
                     className="object-cover"
-                    unoptimized
                   />
                 ) : (
                   <ImageSlotPlaceholder
@@ -208,13 +205,12 @@ export function DesignGallery({
                 onClick={() => setFabricIdx(idx)}
               >
                 {photo.url ? (
-                  <Image
+                  <ShopImage
                     src={photo.url}
                     alt=""
                     fill
                     sizes="120px"
                     className="object-cover"
-                    unoptimized
                   />
                 ) : (
                   <ImageSlotPlaceholder
